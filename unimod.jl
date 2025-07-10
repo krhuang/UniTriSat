@@ -8,6 +8,9 @@ using PicoSAT # Use the dedicated PicoSAT solver
 
 Finds all 4-tuples of points in P that form a unimodular simplex.
 """
+
+S = []
+
 function all_unimodular_simplices_in(P::Matrix{Int})
     n = size(P, 1)
     simplices = []
@@ -130,14 +133,38 @@ function _get_outward_face_normals(vertices::Matrix)
     return normals
 end
 
+function satsolve(cnf, expected_volume)
+    ### PicoSAT SOLVER SECTION ###
 
-"""
-    main()
+    # 1. Solve the problem by passing the CNF list directly to PicoSAT.solve
+    solution = PicoSAT.solve(cnf)
 
-Main function to set up the problem, generate clauses, and find a triangulation.
-"""
-function main()
-    a, b, c = 2, 2, 2 # Dimensions of the cube for testing
+    # 2. Check the result
+    if solution isa Vector{Int}
+        println("✅ A satisfying assignment was found!")
+        
+        # The solution vector contains the literals that are true.
+        # We find the positive literals to identify chosen simplices.
+        chosen_indices = findall(l -> l > 0, solution)
+
+        # Post-solution check to see if it matches the volume of the test cube.
+        println("\nNumber of simplices in solution: $(length(chosen_indices))")
+        println("Expected number for a full triangulation of the cube: $expected_volume")
+        
+        @assert length(chosen_indices) == expected_volume "The solution found does not form a valid triangulation of the cube."
+        println("Assertion successful: The solution size matches the expected volume for a triangulation! 🥳")
+        
+        println("\nDisplaying simplices for the valid triangulation:")
+        for idx in chosen_indices
+            display(S[idx])
+        end
+    else
+        println("❌ UNSATISFIABLE: No solution was found. Status: $solution")
+    end
+end
+
+
+function cubeexample(a::Int, b::Int, c::Int) # Dimensions of the cube for testing
 
     # Generate points in the cube
     points_vec = [[x, y, z] for x in 0:a for y in 0:b for z in 0:c]
@@ -147,14 +174,16 @@ function main()
     display(P)
     println("P contains $(size(P, 1)) lattice points\n")
 
-    S = all_unimodular_simplices_in(P)
+    global S = all_unimodular_simplices_in(P)
+    println(typeof(S))
     println("Number of unimodular simplices found: $(length(S))")
 
     num_simplices = length(S)
     cnf = Vector{Vector{Int}}()
 
-    push!(cnf, collect(1:num_simplices))
+    push!(cnf, collect(1:num_simplices)) # Having at least one simplex
 
+    println("Generating intersection clauses...")
     num_intersection_clauses = 0
     for i1 in 1:num_simplices, i2 in (i1+1):num_simplices
         if tetrahedra_intersect_volume(S[i1], S[i2])
@@ -176,34 +205,26 @@ function main()
     println("Total number of clauses: $(length(cnf))\n")
     println("Start solving with PicoSAT...\n")
 
-    ### PicoSAT SOLVER SECTION ###
+    satsolve(cnf, 6*a*b*c)
+end
+"""
+    main()
 
-    # 1. Solve the problem by passing the CNF list directly to PicoSAT.solve
-    solution = PicoSAT.solve(cnf)
+Main function to set up the problem, generate clauses, and find a triangulation.
+"""
 
-    # 2. Check the result
-    if solution isa Vector{Int}
-        println("✅ A satisfying assignment was found!")
-        
-        # The solution vector contains the literals that are true.
-        # We find the positive literals to identify chosen simplices.
-        chosen_indices = findall(l -> l > 0, solution)
+function get_lattice_points(P)
 
-        # Post-solution check to see if it matches the volume of the test cube.
-        expected_volume = 6 * a * b * c
-        println("\nNumber of simplices in solution: $(length(chosen_indices))")
-        println("Expected number for a full triangulation of the cube: $expected_volume")
-        
-        @assert length(chosen_indices) == expected_volume "The solution found does not form a valid triangulation of the cube."
-        println("Assertion successful: The solution size matches the expected volume for a triangulation! 🥳")
-        
-        println("\nDisplaying simplices for the valid triangulation:")
-        for idx in chosen_indices
-            display(S[idx])
-        end
-    else
-        println("❌ UNSATISFIABLE: No solution was found. Status: $solution")
-    end
+end 
+
+function main()
+    # Testing on the cube, with prescribed dimensions
+    cubeexample(2, 2, 2)
+
+    input_polytope = [[]] # Lattice vertices of our input lattice polytopes
+    lattice_points = get_lattice_points(input_polytope)
+    cnf = get_cnf(lattice_points)
+    sat_solve(cnf, expected_volume)
 end
 
 # Run the main function
