@@ -1,0 +1,52 @@
+# Test Case 1: The 1x1x1 unit cube.
+# Expected Volume: 1. Expected Simplices: 6.
+0 0 0
+1 0 0
+0 1 0
+0 0 1
+1 1 0
+1 0 1
+0 1 1
+1 1 1
+
+# Test Case 2: The 2x2x1 prism from our previous tests.
+# Expected Volume: 4. Expected Simplices: 24.
+0 0 0
+2 0 0
+0 2 0
+0 0 1
+2 2 0
+2 0 1
+0 2 1
+2 2 1
+
+# Test Case 3: The Reeve Tetrahedron with r=3.
+# This polytope is known to have NO unimodular triangulation.
+# Expected Volume: 3/6. Expected Simplices: 3.
+# The program should find this UNSATISFIABLE.
+0 0 0
+1 0 0
+0 1 0
+1 1 3
+
+# Test Case 4: A 2x1x1 prism.
+# Expected Volume: 2. Expected Simplices: 12.
+0 0 0
+2 0 0
+0 1 0
+0 0 1
+2 1 0
+2 0 1
+0 1 1
+2 1 1
+
+# Test Case 5: The 5x3x3 "cube".
+# Expected Volume: 45. Expected Simplices: 6*45.
+0 0 0
+4 0 0
+0 2 0
+0 0 2
+4 2 0
+4 0 2
+0 2 2
+4 2 2
