@@ -1,0 +1,46 @@
+# Configuration file for the polytope triangulation script.
+
+[files]
+# Path to the file containing the polytope vertices.
+polytopes_file = "kyle_polytopes"
+
+# Optional: Path to a log file. If non-empty, all console output will be written here.
+# Example: "run_log.txt"
+log_file = "GPU_second_full_test"
+
+[run_settings]
+# Which polytopes from the file to process.
+process_range = "-"
+
+# The order in which to process them.
+# Options: "normal", "reversed", "random"
+processing_order = "reversed"
+
+# If true, removes all simplices containing the origin (0,0,0) before solving.
+remove_origin_simplices = false
+
+# The backend for computing tetrahedra intersections.
+# Options: "cpu", "gpu"
+intersection_backend = "gpu"
+
+[output_levels]
+# Output level for the terminal. Options: "verbose", "minimal", "none"
+terminal_output = "minimal"
+
+# Output level for the log file. Options: "verbose", "minimal", "none"
+file_output = "verbose"
+
+[verbose_options]
+# These toggles only apply when an output level is set to "verbose".
+show_initial_vertices = true
+show_solution_simplices = true
+show_timing_summary = true
+
+[solver_options]
+# The SAT solver to use. Currently only "PicoSAT" is supported.
+# (Could be extended in the future to "CaDiCaL", etc.)
+solver = "PicoSAT"
+
+[parameters]
+# Floating-point tolerance for geometric calculations.
+geometry_tolerance = 1.0e-12
