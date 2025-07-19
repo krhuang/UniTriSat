@@ -1,0 +1,416 @@
+Initial vertices provided:
+8×3 Matrix{Int64}:
+ 0  0  0
+ 0  1  0
+ 8  0  0
+ 4  2  0
+ 1  2  0
+ 0  0  1
+ 8  0  2
+ 1  0  2
+Found 43 lattice points in the hull.
+
+Number of unimodular simplices found: 13729
+Using 13729 simplices for SAT problem.
+
+[10:20:34] Precomputing open faces...
+Found 7902 unique open faces.
+
+[10:20:34] Generating intersection clauses using GPU backend...
+Number of intersection clauses: 41121339
+[10:20:39] Generating face-covering clauses...
+Number of face-covering clauses: 45052
+Total number of clauses: 41166392
+
+[10:20:39] Start solving with PicoSAT...
+
+A satisfying assignment was found!
+
+Number of simplices in solution: 75
+Expected number for a full triangulation: 75
+Assertion successful: The solution size matches the expected volume.
+
+Displaying simplices for the valid triangulation:
+4×3 Matrix{Int64}:
+ 0  0  0
+ 1  0  0
+ 2  1  0
+ 0  0  1
+4×3 Matrix{Int64}:
+ 0  0  0
+ 0  1  0
+ 1  2  0
+ 1  1  1
+4×3 Matrix{Int64}:
+ 0  0  0
+ 0  1  0
+ 0  0  1
+ 1  1  1
+4×3 Matrix{Int64}:
+ 0  0  0
+ 1  1  0
+ 1  2  0
+ 1  1  1
+4×3 Matrix{Int64}:
+ 0  0  0
+ 1  1  0
+ 3  2  0
+ 1  1  1
+4×3 Matrix{Int64}:
+ 0  0  0
+ 2  1  0
+ 3  2  0
+ 1  1  1
+4×3 Matrix{Int64}:
+ 0  0  0
+ 2  1  0
+ 0  0  1
+ 1  1  1
+4×3 Matrix{Int64}:
+ 1  0  0
+ 2  0  0
+ 2  1  0
+ 0  0  1
+4×3 Matrix{Int64}:
+ 2  0  0
+ 3  0  0
+ 2  1  0
+ 0  0  1
+4×3 Matrix{Int64}:
+ 3  0  0
+ 4  0  0
+ 2  1  0
+ 0  0  1
+4×3 Matrix{Int64}:
+ 4  0  0
+ 5  0  0
+ 2  1  0
+ 0  0  1
+4×3 Matrix{Int64}:
+ 5  0  0
+ 6  0  0
+ 2  1  0
+ 0  0  1
+4×3 Matrix{Int64}:
+ 6  0  0
+ 7  0  0
+ 2  1  0
+ 0  0  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 8  0  0
+ 5  1  0
+ 6  0  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 2  1  0
+ 3  1  0
+ 5  0  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 2  1  0
+ 0  0  1
+ 1  0  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 2  1  0
+ 1  0  1
+ 2  0  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 2  1  0
+ 2  0  1
+ 3  0  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 2  1  0
+ 3  0  1
+ 4  0  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 2  1  0
+ 4  0  1
+ 2  0  2
+4×3 Matrix{Int64}:
+ 7  0  0
+ 2  1  0
+ 5  0  1
+ 2  0  2
+4×3 Matrix{Int64}:
+ 7  0  0
+ 3  1  0
+ 4  1  0
+ 5  0  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 4  1  0
+ 5  1  0
+ 3  1  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 4  1  0
+ 5  0  1
+ 4  0  2
+4×3 Matrix{Int64}:
+ 7  0  0
+ 4  1  0
+ 3  1  1
+ 4  0  2
+4×3 Matrix{Int64}:
+ 7  0  0
+ 5  1  0
+ 6  0  1
+ 3  1  1
+4×3 Matrix{Int64}:
+ 7  0  0
+ 6  0  1
+ 3  1  1
+ 4  0  2
+4×3 Matrix{Int64}:
+ 8  0  0
+ 5  1  0
+ 6  1  0
+ 6  1  1
+4×3 Matrix{Int64}:
+ 8  0  0
+ 5  1  0
+ 6  0  1
+ 7  0  1
+4×3 Matrix{Int64}:
+ 8  0  0
+ 5  1  0
+ 7  0  1
+ 8  0  1
+4×3 Matrix{Int64}:
+ 8  0  0
+ 5  1  0
+ 8  0  1
+ 6  1  1
+4×3 Matrix{Int64}:
+ 1  1  0
+ 1  2  0
+ 2  2  0
+ 1  1  1
+4×3 Matrix{Int64}:
+ 1  1  0
+ 2  2  0
+ 3  2  0
+ 1  1  1
+4×3 Matrix{Int64}:
+ 2  1  0
+ 3  1  0
+ 4  2  0
+ 3  1  1
+4×3 Matrix{Int64}:
+ 2  1  0
+ 3  1  0
+ 5  0  1
+ 3  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 3  1  0
+ 3  1  1
+ 3  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 3  2  0
+ 4  2  0
+ 3  1  1
+4×3 Matrix{Int64}:
+ 2  1  0
+ 3  2  0
+ 1  1  1
+ 2  1  1
+4×3 Matrix{Int64}:
+ 2  1  0
+ 3  2  0
+ 2  1  1
+ 3  1  1
+4×3 Matrix{Int64}:
+ 2  1  0
+ 0  0  1
+ 1  0  1
+ 2  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 0  0  1
+ 1  1  1
+ 2  1  1
+4×3 Matrix{Int64}:
+ 2  1  0
+ 0  0  1
+ 2  1  1
+ 1  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 0  0  1
+ 1  0  2
+ 2  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 1  0  1
+ 2  0  1
+ 2  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 2  0  1
+ 3  0  1
+ 2  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 3  0  1
+ 4  0  1
+ 2  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 5  0  1
+ 2  0  2
+ 3  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 2  1  1
+ 3  1  1
+ 3  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 2  1  1
+ 1  0  2
+ 2  0  2
+4×3 Matrix{Int64}:
+ 2  1  0
+ 2  1  1
+ 2  0  2
+ 3  0  2
+4×3 Matrix{Int64}:
+ 3  1  0
+ 4  1  0
+ 4  2  0
+ 3  1  1
+4×3 Matrix{Int64}:
+ 3  1  0
+ 4  1  0
+ 5  0  1
+ 3  0  2
+4×3 Matrix{Int64}:
+ 3  1  0
+ 4  1  0
+ 3  1  1
+ 3  0  2
+4×3 Matrix{Int64}:
+ 4  1  0
+ 5  1  0
+ 4  2  0
+ 3  1  1
+4×3 Matrix{Int64}:
+ 4  1  0
+ 5  0  1
+ 3  0  2
+ 4  0  2
+4×3 Matrix{Int64}:
+ 4  1  0
+ 3  1  1
+ 3  0  2
+ 4  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  1  0
+ 4  2  0
+ 6  1  1
+4×3 Matrix{Int64}:
+ 5  1  0
+ 4  2  0
+ 3  1  1
+ 4  1  1
+4×3 Matrix{Int64}:
+ 5  1  0
+ 4  2  0
+ 4  1  1
+ 5  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 4  2  0
+ 5  1  1
+ 6  1  1
+4×3 Matrix{Int64}:
+ 5  1  0
+ 4  2  0
+ 5  1  1
+ 5  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  0  1
+ 7  0  1
+ 8  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  0  1
+ 3  1  1
+ 5  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  0  1
+ 5  0  2
+ 6  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  0  1
+ 6  0  2
+ 7  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  0  1
+ 7  0  2
+ 8  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 7  0  1
+ 8  0  1
+ 8  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 8  0  1
+ 6  1  1
+ 8  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 3  1  1
+ 4  1  1
+ 5  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 5  1  1
+ 6  1  1
+ 5  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  1  1
+ 5  0  2
+ 6  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  1  1
+ 6  0  2
+ 7  0  2
+4×3 Matrix{Int64}:
+ 5  1  0
+ 6  1  1
+ 7  0  2
+ 8  0  2
+4×3 Matrix{Int64}:
+ 0  0  1
+ 1  1  1
+ 2  1  1
+ 1  0  2
+4×3 Matrix{Int64}:
+ 6  0  1
+ 3  1  1
+ 4  0  2
+ 5  0  2
+
+--- Timing & Memory Summary for Polytope #2163 ---
+Find all lattice points                      : 0.0023 seconds
+Find all unimodular simplices                : 0.0575 seconds
+Precompute open faces (parallel)             : 0.7151 seconds
+Generate intersection clauses (GPU)          : 4.4379 seconds
+Generate face-covering clauses (parallel)    : 0.2289 seconds
+Solve SAT problem (PicoSAT)                  : 3.0339 second
