@@ -19,6 +19,7 @@ struct Config
     process_range::String
     processing_order::String
     intersection_backend::String
+    gpu_type::String
     remove_origin_simplices::Bool
     terminal_output::String
     file_output::String
@@ -53,9 +54,18 @@ function load_config(filepath::String)
         @warn "Invalid 'intersection_backend' value: '$(backend)'. Defaulting to 'cpu'."
         backend = "cpu"
     end
-    if backend == "gpu" && !CUDA.functional()
-        @warn "CUDA is not available on this system. Falling back to 'cpu' backend."
-        backend = "cpu"
+
+    gpu_type = get(run_settings, "gpu_type", "cuda")
+    if backend == "gpu"
+        if gpu_type ∉ ["cuda", "opencl", "oneapi", "amd"]
+            @warn "Invalid 'gpu_type' value: '$(gpu_type)'. Defaulting to 'cuda'."
+            gpu_type = "cuda"
+        end
+
+        if gpu_type == "cuda" && !CUDA.functional()
+            @warn "CUDA is not available on this system. Falling back to 'cpu' backend."
+            backend = "cpu"
+        end
     end
 
     return Config(
@@ -64,6 +74,7 @@ function load_config(filepath::String)
         get(run_settings, "process_range", "1-"),
         get(run_settings, "processing_order", "normal"),
         backend,
+        gpu_type,   # NEW
         get(run_settings, "remove_origin_simplices", false),
         get(output_levels, "terminal_output", "verbose"),
         get(output_levels, "file_output", "verbose"),
@@ -309,7 +320,7 @@ end
 """
 Main function to orchestrate the GPU-based intersection testing.
 """
-function get_intersecting_pairs_gpu(P::Matrix{Int}, S_indices::Vector{NTuple{4, Int}})
+function get_intersecting_pairs_cuda(P::Matrix{Int}, S_indices::Vector{NTuple{4, Int}})
     num_simplices = length(S_indices)
     if num_simplices < 2
         return Vector{Vector{Int}}()
@@ -460,8 +471,20 @@ function process_polytope(initial_vertices::Matrix{Int}, id::Int, config::Config
 
     intersection_clauses = Vector{Vector{Int}}()
     if config.intersection_backend == "gpu"
-        intersection_clauses = get_intersecting_pairs_gpu(P, S_indices)
-        push!(timings, "Generate intersection clauses (GPU)" => (time_ns() - t_start) / 1e9)
+        if config.gpu_type == "cuda" 
+            intersection_clauses = get_intersecting_pairs_cuda(P, S_indices)
+            push!(timings, "Generate intersection clauses (CUDA)" => (time_ns() - t_start) / 1e9)
+
+        elseif config.gpu_type == "opencl"
+            error("OpenCL backend not implemented yet. Please implement get_intersecting_pairs_opencl().")
+
+        elseif config.gpu_type == "oneapi"
+            error("oneAPI backend not implemented yet. Please implement get_intersecting_pairs_oneapi().")
+
+        elseif config.gpu_type == "amd"
+            error("AMDGPU backend not implemented yet. Please implement get_intersecting_pairs_amd().")
+        end
+        
     else # "cpu"
         thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
         next_i1 = Threads.Atomic{Int}(1)
