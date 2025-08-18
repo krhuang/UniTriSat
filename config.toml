@@ -2,7 +2,7 @@
 
 [files]
 # Path to the file containing the polytope vertices.
-polytopes_file = "kyle_polytopes"
+polytopes_file = "smooth3polytopes_50processed"
 
 # Optional: Path to a log file. If non-empty, all console output will be written here.
 # Example: "run_log.txt"
@@ -22,6 +22,10 @@ remove_origin_simplices = false
 # The backend for computing tetrahedra intersections.
 # Options: "cpu", "gpu"
 intersection_backend = "gpu"
+
+# GPU backend type when using a gpu
+# Options: "cuda", "oneapi", "opencl", "amd"
+gpu_type = "cuda"
 
 [output_levels]
 # Output level for the terminal. Options: "verbose", "minimal", "none"

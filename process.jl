@@ -38,7 +38,7 @@ function process_file(input_path::String, output_path::String)
     end
 end
 
-const input = "kyle_polytopes_raw"
-const output = "kyle_polytopes"
+const input = "smooth3polytopes_50"
+const output = "smooth3polytopes_50processed"
 process_file(input, output)
 
