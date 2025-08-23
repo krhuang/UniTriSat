@@ -342,7 +342,9 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
         msg = "no $simplex_search_type simplices exist"
-        minimal_log = @sprintf("(%5d / %-5d) #%d: |P|=%-5d |S|=%-7d -> \u001b[31m%s\u001b[0m", run_idx, total_in_run, id, num_lattice_points, num_simplices_found, msg)
+        # --- CHANGE #1 START: Removed ID from this line ---
+        minimal_log = @sprintf("(%5d / %-5d): |P|=%-5d |S|=%-7d -> \u001b[31m%s\u001b[0m", run_idx, total_in_run, num_lattice_points, num_simplices_found, msg)
+        # --- CHANGE #1 END ---
         verbose_log = String(take!(buf)) * "\nNo simplices available. Cannot proceed."
         if config.terminal_output == "verbose"
             println(stdout, verbose_log)
@@ -459,15 +461,9 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                 origin_4d = facet_triangulation_4D[1][1,:]; basis_3d = get_orthonormal_basis(plane.a)
                 projected_simplices = Vector{Matrix{Int}}()
                 for s in facet_triangulation_4D
-                    # A simplex 's' has 5 vertices. We filter to get the 4 that form the face on the boundary plane.
                     face_vertices_on_plane = filter(v -> iszero(dot(plane.a, v) - plane.β), eachrow(s))
-
-                    # A tetrahedron must have exactly 4 vertices.
                     if length(face_vertices_on_plane) == 4
-                        # Project these 4 vertices from 4D space into the 3D basis of the facet.
                         projected_verts_3d = [round.(Int, [dot(v - origin_4d, b) for b in basis_3d]) for v in face_vertices_on_plane]
-
-                        # Assemble the 4 projected vertices into a 4x3 matrix and add it to our list for plotting.
                         push!(projected_simplices, vcat(projected_verts_3d'...))
                     end
                 end
@@ -485,7 +481,9 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         log_verbose(String(take!(summary_buf)))
     end
     result_str = num_solutions > 0 ? @sprintf("\u001b[32mfound %d solution(s)\u001b[0m in %.2f s", num_solutions, total_time) : @sprintf("\u001b[31mno solution exists\u001b[0m, searched for %.2f s", total_time)
-    minimal_log = @sprintf("(%5d / %-5d) #%d: |P|=%-5d |S|=%-7d -> %s", run_idx, total_in_run, id, num_lattice_points, num_simplices_found, result_str)
+    # --- CHANGE #2 START: Removed ID from this line ---
+    minimal_log = @sprintf("(%5d / %-5d): |P|=%-5d |S|=%-7d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices_found, result_str)
+    # --- CHANGE #2 END ---
     
     return ProcessResult(id, num_solutions, total_time, num_lattice_points, num_simplices_found, String(take!(buf)), minimal_log, first_solution_simplices)
 end
@@ -496,6 +494,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
     # --- New Sorting Logic ---
     if config.sort_by in ["P", "S"]
         println("Pre-calculating metrics for sorting by '$(config.sort_by)'...")
+        
         metrics = []
         total = length(indices_to_process)
         for (i, p_idx) in enumerate(indices_to_process)
@@ -542,6 +541,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
         println("")
     end
     
+    if config.terminal_output == "minimal" && config.terminal_mode == "single-line"
+        println("\n\n\n") # Reserve 4 lines: 3 for summary, 1 for progress
+    end
+    
     t_start_run = time(); total_solutions_found = 0; triangulations_found_count = 0; non_triangulatable_count = 0
 
     for (i, p_idx) in enumerate(indices_to_process)
@@ -550,8 +553,25 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
         total_solutions_found += result.num_solutions_found
         
         if config.terminal_output == "minimal"
-            update_line(result.minimal_log)
-            if config.terminal_mode == "multi-line"; println(stdout); end
+            if config.terminal_mode == "single-line"
+                elapsed_time = time() - t_start_run
+
+                # Move cursor to the top of the summary block (from the 4th line to the 1st)
+                print(stdout, "\u001b[3A") # Move cursor up 3 lines
+
+                # Print summary lines, clearing each line to prevent artifacts
+                @printf(stdout, "\r%-40s %.2fs\u001b[K\n", "Elapsed Time:", elapsed_time)
+                # --- CHANGE START: Add color codes around the numbers ---
+                @printf(stdout, "\r%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Polytopes with Solutions:", triangulations_found_count)
+                @printf(stdout, "\r%-40s \u001b[31m%d\u001b[0m\u001b[K\n", "Non-Triangulatable:", non_triangulatable_count)
+                # --- CHANGE END ---
+
+                # Print the final result for the completed polytope on the 4th line
+                print(stdout, "\r" * result.minimal_log * "\u001b[K")
+                flush(stdout)
+            else # This handles the "multi-line" case
+                println(stdout, result.minimal_log)
+            end
         end
 
         if !isnothing(log_stream)

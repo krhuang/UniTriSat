@@ -1,0 +1,32 @@
+
+[files]
+polytopes_file = "small-lattice-polytopes/data/4-polytopes/v24.txt"
+log_file = ""
+
+[run_settings]
+process_range = "-"
+processing_order = "normal"			# Options: "normal", "reversed", "random"
+
+sort_by = "none"				# "none": Use the order from the file. "P": Sort by the number of lattice points, ascending. "S": Sort by the number of simplices, ascending.
+remove_origin_simplices = false
+find_all_simplices = false			# If false, it is restricted to only unimodular simplices. If true, the search includes all non-degenerate simplices.
+intersection_backend = "gpu"			#cpu or gpu
+
+[output_levels]
+terminal_output = "minimal" 			# Output level for the terminal. Options: "verbose", "minimal", "none"
+terminal_mode = "single-line"			# Terminal output mode. "multi-line" prints a new line for each polytope. "single-line" updates a single line in place (terminal only).
+file_output = "none"				# Output level for the log file. Options: "verbose", "minimal", "none"
+solution_reporting = "first"    # "first": Stop after finding one solution. "all": Find all possible solutions.  "count_only": Efficiently count all solutions without storing them.
+
+[verbose_options]
+# These toggles only apply when an output level is set to "verbose".
+show_initial_vertices = true
+show_solution_simplices = true 			# If solution_reporting="all", this shows all solutions.
+show_timing_summary = true
+
+[solver_options]
+solver = "PicoSAT"				# The SAT solver to use. PicoSAT or CryptoMiniSat, PicoSAT is default
+
+[plotting]
+plotter_script = "plot_triangulation.py"	# The python script to execute for plotting a triangulation.
+plot_range = ""

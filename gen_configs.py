@@ -11,7 +11,7 @@ log_file = ""
 process_range = "-"
 processing_order = "normal"			# Options: "normal", "reversed", "random"
 
-sort_by = "none"				# "none": Use the order from the file. "P": Sort by the number of lattice points, ascending. "S": Sort by the number of simplices, ascending.
+sort_by = "S"				# "none": Use the order from the file. "P": Sort by the number of lattice points, ascending. "S": Sort by the number of simplices, ascending.
 remove_origin_simplices = false
 find_all_simplices = false			# If false, it is restricted to only unimodular simplices. If true, the search includes all non-degenerate simplices.
 intersection_backend = "gpu"			#cpu or gpu
@@ -41,8 +41,8 @@ def generate_config_files():
     Generates configuration files for a range of polytope vertex files.
     """
     # Define the range of file numbers to generate, from 4 to 33 inclusive.
-    start_num = 4
-    end_num = 33
+    start_num = 22
+    end_num = 24
 
     # Create a directory to store the generated files, if it doesn't exist.
     output_directory = "configs_4d"

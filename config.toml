@@ -1,7 +1,7 @@
 
 [files]
 polytopes_file = "smooth3polytopes_50processed"
-log_file = "full_run_50"
+log_file = "logs/full_run_50"
 
 [run_settings]
 process_range = "-"
