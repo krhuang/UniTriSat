@@ -95,7 +95,6 @@ if __name__ == "__main__":
     triangulation = parse_data_file(input_file)
 
     if triangulation:
-        print(f"Successfully parsed {len(triangulation)} tetrahedra from '{input_file}'. Generating plot...")
         plot_triangulation(triangulation)
     else:
         print(f"Could not generate plot from '{input_file}' due to parsing errors or lack of data.")
