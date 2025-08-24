@@ -1,32 +1,35 @@
-
 [files]
 polytopes_file = "smooth3polytopes_50processed"
-log_file = "logs/full_run_50"
+log_file = ""
 
 [run_settings]
-process_range = "-"
-processing_order = "reversed"			# Options: "normal", "reversed", "random"
-
-sort_by = "P"					# "none": Use the order from the file. "P": Sort by the number of lattice points, ascending. "S": Sort by the number of simplices, ascending.
-remove_origin_simplices = false
-find_all_simplices = false			# If false, it is restricted to only unimodular simplices. If true, the search includes all non-degenerate simplices.
-intersection_backend = "gpu"			#cpu or gpu
+process_range = "1-10 15 20-25"	# A space-separated list of indices and ranges (e.g., "1-5 8 10-"). "-" means all.
+processing_order = "normal"	# Options: "normal", "reversed", "random"
+sort_by = "none"			# "none": Use the order from the file. "P": Sort by # lattice points. "S": Sort by # simplices.
+solve_mode = "first"		# "first": Stop after one solution. "all": Find all solutions. "count_only": Count all solutions.
+find_all_simplices = false	# If true, finds all non-degenerate simplices. If false, only unimodular ones.
+intersection_backend = "gpu_floats"	# Options: "cpu", "gpu_rationals", "gpu_floats"
 
 [output_levels]
-terminal_output = "minimal" 			# Output level for the terminal. Options: "verbose", "minimal", "none"
-terminal_mode = "single-line"			# Terminal output mode. "multi-line" prints a new line for each polytope. "single-line" updates a single line in place (terminal only).
-file_output = "verbose"				# Output level for the log file. Options: "verbose", "minimal", "none"
-solution_reporting = "first"			# "first": Stop after finding one solution. "all": Find all possible solutions.  "count_only": Efficiently count all solutions without storing them.
+# Options for terminal_output:
+# "verbose": Detailed, multi-line output for each step.
+# "multi-line": A minimal summary line is printed for each completed polytope.
+# "single-line": A summary block is updated in-place in the terminal.
+# "none": No output to the terminal.
+terminal_output = "single-line"
+
+# Options for file_output: "verbose", "minimal", "none"
+file_output = "none"
 
 [verbose_options]
 # These toggles only apply when an output level is set to "verbose".
 show_initial_vertices = true
-show_solution_simplices = true 			# If solution_reporting="all", this shows all solutions.
+show_solution_simplices = true
 show_timing_summary = true
 
 [solver_options]
-solver = "PicoSAT"				# The SAT solver to use. PicoSAT or CryptoMiniSat, PicoSAT is default
+solver = "PicoSAT" # The SAT solver to use. PicoSAT or CryptoMiniSat.
 
 [plotting]
-plotter_script = "plot_triangulation.py"	# The python script to execute for plotting a triangulation.
-plot_range = ""
+plotter_script = "plot_triangulation.py"
+plot_range = "" # Same format as process_range. Defines which solutions to plot.
