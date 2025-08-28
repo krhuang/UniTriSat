@@ -13,14 +13,14 @@ def generate_config_file(index):
     # The {index} placeholder will be replaced with the provided number.
     config_content = f'''
 [files]
-polytopes_file = "Polytopes/small_lattice_polytopes/data/3-polytopes/v{index}.txt"
+polytopes_file = "Polytopes/small_lattice_polytopes/data/4-polytopes/v{index}.txt"
 log_file = ""
 
 [run_settings]
 process_range = "-"      # A space-separated list of indices and ranges (e.g., "1-5 8 10-"). "-" means all.
 processing_order = "normal"    # Options: "normal", "reversed", "random"
 sort_by = "none"            # "none": Use the order from the file. "P": Sort by # lattice points. "S": Sort by # simplices.
-solve_mode = "first"         # "first": Stop after one solution. "all": Find all solutions. "count_only": Count all solutions.
+solve_mode = "count_only"         # "first": Stop after one solution. "all": Find all solutions. "count_only": Count all solutions.
 find_all_simplices = false     # If true, finds all non-degenerate simplices. If false, only unimodular ones.
 intersection_backend = "gpu_rationals"    # Options: "cpu", "gpu_rationals", "gpu_floats"
 
@@ -50,7 +50,7 @@ plot_range = "" # Same format as process_range. Defines which solutions to plot.
 '''
 
     # Write the content to the file.
-    file_path = f"3d/v{index}_3d.toml"
+    file_path = f"4d/v{index}_4d_count.toml"
     try:
         with open(file_path, 'w') as f:
             f.write(config_content)
