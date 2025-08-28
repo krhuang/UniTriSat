@@ -18,20 +18,20 @@ try
 catch;
 end
 
-if CUDA_PACKAGES_LOADED[] && isfile("gpu_intersection_3d.jl")
-    include("gpu_intersection_3d.jl")
+if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d.jl")
+    include("Intersection_backends/gpu_intersection_3d.jl")
 end
 
-if CUDA_PACKAGES_LOADED[] && isfile("gpu_intersection_4d.jl")
-    include("gpu_intersection_4d.jl")
+if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d.jl")
+    include("Intersection_backends/gpu_intersection_4d.jl")
 end
 
-if CUDA_PACKAGES_LOADED[] && isfile("gpu_intersection_3d_floats.jl")
-    include("gpu_intersection_3d_floats.jl")
+if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d_floats.jl")
+    include("Intersection_backends/gpu_intersection_3d_floats.jl")
 end
 
-if CUDA_PACKAGES_LOADED[] && isfile("gpu_intersection_4d_floats.jl")
-    include("gpu_intersection_4d_floats.jl")
+if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d_floats.jl")
+    include("Intersection_backends/gpu_intersection_4d_floats.jl")
 end
 
 
@@ -737,9 +737,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
 end
 
 function main()
-    config_path = isempty(ARGS) ?
-    "config.toml" : ARGS[1]
-    if !isfile(config_path); println(stderr, "Error: Config file not found at '$config_path'"); return;
+    config_path = isempty(ARGS) ? "Configs/config.toml" : ARGS[1]
+
+    if !isfile(config_path); println(stderr, "Error: Config file not found at '$config_path'")
+        return
     end
     config = load_config(config_path)
 
