@@ -42,6 +42,7 @@ if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d_f
     include("Intersection_backends/gpu_intersection_5d_floats.jl")
 end
 
+include("Intersection_backends/cpu_intersection.jl")
 
 const CMS_LOADED = Ref(false)
 try
@@ -265,8 +266,6 @@ function _normalize_axis(axis::Vector{Rational{BigInt}})
     return Rational{BigInt}.(int_axis)
 end
 
-_project_cpu(vertices, axis) = (minimum(vertices * axis), maximum(vertices * axis))
-
 # --- 3D Pipeline Functions ---
 
 function findAllLatticePointsInHull_3d(vertices::Matrix{Rational{BigInt}})
@@ -302,34 +301,6 @@ function precompute_open_faces_3d(P::Matrix{Rational{BigInt}})
     return union(thread_sets...)
 end
 
-function _get_outward_face_normals_3d(vertices)
-    normals = Vector{Vector{Rational{BigInt}}}()
-    for face_indices in [[1,2,3], [1,2,4], [1,3,4], [2,3,4]]
-        p0,p1,p2 = vertices[face_indices[1],:], vertices[face_indices[2],:], vertices[face_indices[3],:]
-        normal = cross(p1 - p0, p2 - p0)
-        p_fourth = vertices[first(setdiff(1:4, face_indices)), :]
-        if dot(normal, p_fourth - p0) > 0; normal = -normal; end
-        if !all(iszero, normal); push!(normals, normal); end
-    end
-    return normals
-end
-
-function tetrahedra_intersect_sat_cpu_3d(tetra1_verts, tetra2_verts)
-    axes = Vector{Vector{Rational{BigInt}}}()
-    append!(axes, _get_outward_face_normals_3d(tetra1_verts)); append!(axes, _get_outward_face_normals_3d(tetra2_verts))
-    edges1 = [tetra1_verts[j,:] - tetra1_verts[i,:] for (i, j) in combinations(1:4, 2)]
-    edges2 = [tetra2_verts[j,:] - tetra2_verts[i,:] for (i, j) in combinations(1:4, 2)]
-    for e1 in edges1, e2 in edges2
-        axis = cross(e1, e2)
-        if !all(iszero, axis); push!(axes, axis); end
-    end
-    for axis in axes
-        min1, max1 = _project_cpu(tetra1_verts, axis); min2, max2 = _project_cpu(tetra2_verts, axis)
-        if max1 <= min2 || max2 <= min1; return false; end
-    end
-    return true
-end
-
 # --- 4D Pipeline Functions ---
 
 function findAllLatticePointsInHull_4d(vertices::Matrix{Rational{BigInt}})
@@ -362,10 +333,6 @@ function precompute_open_faces_4d(P::Matrix{Rational{BigInt}})
         if !on_boundary; push!(thread_sets[threadid()], Tuple(sort(collect(face_indices)))); end
     end
     return union(thread_sets...)
-end
-
-function simplices_intersect_sat_cpu_4d(s1, s2)
-    volume(intersect(polyhedron(vrep(s1)), polyhedron(vrep(s2)))) != 4
 end
 
 # --- 5D Pipeline Functions ---
@@ -527,11 +494,8 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
             end
             log_verbose("     Using CPU backend.")
             
-            cpu_intersect_func = if dim == 3
-                tetrahedra_intersect_sat_cpu_3d
-            else # dim == 4 or 5
-                simplices_intersect_sat_cpu_4d # Polyhedra.jl is dimension-agnostic
-            end
+            cpu_intersect_func = CPUIntersection.simplices_intersect_sat_cpu
+            
             thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
             next_i1 = Threads.Atomic{Int}(1)
             @threads for _ in 1:nthreads()
