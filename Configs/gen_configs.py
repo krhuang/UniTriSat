@@ -13,7 +13,7 @@ def generate_config_file(index):
     # The {index} placeholder will be replaced with the provided number.
     config_content = f'''
 [files]
-polytopes_file = "Polytopes/small_lattice_polytopes/data/4-polytopes/v{index}.txt"
+polytopes_file = "Polytopes/small_lattice_polytopes/data/5-polytopes/v{index}.txt"
 log_file = ""
 
 [run_settings]
@@ -50,7 +50,7 @@ plot_range = "" # Same format as process_range. Defines which solutions to plot.
 '''
 
     # Write the content to the file.
-    file_path = f"4d/v{index}_4d_count.toml"
+    file_path = f"5d/v{index}_5d_count.toml"
     try:
         with open(file_path, 'w') as f:
             f.write(config_content)
