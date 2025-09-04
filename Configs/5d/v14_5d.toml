@@ -1,6 +1,6 @@
 
 [files]
-polytopes_file = "Polytopes/small_lattice_polytopes/data/5-polytopes/v14.txt"
+polytopes_file = "Polytopes/small-lattice-polytopes/data/5-polytopes/v14.txt"
 log_file = ""
 
 [run_settings]

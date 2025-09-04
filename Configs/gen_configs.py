@@ -1,6 +1,6 @@
 import os
 
-def generate_config_file(index):
+def generate_config_file(index, dim, solve_mode, file_solve_mode):
     """
     Generates a single .toml configuration file based on a template.
 
@@ -13,14 +13,14 @@ def generate_config_file(index):
     # The {index} placeholder will be replaced with the provided number.
     config_content = f'''
 [files]
-polytopes_file = "Polytopes/small_lattice_polytopes/data/5-polytopes/v{index}.txt"
+polytopes_file = "Polytopes/small-lattice-polytopes/data/{dim}-polytopes/v{index}.txt"
 log_file = ""
 
 [run_settings]
 process_range = "-"      # A space-separated list of indices and ranges (e.g., "1-5 8 10-"). "-" means all.
 processing_order = "normal"    # Options: "normal", "reversed", "random"
 sort_by = "none"            # "none": Use the order from the file. "P": Sort by # lattice points. "S": Sort by # simplices.
-solve_mode = "count_only"         # "first": Stop after one solution. "all": Find all solutions. "count_only": Count all solutions.
+solve_mode = "{solve_mode}"         # "first": Stop after one solution. "all": Find all solutions. "count_only": Count all solutions.
 find_all_simplices = false     # If true, finds all non-degenerate simplices. If false, only unimodular ones.
 intersection_backend = "gpu_rationals"    # Options: "cpu", "gpu_rationals", "gpu_floats"
 
@@ -50,7 +50,7 @@ plot_range = "" # Same format as process_range. Defines which solutions to plot.
 '''
 
     # Write the content to the file.
-    file_path = f"5d/v{index}_5d_count.toml"
+    file_path = f"{dim}d/v{index}_{dim}d{file_solve_mode}.toml"
     try:
         with open(file_path, 'w') as f:
             f.write(config_content)
@@ -67,6 +67,13 @@ def main():
     while True:
         try:
             # Get the desired range from the user.
+            dim_str = input("Enter dimension: ")
+            dim = int(dim_str)
+            
+            count_str = input("Count or not?(y/n): ")
+            solve_mode = "count_only"*(count_str=="y") + "first"*(count_str=="n")
+            file_solve_mode = "count"*(count_str=="y") + ""*(count_str=="n")
+            
             start_str = input("Enter the starting number for the range: ")
             start_range = int(start_str)
 
@@ -79,7 +86,7 @@ def main():
 
             # Generate a file for each number in the specified range (inclusive).
             for i in range(start_range, end_range + 1):
-                generate_config_file(i)
+                generate_config_file(i, dim, solve_mode, file_solve_mode)
 
             print("\nGeneration complete.")
             break # Exit the loop after successful generation
