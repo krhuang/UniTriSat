@@ -70,7 +70,14 @@ module GPUIntersection5D
     
     # --- Kernlogik: 5D Separating Axis Theorem ---
     function simplices_intersect_gpu(s1, s2)
-        face_map = SMatrix{6, 6, Int, 36}(1,2,3,4,5,6, 1,2,3,4,6,5, 1,2,3,5,6,4, 1,2,4,5,6,3, 1,3,4,5,6,2, 2,3,4,5,6,1)
+        face_map = SMatrix{6, 6, Int, 36}(
+            1,2,3,4,5,6,
+            1,2,3,4,6,5,
+            1,2,3,5,6,4,
+            1,2,4,5,6,3,
+            1,3,4,5,6,2,
+            2,3,4,5,6,1)
+
         for simplex_idx in 1:2
             current_s = (simplex_idx == 1) ? s1 : s2
             for i in 1:6
@@ -80,7 +87,6 @@ module GPUIntersection5D
                 normal = normal_vector_5d(p1 - p0, p2 - p0, p3 - p0, p4 - p0)
                 if (dot_gpu(normal, p_off_face - p0).num > 0) != (dot_gpu(normal, p_off_face - p0).den < 0); normal = -normal; end
                 
-                # KORRIGIERT: is_zero_gpu() entfernt und direkt die Numeratoren überprüft.
                 is_normal_zero = normal[1].num == 0 && normal[2].num == 0 && normal[3].num == 0 && normal[4].num == 0 && normal[5].num == 0
                 if !is_normal_zero
                     proj1 = SVector(dot_gpu(s1[1,:], normal), dot_gpu(s1[2,:], normal), dot_gpu(s1[3,:], normal), dot_gpu(s1[4,:], normal), dot_gpu(s1[5,:], normal), dot_gpu(s1[6,:], normal))

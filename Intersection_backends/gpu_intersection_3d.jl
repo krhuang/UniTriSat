@@ -55,7 +55,11 @@ module GPUIntersection3D
     end
 
     function tetrahedra_intersect_gpu(t1, t2)
-        face_vertex_map = SMatrix{4, 4, Int, 16}(1, 2, 3, 4, 1, 2, 4, 3, 1, 3, 4, 2, 2, 3, 4, 1)
+        face_vertex_map = SMatrix{4, 4, Int, 16}(
+            1,2,3,4,
+            1,2,4,3,
+            1,3,4,2,
+            2,3,4,1)
         ZERO = RationalGPU(0, 1)
         for i in 1:4
             p0, p1, p2, p_fourth = t1[face_vertex_map[i,1],:], t1[face_vertex_map[i,2],:], t1[face_vertex_map[i,3],:], t1[face_vertex_map[i,4],:]

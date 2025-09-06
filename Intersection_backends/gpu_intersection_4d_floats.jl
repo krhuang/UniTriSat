@@ -36,7 +36,11 @@ module GPUIntersection4DFloats
     # Core 4D intersection logic using Separating Axis Theorem with Float64
     function simplices_intersect_gpu(s1, s2)
         face_map = SMatrix{5, 5, Int, 25}(
-            1, 2, 3, 4, 5, 1, 2, 3, 5, 4, 1, 2, 4, 5, 3, 1, 3, 4, 5, 2, 2, 3, 4, 5, 1
+            1,2,3,4,5,
+            1,2,3,5,4,
+            1,2,4,5,3,
+            1,3,4,5,2,
+            2,3,4,5,1
         )
 
         # Test axes normal to the faces of the first simplex

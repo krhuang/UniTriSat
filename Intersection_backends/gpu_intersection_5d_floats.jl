@@ -46,7 +46,12 @@ module GPUIntersection5DFloats
     # --- Kernlogik: 5D Separating Axis Theorem ---
     function simplices_intersect_gpu(s1, s2)
         face_map = SMatrix{6, 6, Int, 36}(
-            1,2,3,4,5,6, 1,2,3,4,6,5, 1,2,3,5,6,4, 1,2,4,5,6,3, 1,3,4,5,6,2, 2,3,4,5,6,1
+            1,2,3,4,5,6,
+            1,2,3,4,6,5,
+            1,2,3,5,6,4,
+            1,2,4,5,6,3,
+            1,3,4,5,6,2,
+            2,3,4,5,6,1
         )
 
         for simplex_idx in 1:2

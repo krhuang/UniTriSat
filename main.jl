@@ -1,5 +1,5 @@
-# rationalsFindUnimodularTriangulationSAT.jl - v2.5 Final
-# Finds unimodular triangulations of 3D, 4D and 5D lattice polytopes.
+# rationalsFindUnimodularTriangulationSAT.jl - v2.6 (mit 6D-Unterstützung)
+# Findet unimodulare Triangulierungen von 3D, 4D, 5D und 6D Gitterpolytopen.
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
@@ -18,29 +18,35 @@ try
 catch
 end
 
+# Inkludieren der GPU-Backends für jede Dimension
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d.jl")
     include("Intersection_backends/gpu_intersection_3d.jl")
 end
-
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d.jl")
     include("Intersection_backends/gpu_intersection_4d.jl")
 end
-
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d.jl")
     include("Intersection_backends/gpu_intersection_5d.jl")
+end
+# NEU: Einbindung für ein potenzielles 6D Rational-Backend
+if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d.jl")
+    include("Intersection_backends/gpu_intersection_6d.jl")
 end
 
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d_floats.jl")
     include("Intersection_backends/gpu_intersection_3d_floats.jl")
 end
-
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d_floats.jl")
     include("Intersection_backends/gpu_intersection_4d_floats.jl")
 end
-
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d_floats.jl")
     include("Intersection_backends/gpu_intersection_5d_floats.jl")
 end
+# NEU: Einbindung des neuen 6D Float-Backends
+if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_floats.jl")
+    include("Intersection_backends/gpu_intersection_6d_floats.jl")
+end
+
 
 include("Intersection_backends/cpu_intersection.jl")
 
@@ -215,7 +221,7 @@ function get_orthonormal_basis(normal::Vector{Rational{BigInt}})
         k_idx = mod1(j + 3, 4)
     end
     k[k_idx] = 1.0
-    
+     
     basis[2] = k - dot(k, normal_f64) * normal_f64 - dot(k, basis[1]) * basis[1]
     basis[2] ./= norm(basis[2])
     
@@ -225,9 +231,7 @@ function get_orthonormal_basis(normal::Vector{Rational{BigInt}})
     return basis
 end
 
-# NEU: Funktion zum Erstellen einer 3D-Basis für den Plot von 5D-Polytopen
 function get_orthonormal_basis_for_subspace_3d(n1_rat::Vector{Rational{BigInt}}, n2_rat::Vector{Rational{BigInt}})
-    # Diese Funktion findet eine orthonormale 3D-Basis für den Unterraum, der senkrecht zu n1 und n2 im 5D-Raum steht.
     n1 = normalize(Float64.(n1_rat))
     n2_ortho = normalize(Float64.(n2_rat) - dot(Float64.(n2_rat), n1) * n1)
     
@@ -236,7 +240,6 @@ function get_orthonormal_basis_for_subspace_3d(n1_rat::Vector{Rational{BigInt}},
 
     basis = Vector{Vector{Float64}}()
     
-    # Gram-Schmidt-Verfahren mit Standardbasisvektoren
     for i in 1:5
         e = zeros(Float64, 5)
         e[i] = 1.0
@@ -255,9 +258,31 @@ function get_orthonormal_basis_for_subspace_3d(n1_rat::Vector{Rational{BigInt}},
     return basis
 end
 
+# NEU: Funktion zum Erstellen einer 3D-Basis für den Plot von 6D-Polytopen
+function get_orthonormal_basis_for_subspace_3d_from_6d(n1_rat::Vector{Rational{BigInt}}, n2_rat::Vector{Rational{BigInt}}, n3_rat::Vector{Rational{BigInt}})
+    b1 = normalize(Float64.(n1_rat))
+    b2 = normalize(Float64.(n2_rat) - dot(Float64.(n2_rat), b1) * b1)
+    b3 = normalize(Float64.(n3_rat) - dot(Float64.(n3_rat), b1) * b1 - dot(Float64.(n3_rat), b2) * b2)
+    
+    basis = Vector{Vector{Float64}}()
+    for i in 1:6
+        e = zeros(Float64, 6); e[i] = 1.0
+        v = e - dot(e, b1)*b1 - dot(e, b2)*b2 - dot(e, b3)*b3
+        for b_found in basis
+            v -= dot(v, b_found) * b_found
+        end
+        if norm(v) > 1e-9
+            push!(basis, normalize(v))
+        end
+        if length(basis) == 3; break; end
+    end
+    return basis
+end
+
 function _normalize_axis(axis::Vector{Rational{BigInt}})
     if all(iszero, axis); return axis; end
-    denominators = [v.den for v in axis]; common_mult = lcm(denominators)
+    denominators = [v.den for v in axis];
+    common_mult = lcm(denominators)
     int_axis = [v.num * (common_mult ÷ v.den) for v in axis]
     common_divisor = gcd(int_axis)
     if common_divisor != 0; int_axis .÷= common_divisor; end
@@ -291,8 +316,10 @@ end
 
 function precompute_open_faces_3d(P::Matrix{Rational{BigInt}})
     n = size(P, 1); if n < 3 return Set{NTuple{3, Int}}() end
-    poly = polyhedron(vrep(P)); hr = hrep(poly); planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, 3)); thread_sets = [Set{NTuple{3, Int}}() for _ in 1:nthreads()]
+    poly = polyhedron(vrep(P)); hr = hrep(poly);
+    planes = collect(halfspaces(hr))
+    potential_faces = collect(combinations(1:n, 3));
+    thread_sets = [Set{NTuple{3, Int}}() for _ in 1:nthreads()]
     @threads for face_indices in potential_faces
         face_points = P[collect(face_indices), :]
         on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
@@ -317,7 +344,8 @@ end
 function all_simplices_in_4d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     n = size(P, 1); simplex_indices = Vector{NTuple{5, Int}}(); if n < 5 return simplex_indices end
     for inds in combinations(1:n, 5)
-        p0 = P[inds[1], :]; M = vcat([(P[inds[i], :] - p0)' for i in 2:5]...); d = det(M)
+        p0 = P[inds[1], :]; M = vcat([(P[inds[i], :] - p0)' for i in 2:5]...);
+        d = det(M)
         if d != 0 && (!unimodular_only || abs(d) == 1); push!(simplex_indices, Tuple(inds)); end
     end
     return simplex_indices
@@ -325,8 +353,10 @@ end
 
 function precompute_open_faces_4d(P::Matrix{Rational{BigInt}})
     n = size(P, 1); if n < 4 return Set{NTuple{4, Int}}() end
-    poly = polyhedron(vrep(P)); hr = hrep(poly); planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, 4)); thread_sets = [Set{NTuple{4, Int}}() for _ in 1:nthreads()]
+    poly = polyhedron(vrep(P)); hr = hrep(poly);
+    planes = collect(halfspaces(hr))
+    potential_faces = collect(combinations(1:n, 4));
+    thread_sets = [Set{NTuple{4, Int}}() for _ in 1:nthreads()]
     @threads for face_indices in potential_faces
         face_points = P[collect(face_indices), :]
         on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
@@ -365,11 +395,56 @@ end
 
 function precompute_open_faces_5d(P::Matrix{Rational{BigInt}})
     n = size(P, 1)
-    if n < 5 return Set{NTuple{5, Int}}() end # A face in 5D is defined by 5 points (a 4-simplex)
+    if n < 5 return Set{NTuple{5, Int}}() end 
     poly = polyhedron(vrep(P)); hr = hrep(poly)
     planes = collect(halfspaces(hr))
     potential_faces = collect(combinations(1:n, 5))
     thread_sets = [Set{NTuple{5, Int}}() for _ in 1:nthreads()]
+    @threads for face_indices in potential_faces
+        face_points = P[collect(face_indices), :]
+        on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
+        if !on_boundary
+            push!(thread_sets[threadid()], Tuple(sort(collect(face_indices))))
+        end
+    end
+    return union(thread_sets...)
+end
+
+# --- NEU: 6D Pipeline Functions ---
+
+function findAllLatticePointsInHull_6d(vertices::Matrix{Rational{BigInt}})
+    poly = polyhedron(vrep(vertices)); hr = hrep(poly)
+    min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1))
+    max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
+    lattice_points = Vector{Vector{Rational{BigInt}}}()
+    for iu in min_coords[6]:max_coords[6], iv in min_coords[5]:max_coords[5], iw in min_coords[4]:max_coords[4], iz in min_coords[3]:max_coords[3], iy in min_coords[2]:max_coords[2], ix in min_coords[1]:max_coords[1]
+        point = Rational{BigInt}.([ix, iy, iz, iw, iv, iu])
+        if all(hr.A * point .<= hr.b); push!(lattice_points, point); end
+    end
+    return isempty(lattice_points) ? Matrix{Rational{BigInt}}(undef, 0, 6) : vcat(lattice_points'...)
+end
+
+function all_simplices_in_6d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
+    n = size(P, 1); simplex_indices = Vector{NTuple{7, Int}}()
+    if n < 7 return simplex_indices end
+    for inds in combinations(1:n, 7)
+        p0 = P[inds[1], :]
+        M = vcat([(P[inds[i], :] - p0)' for i in 2:7]...)
+        d = det(M)
+        if d != 0 && (!unimodular_only || abs(d) == 1)
+            push!(simplex_indices, Tuple(inds))
+        end
+    end
+    return simplex_indices
+end
+
+function precompute_open_faces_6d(P::Matrix{Rational{BigInt}})
+    n = size(P, 1)
+    if n < 6 return Set{NTuple{6, Int}}() end # Eine Facette in 6D wird durch 6 Punkte definiert
+    poly = polyhedron(vrep(P)); hr = hrep(poly)
+    planes = collect(halfspaces(hr))
+    potential_faces = collect(combinations(1:n, 6))
+    thread_sets = [Set{NTuple{6, Int}}() for _ in 1:nthreads()]
     @threads for face_indices in potential_faces
         face_points = P[collect(face_indices), :]
         on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
@@ -406,8 +481,10 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         findAllLatticePointsInHull_3d(initial_vertices)
     elseif dim == 4
         findAllLatticePointsInHull_4d(initial_vertices)
-    else # dim == 5
+    elseif dim == 5
         findAllLatticePointsInHull_5d(initial_vertices)
+    else # dim == 6
+        findAllLatticePointsInHull_6d(initial_vertices)
     end
     push!(timings, "Find all lattice points" => (time_ns() - t_start) / 1e9); num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
@@ -419,8 +496,10 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         all_simplices_in_3d(P, unimodular_only=!config.find_all_simplices)
     elseif dim == 4
         all_simplices_in_4d(P, unimodular_only=!config.find_all_simplices)
-    else # dim == 5
+    elseif dim == 5
         all_simplices_in_5d(P, unimodular_only=!config.find_all_simplices)
+    else # dim == 6
+        all_simplices_in_6d(P, unimodular_only=!config.find_all_simplices)
     end
     push!(timings, "Find all $simplex_search_type simplices" => (time_ns() - t_start) / 1e9); num_simplices_found = length(S_indices)
     log_verbose("-> Found $num_simplices_found simplices. Step 2 complete.\n")
@@ -442,8 +521,10 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         precompute_open_faces_3d(P)
     elseif dim == 4
         precompute_open_faces_4d(P)
-    else # dim == 5
+    elseif dim == 5
         precompute_open_faces_5d(P)
+    else # dim == 6
+        precompute_open_faces_6d(P)
     end
     push!(timings, "Precompute open faces (parallel)" => (time_ns() - t_start) / 1e9)
     log_verbose("-> Found $(length(open_faces_set)) unique open faces. Step 3 complete.\n")
@@ -469,6 +550,11 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                 log_verbose("     Using 5D GPU backend (Rationals)...")
                 intersect_func = () -> Main.GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
                 use_gpu = true
+            # NEU: 6D Rational Backend
+            elseif dim == 6 && isdefined(Main, :GPUIntersection6D)
+                log_verbose("     Using 6D GPU backend (Rationals)...")
+                intersect_func = () -> Main.GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
+                use_gpu = true
             end
         elseif config.intersection_backend == "gpu_floats"
             if dim == 3 && isdefined(Main, :GPUIntersection3DFloats)
@@ -482,6 +568,11 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
             elseif dim == 5 && isdefined(Main, :GPUIntersection5DFloats)
                 log_verbose("     Using 5D GPU backend (Floats)...")
                 intersect_func = () -> Main.GPUIntersection5DFloats.get_intersecting_pairs_gpu_5d(P, S_indices)
+                use_gpu = true
+            # NEU: 6D Float Backend
+            elseif dim == 6 && isdefined(Main, :GPUIntersection6DFloats)
+                log_verbose("     Using 6D GPU backend (Floats)...")
+                intersect_func = () -> Main.GPUIntersection6DFloats.get_intersecting_pairs_gpu_6d(P, S_indices)
                 use_gpu = true
             end
         end
@@ -518,8 +609,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
 
     if config.terminal_output == "verbose"; update_line(""); println(stdout); end
     push!(timings, "Generate intersection clauses" => (time_ns() - t_start) / 1e9); 
-    append!(cnf, intersection_clauses);
-    log_verbose("-> Found $(length(intersection_clauses)) intersection clauses. Step 4a complete.\n")
+    append!(cnf, intersection_clauses); log_verbose("-> Found $(length(intersection_clauses)) intersection clauses. Step 4a complete.\n")
 
     log_verbose("Step 4b: Generating face-covering clauses..."); t_start = time_ns();
     face_dim = dim
@@ -550,20 +640,17 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     push!(timings, "Generate face-covering clauses" => (time_ns() - t_start) / 1e9)
     log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4b complete.\n")
     
-    log_verbose("Step 5: Handing SAT problem to solver ($(config.solver))...");
-    log_verbose("     Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
+    log_verbose("Step 5: Handing SAT problem to solver ($(config.solver))..."); log_verbose("     Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
     log_verbose("     This step may take a long time if the problem is complex.")
     if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%5d / %-5d", run_idx, total_in_run))): |P|=$num_lattice_points, |S|=$num_simplices_found, solving..."); end
     
-    t_start_solve = time_ns();
-    solutions = []; num_solutions = 0
+    t_start_solve = time_ns(); solutions = []; num_solutions = 0
     solver_used = config.solver
     if solver_used == "CryptoMiniSat" && !CMS_LOADED[]; log_verbose("Warning: CryptoMiniSat not available, falling back to PicoSAT."); solver_used = "PicoSAT"; end
 
     solver_func = solver_used == "CryptoMiniSat" ? CryptoMiniSat : PicoSAT
     if config.solve_mode == "first"
-        solution = solver_func.solve(cnf);
-        if solution isa Vector{Int}; num_solutions = 1; push!(solutions, solution); end
+        solution = solver_func.solve(cnf); if solution isa Vector{Int}; num_solutions = 1; push!(solutions, solution); end
     else
         for solution in solver_func.itersolve(cnf)
             num_solutions += 1; if config.solve_mode == "all"; push!(solutions, solution); end;
@@ -571,8 +658,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     end
 
     log_verbose("-> SAT solver finished. Step 5 complete.")
-    push!(timings, "Solve SAT problem" => (time_ns() - t_start_solve) / 1e9);
-    total_time = (time_ns() - t_start_total) / 1e9; push!(timings, "Total execution time" => total_time)
+    push!(timings, "Solve SAT problem" => (time_ns() - t_start_solve) / 1e9); total_time = (time_ns() - t_start_total) / 1e9; push!(timings, "Total execution time" => total_time)
     log_verbose("\n$(num_solutions) valid triangulation(s) found.")
     
     first_solution_simplices = Vector{Matrix{Int}}()
@@ -582,8 +668,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     end
 
     if config.show_solution_simplices && !isempty(first_solution_simplices)
-        log_verbose("\nDisplaying first valid triangulation:");
-        for s in first_solution_simplices; log_verbose(s, is_display=true); end
+        log_verbose("\nDisplaying first valid triangulation:"); for s in first_solution_simplices; log_verbose(s, is_display=true); end
     end
     
     if num_solutions > 0 && !isempty(config.plot_range) && !isempty(config.plotter_script) && (id in parse_range(config.plot_range, 1_000_000))
@@ -591,15 +676,13 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         if dim == 3
             temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python $(config.plotter_script) $(temp_path)`); finally rm(temp_path, force=true); end
         elseif dim == 4
-            initial_poly = polyhedron(vrep(initial_vertices));
-            boundary_planes = collect(halfspaces(hrep(initial_poly)))
+            initial_poly = polyhedron(vrep(initial_vertices)); boundary_planes = collect(halfspaces(hrep(initial_poly)))
             solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
             for (plane_idx, plane) in enumerate(boundary_planes)
                 facet_triangulation_4D = [s for s in solution_simplices_rational if count(v -> iszero(dot(plane.a, v) - plane.β), eachrow(s)) == 4]
                 if isempty(facet_triangulation_4D); continue; end
                 log_verbose("     Plotting induced 3D triangulation for facet #$plane_idx...")
-                origin_4d = facet_triangulation_4D[1][1,:];
-                basis_3d = get_orthonormal_basis(plane.a)
+                origin_4d = facet_triangulation_4D[1][1,:]; basis_3d = get_orthonormal_basis(plane.a)
                 projected_simplices = Vector{Matrix{Int}}()
                 for s in facet_triangulation_4D
                     face_vertices_on_plane = filter(v -> iszero(dot(plane.a, v) - plane.β), eachrow(s))
@@ -610,20 +693,17 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                 end
                 temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(projected_simplices)); close(temp_io); run(`python $(config.plotter_script) $(temp_path)`); finally rm(temp_path, force=true); end
             end
-        # NEU: Plotting-Logik für 5D-Polytopen
         elseif dim == 5
             log_verbose("     Plotting induced 3D triangulations for 3-faces...")
             initial_poly = polyhedron(vrep(initial_vertices))
             boundary_planes = collect(halfspaces(hrep(initial_poly)))
             solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
 
-            # Iteriere über alle Paare von Facetten, um 3-dimensionale Seitenflächen zu finden
             for i in 1:length(boundary_planes)
                 for j in (i + 1):length(boundary_planes)
                     plane1 = boundary_planes[i]
                     plane2 = boundary_planes[j]
 
-                    # Finde Simplizes, die ein Tetraeder (4 Ecken) auf dieser 3-Fläche haben
                     face_simplices_5D = [s for s in solution_simplices_rational if count(v -> iszero(dot(plane1.a, v) - plane1.β) && iszero(dot(plane2.a, v) - plane2.β), eachrow(s)) >= 4]
                     if isempty(face_simplices_5D); continue; end
 
@@ -645,6 +725,40 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                         unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
                         temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python $(config.plotter_script) $(temp_path)`); finally rm(temp_path, force=true); end
                     end
+                end
+            end
+        # NEU: Plotting-Logik für 6D-Polytopen
+        elseif dim == 6
+            log_verbose("     Plotting induced 3D triangulations for 3-faces...")
+            initial_poly = polyhedron(vrep(initial_vertices))
+            boundary_planes = collect(halfspaces(hrep(initial_poly)))
+            solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
+
+            # Iteriere über alle Tripel von Facetten, um 3-dimensionale Seitenflächen zu finden
+            for i in 1:length(boundary_planes), j in (i+1):length(boundary_planes), k in (j+1):length(boundary_planes)
+                p1, p2, p3 = boundary_planes[i], boundary_planes[j], boundary_planes[k]
+                
+                # Finde Simplizes, die ein Tetraeder auf dieser 3-Fläche haben
+                face_simplices_6D = [s for s in solution_simplices_rational if count(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(s)) >= 4]
+                if isempty(face_simplices_6D); continue; end
+
+                log_verbose("     Plotting 3-face defined by facets #$i, #$j, and #$k...")
+                
+                origin_6d = first(filter(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(face_simplices_6D[1])))
+                basis_3d = get_orthonormal_basis_for_subspace_3d_from_6d(p1.a, p2.a, p3.a)
+                
+                projected_simplices = Vector{Matrix{Int}}()
+                for s in face_simplices_6D
+                    verts_on_face = filter(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(s))
+                    for tetra_verts in combinations(verts_on_face, 4)
+                        projected_verts_3d = [round.(Int, [dot(v - origin_6d, b) for b in basis_3d]) for v in tetra_verts]
+                        push!(projected_simplices, vcat(projected_verts_3d'...))
+                    end
+                end
+                
+                if !isempty(projected_simplices)
+                    unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
+                    temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python $(config.plotter_script) $(temp_path)`); finally rm(temp_path, force=true); end
                 end
             end
         end
@@ -681,8 +795,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
                 findAllLatticePointsInHull_3d(initial_vertices)
             elseif dim == 4
                 findAllLatticePointsInHull_4d(initial_vertices)
-            else # dim == 5
+            elseif dim == 5
                 findAllLatticePointsInHull_5d(initial_vertices)
+            else # dim == 6
+                findAllLatticePointsInHull_6d(initial_vertices)
             end
             num_points = size(P, 1)
 
@@ -693,8 +809,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
                     all_simplices_in_3d(P, unimodular_only=!config.find_all_simplices)
                 elseif dim == 4
                     all_simplices_in_4d(P, unimodular_only=!config.find_all_simplices)
-                else # dim == 5
+                elseif dim == 5
                     all_simplices_in_5d(P, unimodular_only=!config.find_all_simplices)
+                else # dim == 6
+                    all_simplices_in_6d(P, unimodular_only=!config.find_all_simplices)
                 end
                 num_simplices = length(S_indices)
                 push!(metrics, (p_idx, num_simplices))
@@ -730,8 +848,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
         println("\n\n\n") # Reserve 4 lines: 3 for summary, 1 for progress
     end
     
-    t_start_run = time();
-    total_solutions_found = 0; triangulations_found_count = 0; non_triangulatable_count = 0
+    t_start_run = time(); total_solutions_found = 0; triangulations_found_count = 0; non_triangulatable_count = 0
 
     for (i, p_idx) in enumerate(indices_to_process)
         result = process_polytope(polytopes[p_idx], p_idx, i, length(indices_to_process), config)
@@ -752,8 +869,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
 
         if !isnothing(log_stream)
             log_content = config.file_output == "verbose" ? result.verbose_log : result.minimal_log * "\n"
-            print(log_stream, log_content);
-            flush(log_stream)
+            print(log_stream, log_content); flush(log_stream)
         end
     end
     
@@ -796,8 +912,7 @@ function main()
         elseif !CUDA.functional(); @warn "CUDA loaded, but no functional GPU found. Falling back to 'cpu'."; config.intersection_backend = "cpu";
         end
     end
-    if config.solver == "CryptoMiniSat" && !CMS_LOADED[]; @warn "CryptoMiniSat solver requested, but not loaded. Falling back to PicoSAT."; config.solver = "PicoSAT";
-    end
+    if config.solver == "CryptoMiniSat" && !CMS_LOADED[]; @warn "CryptoMiniSat solver requested, but not loaded. Falling back to PicoSAT."; config.solver = "PicoSAT"; end
 
     log_stream = nothing
     if !isempty(config.log_file)
@@ -828,11 +943,11 @@ function main()
 
         # --- Dimension Detection ---
         dim = size(polytopes[first(range_to_process)], 2)
-        if !(dim in [3, 4, 5])
-            println(stderr, "Error: Detected dimension is $dim. Only 3D, 4D, and 5D are supported."); return;
+        # NEU: Dimensionen-Check um 6D erweitert
+        if !(dim in [3, 4, 5, 6])
+            println(stderr, "Error: Detected dimension is $dim. Only 3D, 4D, 5D, and 6D are supported."); return;
         end
         
-        # This is the main dispatcher for the entire run.
         run_processing(polytopes, dim, config, range_to_process, log_stream)
         
     finally

@@ -22,7 +22,11 @@ module GPUIntersection3DFloats
 
     # Core intersection logic using Separating Axis Theorem with Float64
     function tetrahedra_intersect_gpu(t1, t2)
-        face_vertex_map = SMatrix{4, 4, Int, 16}(1, 2, 3, 4, 1, 2, 4, 3, 1, 3, 4, 2, 2, 3, 4, 1)
+        face_vertex_map = SMatrix{4, 4, Int, 16}(
+            1,2,3,4,
+            1,2,4,3,
+            1,3,4,2,
+            2,3,4,1)
         
         # Test axes normal to faces of the first tetrahedron
         for i in 1:4
