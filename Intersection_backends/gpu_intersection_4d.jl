@@ -97,11 +97,11 @@ function simplices_intersect_gpu(s1, s2)
     # A 4D simplex has 5 vertices. The faces are tetrahedra formed by 4 vertices.
     # The 5th vertex is used to orient the normal.
     face_map = SMatrix{5, 5, Int, 25}(
-        1, 2, 3, 4, 5,
-        1, 2, 3, 5, 4,
-        1, 2, 4, 5, 3,
-        1, 3, 4, 5, 2,
-        2, 3, 4, 5, 1
+        1,2,3,4,5,
+        1,2,3,5,4,
+        1,2,4,5,3,
+        1,3,4,5,2,
+        2,3,4,5,1
         )
 
     # Test axes normal to the faces of the first simplex
