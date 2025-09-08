@@ -1,0 +1,17 @@
+
+
+################################################################################
+# New Run Started at 2025-09-08T13:56:50.101
+################################################################################
+Number of threads:                       16
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           gpu_floats
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        -
+Number of polytopes to process:          738
+Restricting to unimodular simplices:     true
+

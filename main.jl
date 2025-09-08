@@ -1,4 +1,4 @@
-# unimodularTriangulationSAT.jl - v3.1
+# unimodularTriangulationSAT.jl - v3.2 (mit Validierung)
 # Finds unimodular triangulations of 3D, 4D, 5D, and 6D lattice polytopes.
 using Combinatorics
 using LinearAlgebra
@@ -65,6 +65,7 @@ mutable struct Config
     intersection_backend::String
     find_all_simplices::Bool
     solve_mode::String
+    validate::Bool # NEU: Hinzugefügt für die Validierungsoption
     terminal_output::String
     file_output::String
     show_initial_vertices::Bool
@@ -81,6 +82,7 @@ struct ProcessResult
     total_time::Float64
     num_lattice_points::Int
     num_simplices_considered::Int
+    validation_status::Symbol # NEU: :not_run, :passed, :failed
     verbose_log::String
     minimal_log::String
     first_solution_simplices::Vector{Matrix{Int}}
@@ -105,6 +107,7 @@ function load_config(filepath::String)
         get(run_settings, "intersection_backend", "cpu"),
         get(run_settings, "find_all_simplices", false),
         get(run_settings, "solve_mode", "first"),
+        get(run_settings, "validate", false), # NEU: Auslesen der Validierungsoption
         get(output_levels, "terminal_output", "verbose"),
         get(output_levels, "file_output", "verbose"),
         get(verbose_options, "show_initial_vertices", true),
@@ -239,7 +242,7 @@ function get_orthonormal_basis(normal::Vector{Rational{BigInt}})
         k_idx = mod1(j + 3, 4)
     end
     k[k_idx] = 1.0
-     
+      
     basis[2] = k - dot(k, normal_f64) * normal_f64 - dot(k, basis[1]) * basis[1]
     basis[2] ./= norm(basis[2])
     
@@ -298,8 +301,7 @@ end
 
 function _normalize_axis(axis::Vector{Rational{BigInt}})
     if all(iszero, axis); return axis; end
-    denominators = [v.den for v in axis];
-    common_mult = lcm(denominators)
+    denominators = [v.den for v in axis]; common_mult = lcm(denominators)
     int_axis = [v.num * (common_mult ÷ v.den) for v in axis]
     common_divisor = gcd(int_axis)
     if common_divisor != 0; int_axis .÷= common_divisor; end
@@ -333,10 +335,8 @@ end
 
 function precompute_internal_faces_3d(P::Matrix{Rational{BigInt}})
     n = size(P, 1); if n < 3 return Set{NTuple{3, Int}}() end
-    poly = polyhedron(vrep(P)); hr = hrep(poly);
-    planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, 3));
-    thread_sets = [Set{NTuple{3, Int}}() for _ in 1:nthreads()]
+    poly = polyhedron(vrep(P)); hr = hrep(poly); planes = collect(halfspaces(hr))
+    potential_faces = collect(combinations(1:n, 3)); thread_sets = [Set{NTuple{3, Int}}() for _ in 1:nthreads()]
     @threads for face_indices in potential_faces
         face_points = P[collect(face_indices), :]
         on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
@@ -361,8 +361,7 @@ end
 function all_simplices_in_4d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     n = size(P, 1); simplex_indices = Vector{NTuple{5, Int}}(); if n < 5 return simplex_indices end
     for inds in combinations(1:n, 5)
-        p0 = P[inds[1], :]; M = vcat([(P[inds[i], :] - p0)' for i in 2:5]...);
-        d = det(M)
+        p0 = P[inds[1], :]; M = vcat([(P[inds[i], :] - p0)' for i in 2:5]...); d = det(M)
         if d != 0 && (!unimodular_only || abs(d) == 1); push!(simplex_indices, Tuple(inds)); end
     end
     return simplex_indices
@@ -370,10 +369,8 @@ end
 
 function precompute_internal_faces_4d(P::Matrix{Rational{BigInt}})
     n = size(P, 1); if n < 4 return Set{NTuple{4, Int}}() end
-    poly = polyhedron(vrep(P)); hr = hrep(poly);
-    planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, 4));
-    thread_sets = [Set{NTuple{4, Int}}() for _ in 1:nthreads()]
+    poly = polyhedron(vrep(P)); hr = hrep(poly); planes = collect(halfspaces(hr))
+    potential_faces = collect(combinations(1:n, 4)); thread_sets = [Set{NTuple{4, Int}}() for _ in 1:nthreads()]
     @threads for face_indices in potential_faces
         face_points = P[collect(face_indices), :]
         on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
@@ -481,6 +478,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     timings = Vector{Pair{String, Float64}}()
     t_start_total = time_ns()
     initial_vertices = Rational{BigInt}.(initial_vertices_int)
+    validation_status = :not_run # NEU: Initialisierung des Validierungsstatus
 
     function log_verbose(msg...; is_display::Bool=false)
         timestamp = Dates.format(now(), "HH:MM:SS")
@@ -530,7 +528,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         if config.terminal_output == "verbose"
             println(stdout, verbose_log)
         end
-        return ProcessResult(id, 0, total_time, num_lattice_points, num_simplices_found, verbose_log, minimal_log, [])
+        return ProcessResult(id, 0, total_time, num_lattice_points, num_simplices_found, :not_run, verbose_log, minimal_log, [])
     end
 
     log_verbose("Step 3: Precomputing internal faces..."); t_start = time_ns()
@@ -613,8 +611,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                     end
                     for i2 in (i1 + 1):n_simplices
                         if cpu_intersect_func(P[collect(S_indices[i1]), :], P[collect(S_indices[i2]), :])
-                            push!(thread_clauses[tid], [-(i1), -(i2)]);
-                        end
+                            push!(thread_clauses[tid], [-(i1), -(i2)]); end
                     end
                 end
             end
@@ -626,11 +623,9 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     push!(timings, "Generate intersection clauses" => (time_ns() - t_start) / 1e9); 
     append!(cnf, intersection_clauses); log_verbose("-> Found $(length(intersection_clauses)) intersection clauses. Step 4a complete.\n")
 
-    log_verbose("Step 4b: Generating face-covering clauses..."); t_start = time_ns();
-    face_dim = dim
+    log_verbose("Step 4b: Generating face-covering clauses..."); t_start = time_ns(); face_dim = dim
     face_clauses = let n_simplices = num_simplices
-        thread_face_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
-        next_simplex_idx = Threads.Atomic{Int}(1)
+        thread_face_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()]; next_simplex_idx = Threads.Atomic{Int}(1)
         @threads for _ in 1:nthreads()
             tid = threadid()
             while true
@@ -655,7 +650,8 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     push!(timings, "Generate face-covering clauses" => (time_ns() - t_start) / 1e9)
     log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4b complete.\n")
     
-    log_verbose("Step 5: Handing SAT problem to solver ($(config.solver))..."); log_verbose("     Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
+    log_verbose("Step 5: Handing SAT problem to solver ($(config.solver))...");
+    log_verbose("     Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
     log_verbose("     This step may take a long time if the problem is complex.")
     if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found solving..."); end
     
@@ -673,17 +669,65 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     end
 
     log_verbose("-> SAT solver finished. Step 5 complete.")
-    push!(timings, "Solve SAT problem" => (time_ns() - t_start_solve) / 1e9); total_time = (time_ns() - t_start_total) / 1e9; push!(timings, "Total execution time" => total_time)
+    push!(timings, "Solve SAT problem" => (time_ns() - t_start_solve) / 1e9);
+    
+    # --- NEUER VALIDIERUNGSBLOCK ---
+    first_sol_indices = Int[]
+    if num_solutions > 0
+        first_sol_indices = findall(l -> l > 0, first(solutions))
+    end
+
+    if config.validate && num_solutions > 0 && config.intersection_backend != "cpu"
+        log_verbose("\nStep 5a: Validating solution using precise CPU intersection checker...")
+        validation_status = :passed # Annahme: bestanden, bis Fehler gefunden wird
+        cpu_intersect_func = CPUIntersection.simplices_intersect_sat_cpu
+        solution_simplices_to_check = collect(first_sol_indices)
+        num_check = length(solution_simplices_to_check)
+        intersection_found_by_cpu = false
+
+        for i in 1:num_check
+            if intersection_found_by_cpu; break; end
+            s1_point_indices = S_indices[solution_simplices_to_check[i]]
+            s1_points = P[collect(s1_point_indices), :]
+
+            for j in (i + 1):num_check
+                s2_point_indices = S_indices[solution_simplices_to_check[j]]
+                s2_points = P[collect(s2_point_indices), :]
+                
+                if cpu_intersect_func(s1_points, s2_points)
+                    log_verbose("   VALIDATION FAILED: Intersection found between solution simplex $i and $j by CPU checker.")
+                    log_verbose("   Simplex $i indices: $s1_point_indices")
+                    log_verbose("   Simplex $j indices: $s2_point_indices")
+                    validation_status = :failed
+                    intersection_found_by_cpu = true
+                    break
+                end
+            end
+        end
+        
+        if validation_status == :passed
+            log_verbose("   VALIDATION SUCCESSFUL: No intersections found among solution simplices by CPU checker.")
+        else
+            num_solutions = 0 # Markiere als ungültig, wenn Validierung fehlschlägt
+        end
+        log_verbose("-> Validation complete. Step 5a complete.")
+    elseif num_solutions > 0 && config.validate && config.intersection_backend == "cpu"
+        log_verbose("\nStep 5a: Validation skipped (CPU backend already performed exact checks).")
+        validation_status = :passed
+    end
+    # --- ENDE VALIDIERUNGSBLOCK ---
+
+    total_time = (time_ns() - t_start_total) / 1e9; push!(timings, "Total execution time" => total_time)
     log_verbose("\n$(num_solutions) valid triangulation(s) found.")
     
     first_solution_simplices = Vector{Matrix{Int}}()
-    if num_solutions > 0 && !isempty(solutions)
-        first_sol_indices = findall(l -> l > 0, first(solutions))
+    if num_solutions > 0 && !isempty(first_sol_indices) # first_sol_indices wurde bereits oben berechnet
         first_solution_simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in first_sol_indices]
     end
 
     if config.show_solution_simplices && !isempty(first_solution_simplices)
-        log_verbose("\nDisplaying first valid triangulation:"); for s in first_solution_simplices; log_verbose(s, is_display=true); end
+        log_verbose("\nDisplaying first valid triangulation:");
+        for s in first_solution_simplices; log_verbose(s, is_display=true); end
     end
     
     if num_solutions > 0 && !isempty(config.plot_range) && !isempty(config.plotter_script) && (id in parse_range(config.plot_range, 1_000_000))
@@ -781,15 +825,23 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     if config.show_timing_summary
         summary_buf = IOBuffer()
         println(summary_buf, "\n--- Timing & Memory Summary for Polytope #$id ---")
-        peak_ram_bytes = Sys.maxrss();
-        for (op, dur) in timings; println(summary_buf, @sprintf("%-45s: %.4f seconds", op, dur)); end
+        peak_ram_bytes = Sys.maxrss(); for (op, dur) in timings; println(summary_buf, @sprintf("%-45s: %.4f seconds", op, dur)); end
         println(summary_buf, @sprintf("%-45s: %.2f MiB", "Peak memory usage (Max RSS)", peak_ram_bytes / 1024^2))
         log_verbose(String(take!(summary_buf)))
     end
-    result_str = num_solutions > 0 ? @sprintf("\u001b[32mfound %d solution(s)\u001b[0m in %.2f s", num_solutions, total_time) : @sprintf("\u001b[31mno solution exists\u001b[0m, searched for %.2f s", total_time)
+    
+    # NEU: Angepasste Ergebniserstellung basierend auf Validierung
+    result_str = ""
+    if validation_status == :failed
+        result_str = @sprintf("\u001b[31mVALIDATION FAILED\u001b[0m after %.2f s", total_time)
+    elseif num_solutions > 0
+        result_str = @sprintf("\u001b[32mfound %d solution(s)\u001b[0m in %.2f s", num_solutions, total_time)
+    else
+        result_str = @sprintf("\u001b[31mno solution exists\u001b[0m, searched for %.2f s", total_time)
+    end
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices_found, result_str)
     
-    return ProcessResult(id, num_solutions, total_time, num_lattice_points, num_simplices_found, String(take!(buf)), minimal_log, first_solution_simplices)
+    return ProcessResult(id, num_solutions, total_time, num_lattice_points, num_simplices_found, validation_status, String(take!(buf)), minimal_log, first_solution_simplices)
 end
 
 function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config, range_to_process, log_stream)
@@ -797,7 +849,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
 
     if config.sort_by in ["P", "S"]
         println("Pre-calculating metrics for sorting by '$(config.sort_by)'...")
-        
         metrics = []
         total = length(indices_to_process)
         for (i, p_idx) in enumerate(indices_to_process)
@@ -847,6 +898,8 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
         println(term_summary_buf, "Detected Dimension:                      $(dim)")
         println(term_summary_buf, "Solver requested:                        $(config.solver)")
         println(term_summary_buf, "Solve mode:                              $(config.solve_mode)")
+        println(term_summary_buf, "Intersection backend selected:           $(config.intersection_backend)")
+        println(term_summary_buf, "Validation enabled:                      $(config.validate)") # NEU
         println(term_summary_buf, "Input file:                              $(config.polytopes_file)")
         println(term_summary_buf, "Number of polytopes found:               $(length(polytopes))")
         println(term_summary_buf, "Processing range:                        $(config.process_range)")
@@ -855,7 +908,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
         if !isnothing(log_stream)
             println(term_summary_buf, "Writing to log file:                     $(config.log_file)")
         end
-        println(term_summary_buf, "Intersection backend selected:           $(config.intersection_backend)")
         println(term_summary_buf, "")
         print(stdout, String(take!(term_summary_buf)))
 
@@ -866,12 +918,13 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
             println(log_summary_buf, "Detected Dimension:                      $(dim)")
             println(log_summary_buf, "Solver requested:                        $(config.solver)")
             println(log_summary_buf, "Solve mode:                              $(config.solve_mode)")
+            println(log_summary_buf, "Intersection backend selected:           $(config.intersection_backend)")
+            println(log_summary_buf, "Validation enabled:                      $(config.validate)") # NEU
             println(log_summary_buf, "Input file:                              $(config.polytopes_file)")
             println(log_summary_buf, "Number of polytopes found:               $(length(polytopes))")
             println(log_summary_buf, "Processing range:                        $(config.process_range)")
             println(log_summary_buf, "Number of polytopes to process:          $(length(indices_to_process))")
             println(log_summary_buf, "Restricting to unimodular simplices:     $(!config.find_all_simplices)")
-            println(log_summary_buf, "Intersection backend selected:           $(config.intersection_backend)")
             println(log_summary_buf, "")
             print(log_stream, String(take!(log_summary_buf)))
             flush(log_stream)
@@ -884,8 +937,17 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
 
     for (i, p_idx) in enumerate(indices_to_process)
         result = process_polytope(polytopes[p_idx], p_idx, i, length(indices_to_process), config)
-        if result.num_solutions_found > 0; triangulations_found_count += 1; else non_triangulatable_count += 1; end
-        total_solutions_found += result.num_solutions_found
+        
+        # NEU: Prüfe Validierungsstatus bei der Zählung
+        if result.num_solutions_found > 0 && result.validation_status != :failed
+            triangulations_found_count += 1
+        else
+            non_triangulatable_count += 1
+        end
+        # Nur gültige Lösungen zur Gesamtzahl addieren, wenn die Validierung bestanden wurde oder nicht lief
+        if result.validation_status != :failed
+            total_solutions_found += result.num_solutions_found
+        end
         
         push!(recent_times, result.total_time)
         if length(recent_times) > 100
@@ -961,8 +1023,7 @@ function main()
     # --- Pre-run Checks for Available Packages ---
     if startswith(config.intersection_backend, "gpu")
         if !CUDA_PACKAGES_LOADED[]; @warn "GPU backend requested, but CUDA not loaded. Falling back to 'cpu'."; config.intersection_backend = "cpu";
-        elseif !CUDA.functional(); @warn "CUDA loaded, but no functional GPU found. Falling back to 'cpu'."; config.intersection_backend = "cpu";
-        end
+        elseif !CUDA.functional(); @warn "CUDA loaded, but no functional GPU found. Falling back to 'cpu'."; config.intersection_backend = "cpu"; end
     end
     if config.solver == "CryptoMiniSat" && !CMS_LOADED[]; @warn "CryptoMiniSat solver requested, but not loaded. Falling back to PicoSAT."; config.solver = "PicoSAT"; end
 
@@ -1007,5 +1068,3 @@ function main()
 end
 
 main()
-
-
