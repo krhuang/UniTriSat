@@ -1,14 +1,14 @@
 [files]
-polytopes_file = "Polytopes/small-lattice-polytopes/data/smooth/6_polytopes.txt"
+polytopes_file = "Polytopes/smooth3polytopes_50processed"
 log_file = ""
 
 [run_settings]
 process_range = "-"	# A space-separated list of indices and ranges (e.g., "1-5 8 10-"). "-" means all.
 processing_order = "normal"	# Options: "normal", "reversed", "random"
 sort_by = "none"			# "none": Use the order from the file. "P": Sort by # lattice points. "S": Sort by # simplices.
-solve_mode = "first"		# "first": Stop after one solution. "all": Find all solutions. "count_only": Count all solutions.
+solve_mode = "first"		# "first": Stop after one solution. "all": Find all solutions. "count": Count all solutions.
 find_all_simplices = false	# If true, finds all non-degenerate simplices. If false, only unimodular ones.
-intersection_backend = "gpu_rationals"	# Options: "cpu", "gpu_rationals", "gpu_floats"
+intersection_backend = "gpu_floats"	# Options: "cpu", "gpu_rationals", "gpu_floats"
 
 [output_levels]
 # Options for terminal_output:
@@ -32,4 +32,4 @@ solver = "PicoSAT" # The SAT solver to use. PicoSAT or CryptoMiniSat.
 
 [plotting]
 plotter_script = "plot_triangulation.py"
-plot_range = "20" # Same format as process_range. Defines which solutions to plot.
+plot_range = "" # Same format as process_range. Defines which solutions to plot.

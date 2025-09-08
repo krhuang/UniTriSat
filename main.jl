@@ -1,5 +1,5 @@
-# rationalsFindUnimodularTriangulationSAT.jl - v2.6 (mit 6D-Unterstützung)
-# Findet unimodulare Triangulierungen von 3D, 4D, 5D und 6D Gitterpolytopen.
+# unimodularTriangulationSAT.jl - v3.1
+# Finds unimodular triangulations of 3D, 4D, 5D, and 6D lattice polytopes.
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
@@ -18,7 +18,7 @@ try
 catch
 end
 
-# Inkludieren der GPU-Backends für jede Dimension
+# Include GPU backends for each dimension
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d.jl")
     include("Intersection_backends/gpu_intersection_3d.jl")
 end
@@ -28,7 +28,6 @@ end
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d.jl")
     include("Intersection_backends/gpu_intersection_5d.jl")
 end
-# NEU: Einbindung für ein potenzielles 6D Rational-Backend
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d.jl")
     include("Intersection_backends/gpu_intersection_6d.jl")
 end
@@ -42,7 +41,6 @@ end
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d_floats.jl")
     include("Intersection_backends/gpu_intersection_5d_floats.jl")
 end
-# NEU: Einbindung des neuen 6D Float-Backends
 if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_floats.jl")
     include("Intersection_backends/gpu_intersection_6d_floats.jl")
 end
@@ -117,6 +115,26 @@ function load_config(filepath::String)
         get(plotting, "plot_range", "")
     )
 end
+
+function validate_config(config::Config)
+    valid_options = Dict(
+        "processing_order" => ["normal", "reversed", "random"],
+        "sort_by" => ["none", "P", "S"],
+        "intersection_backend" => ["cpu", "gpu_rationals", "gpu_floats"],
+        "solve_mode" => ["first", "all", "count"],
+        "terminal_output" => ["verbose", "multi-line", "single-line", "none"],
+        "file_output" => ["verbose", "minimal", "none"],
+        "solver" => ["PicoSAT", "CryptoMiniSat"]
+    )
+
+    for (field, values) in valid_options
+        config_value = getfield(config, Symbol(field))
+        if !(config_value in values)
+            @warn "Invalid '$field' in config: '$(config_value)'. Expected one of $values."
+        end
+    end
+end
+
 
 function format_duration(total_seconds::Float64)
     total_seconds_int = floor(Int, total_seconds)
@@ -258,7 +276,6 @@ function get_orthonormal_basis_for_subspace_3d(n1_rat::Vector{Rational{BigInt}},
     return basis
 end
 
-# NEU: Funktion zum Erstellen einer 3D-Basis für den Plot von 6D-Polytopen
 function get_orthonormal_basis_for_subspace_3d_from_6d(n1_rat::Vector{Rational{BigInt}}, n2_rat::Vector{Rational{BigInt}}, n3_rat::Vector{Rational{BigInt}})
     b1 = normalize(Float64.(n1_rat))
     b2 = normalize(Float64.(n2_rat) - dot(Float64.(n2_rat), b1) * b1)
@@ -314,7 +331,7 @@ function all_simplices_in_3d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     return simplex_indices
 end
 
-function precompute_open_faces_3d(P::Matrix{Rational{BigInt}})
+function precompute_internal_faces_3d(P::Matrix{Rational{BigInt}})
     n = size(P, 1); if n < 3 return Set{NTuple{3, Int}}() end
     poly = polyhedron(vrep(P)); hr = hrep(poly);
     planes = collect(halfspaces(hr))
@@ -351,7 +368,7 @@ function all_simplices_in_4d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     return simplex_indices
 end
 
-function precompute_open_faces_4d(P::Matrix{Rational{BigInt}})
+function precompute_internal_faces_4d(P::Matrix{Rational{BigInt}})
     n = size(P, 1); if n < 4 return Set{NTuple{4, Int}}() end
     poly = polyhedron(vrep(P)); hr = hrep(poly);
     planes = collect(halfspaces(hr))
@@ -393,7 +410,7 @@ function all_simplices_in_5d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     return simplex_indices
 end
 
-function precompute_open_faces_5d(P::Matrix{Rational{BigInt}})
+function precompute_internal_faces_5d(P::Matrix{Rational{BigInt}})
     n = size(P, 1)
     if n < 5 return Set{NTuple{5, Int}}() end 
     poly = polyhedron(vrep(P)); hr = hrep(poly)
@@ -410,7 +427,7 @@ function precompute_open_faces_5d(P::Matrix{Rational{BigInt}})
     return union(thread_sets...)
 end
 
-# --- NEU: 6D Pipeline Functions ---
+# --- 6D Pipeline Functions ---
 
 function findAllLatticePointsInHull_6d(vertices::Matrix{Rational{BigInt}})
     poly = polyhedron(vrep(vertices)); hr = hrep(poly)
@@ -438,9 +455,9 @@ function all_simplices_in_6d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     return simplex_indices
 end
 
-function precompute_open_faces_6d(P::Matrix{Rational{BigInt}})
+function precompute_internal_faces_6d(P::Matrix{Rational{BigInt}})
     n = size(P, 1)
-    if n < 6 return Set{NTuple{6, Int}}() end # Eine Facette in 6D wird durch 6 Punkte definiert
+    if n < 6 return Set{NTuple{6, Int}}() end # A facet in 6D is defined by 6 points
     poly = polyhedron(vrep(P)); hr = hrep(poly)
     planes = collect(halfspaces(hr))
     potential_faces = collect(combinations(1:n, 6))
@@ -488,7 +505,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     end
     push!(timings, "Find all lattice points" => (time_ns() - t_start) / 1e9); num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
-    if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%5d / %-5d", run_idx, total_in_run))): |P|=$num_lattice_points..."); end
+    if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points..."); end
     
     simplex_search_type = config.find_all_simplices ? "non-degenerate" : "unimodular"
     log_verbose("Step 2: Searching for $simplex_search_type $(dim)-simplices..."); t_start = time_ns()
@@ -503,12 +520,12 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     end
     push!(timings, "Find all $simplex_search_type simplices" => (time_ns() - t_start) / 1e9); num_simplices_found = length(S_indices)
     log_verbose("-> Found $num_simplices_found simplices. Step 2 complete.\n")
-    if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%5d / %-5d", run_idx, total_in_run))): |P|=$num_lattice_points, |S|=$num_simplices_found..."); end
+    if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found..."); end
 
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
         msg = "no $simplex_search_type simplices exist"
-        minimal_log = @sprintf("(%5d / %-5d): |P|=%-5d |S|=%-7d -> \u001b[31m%s\u001b[0m", run_idx, total_in_run, num_lattice_points, num_simplices_found, msg)
+        minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> \u001b[31m%s\u001b[0m", run_idx, total_in_run, num_lattice_points, num_simplices_found, msg)
         verbose_log = String(take!(buf)) * "\nNo simplices available. Cannot proceed."
         if config.terminal_output == "verbose"
             println(stdout, verbose_log)
@@ -516,18 +533,18 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         return ProcessResult(id, 0, total_time, num_lattice_points, num_simplices_found, verbose_log, minimal_log, [])
     end
 
-    log_verbose("Step 3: Precomputing open internal faces..."); t_start = time_ns()
-    open_faces_set = if dim == 3
-        precompute_open_faces_3d(P)
+    log_verbose("Step 3: Precomputing internal faces..."); t_start = time_ns()
+    internal_faces_set = if dim == 3
+        precompute_internal_faces_3d(P)
     elseif dim == 4
-        precompute_open_faces_4d(P)
+        precompute_internal_faces_4d(P)
     elseif dim == 5
-        precompute_open_faces_5d(P)
+        precompute_internal_faces_5d(P)
     else # dim == 6
-        precompute_open_faces_6d(P)
+        precompute_internal_faces_6d(P)
     end
-    push!(timings, "Precompute open faces (parallel)" => (time_ns() - t_start) / 1e9)
-    log_verbose("-> Found $(length(open_faces_set)) unique open faces. Step 3 complete.\n")
+    push!(timings, "Precompute internal faces (parallel)" => (time_ns() - t_start) / 1e9)
+    log_verbose("-> Found $(length(internal_faces_set)) unique internal faces. Step 3 complete.\n")
 
     num_simplices = length(S_indices); cnf = Vector{Vector{Int}}(); push!(cnf, collect(1:num_simplices))
 
@@ -550,7 +567,6 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                 log_verbose("     Using 5D GPU backend (Rationals)...")
                 intersect_func = () -> Main.GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
                 use_gpu = true
-            # NEU: 6D Rational Backend
             elseif dim == 6 && isdefined(Main, :GPUIntersection6D)
                 log_verbose("     Using 6D GPU backend (Rationals)...")
                 intersect_func = () -> Main.GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
@@ -569,7 +585,6 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                 log_verbose("     Using 5D GPU backend (Floats)...")
                 intersect_func = () -> Main.GPUIntersection5DFloats.get_intersecting_pairs_gpu_5d(P, S_indices)
                 use_gpu = true
-            # NEU: 6D Float Backend
             elseif dim == 6 && isdefined(Main, :GPUIntersection6DFloats)
                 log_verbose("     Using 6D GPU backend (Floats)...")
                 intersect_func = () -> Main.GPUIntersection6DFloats.get_intersecting_pairs_gpu_6d(P, S_indices)
@@ -626,7 +641,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         
                 for face_indices in combinations(S_indices[i], face_dim)
                     canonical_face = Tuple(sort(collect(face_indices)))
-                    if canonical_face in open_faces_set
+                    if canonical_face in internal_faces_set
                         coverers = [j for (j, s2) in enumerate(S_indices) if i != j && issubset(canonical_face, s2)]
                         push!(thread_face_clauses[tid], vcat([-i], coverers))
                     end
@@ -642,7 +657,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     
     log_verbose("Step 5: Handing SAT problem to solver ($(config.solver))..."); log_verbose("     Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
     log_verbose("     This step may take a long time if the problem is complex.")
-    if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%5d / %-5d", run_idx, total_in_run))): |P|=$num_lattice_points, |S|=$num_simplices_found, solving..."); end
+    if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found solving..."); end
     
     t_start_solve = time_ns(); solutions = []; num_solutions = 0
     solver_used = config.solver
@@ -727,18 +742,16 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                     end
                 end
             end
-        # NEU: Plotting-Logik für 6D-Polytopen
         elseif dim == 6
             log_verbose("     Plotting induced 3D triangulations for 3-faces...")
             initial_poly = polyhedron(vrep(initial_vertices))
             boundary_planes = collect(halfspaces(hrep(initial_poly)))
             solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
 
-            # Iteriere über alle Tripel von Facetten, um 3-dimensionale Seitenflächen zu finden
+            # Iterate over all triples of facets to find 3-dimensional faces
             for i in 1:length(boundary_planes), j in (i+1):length(boundary_planes), k in (j+1):length(boundary_planes)
                 p1, p2, p3 = boundary_planes[i], boundary_planes[j], boundary_planes[k]
                 
-                # Finde Simplizes, die ein Tetraeder auf dieser 3-Fläche haben
                 face_simplices_6D = [s for s in solution_simplices_rational if count(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(s)) >= 4]
                 if isempty(face_simplices_6D); continue; end
 
@@ -774,7 +787,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         log_verbose(String(take!(summary_buf)))
     end
     result_str = num_solutions > 0 ? @sprintf("\u001b[32mfound %d solution(s)\u001b[0m in %.2f s", num_solutions, total_time) : @sprintf("\u001b[31mno solution exists\u001b[0m, searched for %.2f s", total_time)
-    minimal_log = @sprintf("(%5d / %-5d): |P|=%-5d |S|=%-7d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices_found, result_str)
+    minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices_found, result_str)
     
     return ProcessResult(id, num_solutions, total_time, num_lattice_points, num_simplices_found, String(take!(buf)), minimal_log, first_solution_simplices)
 end
@@ -827,38 +840,76 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
     if config.processing_order == "reversed"; reverse!(indices_to_process); elseif config.processing_order == "random"; shuffle!(indices_to_process); end
 
     if config.terminal_output != "none"
-        println("Run started at:                          $(Dates.format(now(), "HH:MM:SS"))")
-        println("Number of threads:                       $(nthreads())")
-        println("Detected Dimension:                      $(dim)")
-        println("Solver requested:                        $(config.solver)")
-        println("Solve mode:                              $(config.solve_mode)")
-        println("Input file:                              $(config.polytopes_file)")
-        println("Number of polytopes found:               $(length(polytopes))")
-        println("Processing range:                        $(config.process_range)")
-        println("Number of polytopes to process:          $(length(indices_to_process))")
-        println("Restricting to unimodular simplices:     $(!config.find_all_simplices)")
-        if config.file_output != "none" && config.log_file != ""
-            println("Writing to log file:                     $(config.log_file)")
+        # --- Terminal Summary ---
+        term_summary_buf = IOBuffer()
+        println(term_summary_buf, "Run started at:                          $(Dates.format(now(), "HH:MM:SS"))")
+        println(term_summary_buf, "Number of threads:                       $(nthreads())")
+        println(term_summary_buf, "Detected Dimension:                      $(dim)")
+        println(term_summary_buf, "Solver requested:                        $(config.solver)")
+        println(term_summary_buf, "Solve mode:                              $(config.solve_mode)")
+        println(term_summary_buf, "Input file:                              $(config.polytopes_file)")
+        println(term_summary_buf, "Number of polytopes found:               $(length(polytopes))")
+        println(term_summary_buf, "Processing range:                        $(config.process_range)")
+        println(term_summary_buf, "Number of polytopes to process:          $(length(indices_to_process))")
+        println(term_summary_buf, "Restricting to unimodular simplices:     $(!config.find_all_simplices)")
+        if !isnothing(log_stream)
+            println(term_summary_buf, "Writing to log file:                     $(config.log_file)")
         end
-        println("Intersection backend selected:           $(config.intersection_backend)")
-        println("")
+        println(term_summary_buf, "Intersection backend selected:           $(config.intersection_backend)")
+        println(term_summary_buf, "")
+        print(stdout, String(take!(term_summary_buf)))
+
+        # --- Log File Summary ---
+        if !isnothing(log_stream)
+            log_summary_buf = IOBuffer()
+            println(log_summary_buf, "Number of threads:                       $(nthreads())")
+            println(log_summary_buf, "Detected Dimension:                      $(dim)")
+            println(log_summary_buf, "Solver requested:                        $(config.solver)")
+            println(log_summary_buf, "Solve mode:                              $(config.solve_mode)")
+            println(log_summary_buf, "Input file:                              $(config.polytopes_file)")
+            println(log_summary_buf, "Number of polytopes found:               $(length(polytopes))")
+            println(log_summary_buf, "Processing range:                        $(config.process_range)")
+            println(log_summary_buf, "Number of polytopes to process:          $(length(indices_to_process))")
+            println(log_summary_buf, "Restricting to unimodular simplices:     $(!config.find_all_simplices)")
+            println(log_summary_buf, "Intersection backend selected:           $(config.intersection_backend)")
+            println(log_summary_buf, "")
+            print(log_stream, String(take!(log_summary_buf)))
+            flush(log_stream)
+        end
     end
-    
-    if config.terminal_output == "single-line"
-        println("\n\n\n") # Reserve 4 lines: 3 for summary, 1 for progress
-    end
-    
+
     t_start_run = time(); total_solutions_found = 0; triangulations_found_count = 0; non_triangulatable_count = 0
+    recent_times = Float64[] # For ETA calculation
+    is_first_single_line_update = true
 
     for (i, p_idx) in enumerate(indices_to_process)
         result = process_polytope(polytopes[p_idx], p_idx, i, length(indices_to_process), config)
         if result.num_solutions_found > 0; triangulations_found_count += 1; else non_triangulatable_count += 1; end
         total_solutions_found += result.num_solutions_found
         
+        push!(recent_times, result.total_time)
+        if length(recent_times) > 100
+            popfirst!(recent_times)
+        end
+
         if config.terminal_output == "single-line"
+            if !is_first_single_line_update
+                print(stdout, "\u001b[4A")
+            end
+            is_first_single_line_update = false
+            
             elapsed_time = time() - t_start_run
-            print(stdout, "\u001b[3A")
+            
+            eta_str = "Calculating..."
+            if !isempty(recent_times)
+                avg_time = sum(recent_times) / length(recent_times)
+                remaining = length(indices_to_process) - i
+                eta_seconds = avg_time * remaining
+                eta_str = format_duration(eta_seconds)
+            end
+
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Elapsed Time:", format_duration(elapsed_time))
+            @printf(stdout, "\r%-40s %s\u001b[K\n", "Estimated Time Left:", eta_str)
             @printf(stdout, "\r%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Triangulatable:", triangulations_found_count)
             @printf(stdout, "\r%-40s \u001b[31m%d\u001b[0m\u001b[K\n", "Non-Triangulatable:", non_triangulatable_count)
             print(stdout, "\r" * result.minimal_log * "\u001b[K")
@@ -877,7 +928,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
     total_time_run = time() - t_start_run
     
     avg_solutions_str = ""
-    if config.solve_mode in ["all", "count_only"] && !isempty(indices_to_process)
+    if config.solve_mode in ["all", "count"] && !isempty(indices_to_process)
         avg_solutions_str = @sprintf("Average Solutions/Polytope:      %.2f\n", total_solutions_found / length(indices_to_process))
     end
 
@@ -905,6 +956,7 @@ function main()
         return
     end
     config = load_config(config_path)
+    validate_config(config)
 
     # --- Pre-run Checks for Available Packages ---
     if startswith(config.intersection_backend, "gpu")
@@ -943,7 +995,6 @@ function main()
 
         # --- Dimension Detection ---
         dim = size(polytopes[first(range_to_process)], 2)
-        # NEU: Dimensionen-Check um 6D erweitert
         if !(dim in [3, 4, 5, 6])
             println(stderr, "Error: Detected dimension is $dim. Only 3D, 4D, 5D, and 6D are supported."); return;
         end
@@ -956,3 +1007,5 @@ function main()
 end
 
 main()
+
+
