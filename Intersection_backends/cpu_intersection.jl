@@ -40,14 +40,14 @@ function _generalized_cross_product(vectors::Matrix{T}) where T
         error("Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum.")
     end
     
-    normal = Vector{T}(undef, d)
+    normal = Vector{Int64}(undef, d)
     for i in 1:d
-        # Erstelle eine Submatrix durch Entfernen der i-ten Zeile
+        # Computing the minor excluding the ith row
         sub_matrix_rows = vcat(1:(i-1), (i+1):d)
         sub_matrix = vectors[sub_matrix_rows, :]
-        # Das Vorzeichen ergibt sich aus der Kofaktorentwicklung
+        # Tracking sign. TODO: does sign = (-1)^i work?
         sign = iseven(i + 1) ? 1 : -1
-        normal[i] = sign * det(sub_matrix)
+        normal[i] = sign * LinearAlgebra.det_bareiss(sub_matrix)
     end
     return normal
 end
@@ -55,17 +55,20 @@ end
 """
     simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T -> Bool
 
-Überprüft, ob zwei d-dimensionale Simplizes (dargestellt durch ihre Eckenmatrizen)
-sich schneiden, unter Verwendung des Separating Axis Theorem (SAT).
+Checks if two d-dimensional simplices (given by their vertex matrices) intersect (on their interior), using the Separating Axis Theorem (SAT).
 
-Gibt `true` zurück, wenn sie sich schneiden, andernfalls `false`.
+Returns True if they intersect, Otherwise False.
 """
 function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T
+    # Patch fix to make simplex vertices Int64's, rather than Rational{BigInt}
+    # TODO: fix this better
+    s1_verts = convert(Matrix{Int64}, s1_verts) 
+    s2_verts = convert(Matrix{Int64}, s2_verts)
     dim = size(s1_verts, 2)
     num_verts = dim + 1
 
     # Die zu testenden Achsen werden in einem Set gespeichert, um Duplikate zu vermeiden
-    axes_to_test = Vector{Vector{T}}()
+    axes_to_test = Vector{Vector{Int64}}()
 
     # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
     for simplex_verts in (s1_verts, s2_verts)
@@ -78,7 +81,8 @@ function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) w
             axis = _generalized_cross_product(facet_vectors)
             if all(iszero, axis); continue; end
 
-            # Orientiere die Normale so, dass sie nach "innen" zeigt, bezogen auf den ausgelassenen Punkt
+            # Orient the normals so that they point "inwards" in relation to the omitted point.
+            # TODO is this necessary?
             remaining_vertex_idx = first(setdiff(1:num_verts, facet_indices))
             p_off_face = simplex_verts[remaining_vertex_idx, :]
             if dot(axis, p_off_face - p0) > 0
@@ -116,7 +120,7 @@ function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) w
         end
     end
     
-    # --- Führe den Projektionstest für alle gesammelten Achsen durch ---
+    # --- Do the projection test for all collected normal vectors (axes) ---
     unique_axes = unique(axes_to_test)
     for axis in unique_axes
         min1, max1 = _project(s1_verts, axis)
