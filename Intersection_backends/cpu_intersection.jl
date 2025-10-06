@@ -13,15 +13,28 @@ export simplices_intersect_sat_cpu
 Projiziert die Ecken eines Polytops auf eine gegebene Achse und gibt das
 minimale und maximale Skalarprodukt zurück.
 """
-function _project(vertices::Matrix{T}, axis::Vector{T}) where T
-    min_proj = dot(vertices[1, :], axis)
-    max_proj = min_proj
-    for i in 2:size(vertices, 1)
-        proj = dot(vertices[i, :], axis)
-        if proj < min_proj
-            min_proj = proj
-        elseif proj > max_proj
-            max_proj = proj
+
+@inline function _project(vertices::Matrix{Int64}, axis::Vector{Int64})
+    n, d = size(vertices)
+    @inbounds begin
+        # compute first projection
+        s = 0
+        for j in 1:d
+            s += vertices[1, j] * axis[j]
+        end
+        min_proj = s
+        max_proj = s
+        # compute the rest
+        for i in 2:n
+            s = 0
+            for j in 1:d
+                s += vertices[i, j] * axis[j]
+            end
+            if s < min_proj
+                min_proj = s
+            elseif s > max_proj
+                max_proj = s
+            end
         end
     end
     return min_proj, max_proj
@@ -56,8 +69,56 @@ function _generalized_cross_product(vectors::Matrix{T}) where T
     return normal
 end
 
-function generate_axes!(axes_to_test, s1_verts, s2_verts, dim)
-    num_verts = size(s1_verts, 1)
+"""
+    simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T -> Bool
+
+Checks if two d-dimensional simplices (given by their vertex matrices) intersect (on their interior), using the Separating Axis Theorem (SAT).
+
+Returns True if they intersect, Otherwise False.
+"""
+function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T
+    # Patch fix to make simplex vertices Int64's, rather than Rational{BigInt}
+    # TODO: fix this better
+    s1_verts = convert(Matrix{Int64}, s1_verts) 
+    s2_verts = convert(Matrix{Int64}, s2_verts)
+    dim = size(s1_verts, 2)
+    num_verts = dim + 1
+
+    function axis_separates(axis::Vector{Int64})
+        min1, max1 = _project(s1_verts, axis)
+        min2, max2 = _project(s2_verts, axis)
+        return max1 <= min2 || max2 <= min1
+    end
+
+    # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
+    for simplex_verts in (s1_verts, s2_verts)
+        # Eine Facette wird durch `dim` Ecken definiert
+        for facet_indices in combinations(1:num_verts, dim)
+            p0 = simplex_verts[facet_indices[1], :]
+            # Erzeuge `dim-1` Vektoren, die die Facette aufspannen
+            facet_vectors = hcat([simplex_verts[facet_indices[i], :] - p0 for i in 2:dim]...)
+            
+            axis = _generalized_cross_product(facet_vectors)
+            if all(iszero, axis); continue; end
+
+            # Orient the normals so that they point "inwards" in relation to the omitted point.
+            # TODO is this necessary?
+            remaining_vertex_idx = first(setdiff(1:num_verts, facet_indices))
+            p_off_face = simplex_verts[remaining_vertex_idx, :]
+            if dot(axis, p_off_face - p0) > 0
+                axis = -axis
+            end
+            if axis_separates(axis)
+                return false
+            end
+        end
+    end
+
+    # --- Fall 3: Achsen, die aus Seitenflächen beider Simplizes gebildet werden ---
+    # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
+    # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
+    # berechnet, wobei k+l = d-1.
+        num_verts = size(s1_verts, 1)
 
     # Reuse buffers for intermediate results
     max_k = dim - 1
@@ -97,75 +158,16 @@ function generate_axes!(axes_to_test, s1_verts, s2_verts, dim)
                 axis = _generalized_cross_product(combined[:, 1:(k+l)])
 
                 if any(!iszero, axis)
-                    push!(axes_to_test, axis)
+                    if axis_separates(axis)
+                        return false
+                    end
                 end
             end
         end
     end
-    return axes_to_test
-end
 
-"""
-    simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T -> Bool
-
-Checks if two d-dimensional simplices (given by their vertex matrices) intersect (on their interior), using the Separating Axis Theorem (SAT).
-
-Returns True if they intersect, Otherwise False.
-"""
-function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T
-    # Patch fix to make simplex vertices Int64's, rather than Rational{BigInt}
-    # TODO: fix this better
-    s1_verts = convert(Matrix{Int64}, s1_verts) 
-    s2_verts = convert(Matrix{Int64}, s2_verts)
-    dim = size(s1_verts, 2)
-    num_verts = dim + 1
-
-    # Die zu testenden Achsen werden in einem Set gespeichert, um Duplikate zu vermeiden
-    axes_to_test = Vector{Vector{Int64}}()
-
-    # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
-    for simplex_verts in (s1_verts, s2_verts)
-        # Eine Facette wird durch `dim` Ecken definiert
-        for facet_indices in combinations(1:num_verts, dim)
-            p0 = simplex_verts[facet_indices[1], :]
-            # Erzeuge `dim-1` Vektoren, die die Facette aufspannen
-            facet_vectors = hcat([simplex_verts[facet_indices[i], :] - p0 for i in 2:dim]...)
-            
-            axis = _generalized_cross_product(facet_vectors)
-            if all(iszero, axis); continue; end
-
-            # Orient the normals so that they point "inwards" in relation to the omitted point.
-            # TODO is this necessary?
-            remaining_vertex_idx = first(setdiff(1:num_verts, facet_indices))
-            p_off_face = simplex_verts[remaining_vertex_idx, :]
-            if dot(axis, p_off_face - p0) > 0
-                axis = -axis
-            end
-            push!(axes_to_test, axis)
-        end
-    end
-
-    # --- Fall 3: Achsen, die aus Seitenflächen beider Simplizes gebildet werden ---
-    # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
-    # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
-    # berechnet, wobei k+l = d-1.
-    generate_axes!(axes_to_test, s1_verts, s2_verts, dim)
-    
-    # --- Do the projection test for all collected normal vectors (axes) ---
-    unique_axes = unique(axes_to_test)
-    for axis in unique_axes
-        min1, max1 = _project(s1_verts, axis)
-        min2, max2 = _project(s2_verts, axis)
-
-        # Wenn die Projektionen sich nicht überlappen, haben wir eine trennende Achse gefunden.
-        # Die Simplizes schneiden sich nicht.
-        if max1 <= min2 || max2 <= min1
-            return false
-        end
-    end
-
-    # Wenn nach dem Testen aller Achsen keine trennende Achse gefunden wurde,
-    # müssen sich die Simplizes schneiden.
+    # We've enumerated and tested all possible axes but none of them
+    # separate. Therefore, the simplices must intersect.
     return true
 end
 
