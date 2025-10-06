@@ -35,21 +35,74 @@ Das Ergebnis ist ein Vektor, der orthogonal zu allen Eingabevektoren ist.
 Die Eingabe `vectors` ist eine d x (d-1) Matrix, bei der jede Spalte ein Vektor ist.
 """
 function _generalized_cross_product(vectors::Matrix{T}) where T
-    d = size(vectors, 1)
-    if size(vectors, 2) != d - 1
-        error("Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum.")
-    end
+    d, n = size(vectors)
+    @assert n == d - 1 "Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum."
     
     normal = Vector{Int64}(undef, d)
-    for i in 1:d
+    tmp = Matrix{Int64}(undef, d - 1, d - 1)
+    sign = 1
+
+    @views for i in 1:d
         # Computing the minor excluding the ith row
-        sub_matrix_rows = vcat(1:(i-1), (i+1):d)
-        sub_matrix = vectors[sub_matrix_rows, :]
-        # Tracking sign. TODO: does sign = (-1)^i work?
-        sign = iseven(i + 1) ? 1 : -1
-        normal[i] = sign * LinearAlgebra.det_bareiss(sub_matrix)
+        if i > 1
+            tmp[1:(i-1), :] .= vectors[1:(i-1), :]
+        end
+        if i < d
+            tmp[i:(d-1), :] .= vectors[(i+1):d, :]
+        end
+        sign = -sign
+        normal[i] = sign * LinearAlgebra.det_bareiss(tmp)
     end
     return normal
+end
+
+function generate_axes!(axes_to_test, s1_verts, s2_verts, dim)
+    num_verts = size(s1_verts, 1)
+
+    # Reuse buffers for intermediate results
+    max_k = dim - 1
+    max_l = dim - 1
+    max_vecs = max_k + max_l
+
+    # Assume d = size(s1_verts, 2)
+    d = size(s1_verts, 2)
+    tmp_f1 = zeros(d, max_k)
+    tmp_f2 = zeros(d, max_l)
+    combined = zeros(d, max_vecs)
+
+    for k in 1:(dim-1)
+        l = dim - 1 - k
+        if l < 1
+            continue
+        end
+
+        for f1_indices in combinations(1:num_verts, k + 1)
+            p1_0 = @view s1_verts[f1_indices[1], :]
+
+            # Fill f1_vectors in place
+            @views for j in 2:(k+1)
+                tmp_f1[:, j-1] .= s1_verts[f1_indices[j], :] .- p1_0
+            end
+
+            for f2_indices in combinations(1:num_verts, l + 1)
+                p2_0 = @view s2_verts[f2_indices[1], :]
+
+                @views for j in 2:(l+1)
+                    tmp_f2[:, j-1] .= s2_verts[f2_indices[j], :] .- p2_0
+                end
+
+                combined[:, 1:k] .= @view tmp_f1[:, 1:k]
+                combined[:, (k+1):(k+l)] .= @view tmp_f2[:, 1:l]
+
+                axis = _generalized_cross_product(combined[:, 1:(k+l)])
+
+                if any(!iszero, axis)
+                    push!(axes_to_test, axis)
+                end
+            end
+        end
+    end
+    return axes_to_test
 end
 
 """
@@ -96,29 +149,7 @@ function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) w
     # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
     # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
     # berechnet, wobei k+l = d-1.
-    for k in 1:(dim-1)
-        l = dim - 1 - k
-        if l < 1; continue; end
-
-        # Iteriere über alle k-Flächen von s1 (definiert durch k+1 Ecken)
-        for f1_indices in combinations(1:num_verts, k + 1)
-            p1_0 = s1_verts[f1_indices[1], :]
-            f1_vectors = [s1_verts[f1_indices[i], :] - p1_0 for i in 2:(k+1)]
-
-            # Iteriere über alle l-Flächen von s2 (definiert durch l+1 Ecken)
-            for f2_indices in combinations(1:num_verts, l + 1)
-                p2_0 = s2_verts[f2_indices[1], :]
-                f2_vectors = [s2_verts[f2_indices[i], :] - p2_0 for i in 2:(l+1)]
-
-                combined_vectors = hcat(f1_vectors..., f2_vectors...)
-                axis = _generalized_cross_product(combined_vectors)
-                
-                if !all(iszero, axis)
-                    push!(axes_to_test, axis)
-                end
-            end
-        end
-    end
+    generate_axes!(axes_to_test, s1_verts, s2_verts, dim)
     
     # --- Do the projection test for all collected normal vectors (axes) ---
     unique_axes = unique(axes_to_test)
