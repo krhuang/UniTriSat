@@ -47,7 +47,7 @@ Berechnet das verallgemeinerte Kreuzprodukt für d-1 Vektoren im d-dimensionalen
 Das Ergebnis ist ein Vektor, der orthogonal zu allen Eingabevektoren ist.
 Die Eingabe `vectors` ist eine d x (d-1) Matrix, bei der jede Spalte ein Vektor ist.
 """
-function _generalized_cross_product(vectors::Matrix{T}) where T
+function _generalized_cross_product(vectors::Matrix{Int64})
     d, n = size(vectors)
     @assert n == d - 1 "Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum."
     
@@ -127,9 +127,9 @@ function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) w
 
     # Assume d = size(s1_verts, 2)
     d = size(s1_verts, 2)
-    tmp_f1 = zeros(d, max_k)
-    tmp_f2 = zeros(d, max_l)
-    combined = zeros(d, max_vecs)
+    tmp_f1 = zeros(Int64, d, max_k)
+    tmp_f2 = zeros(Int64, d, max_l)
+    combined = zeros(Int64, d, max_vecs)
 
     for k in 1:(dim-1)
         l = dim - 1 - k
