@@ -76,6 +76,55 @@ struct Simplex
     face_edges::Dict{Int, Vector{Vector{Int64}}} # maps face_dim => list of edge indices per face
 end
 
+macro generate_axis_separate_fn(d)
+    d_val = Int(d)
+    project_fname = Symbol(:_project_, d_val)
+    axis_fname = Symbol(:axis_separates_, d_val)
+
+    # --- unrolled dot product: dot(vertices[i], axis)
+    dot_expr(i) = Expr(:call, :+, [:(vertices[$i][$j] * axis[$j]) for j in 1:d_val]...)
+
+    # --- build the unrolled project function body with min–max trees
+    function build_project_expr(nverts)
+        # Compute all projections explicitly
+        proj_syms = [Symbol(:p, i) for i in 1:nverts]
+        assigns = [:( $(proj_syms[i]) = $(dot_expr(i)) ) for i in 1:nverts]
+
+        # Build min–max trees as expressions
+        function tree(op, syms)
+            while length(syms) > 1
+                pairs = [Expr(:call, op, syms[i], syms[min(i+1, end)]) for i in 1:2:length(syms)]
+                syms = pairs
+            end
+            return syms[1]
+        end
+
+        min_expr = tree(:min, proj_syms)
+        max_expr = tree(:max, proj_syms)
+
+        quote
+            @inbounds begin
+                $(assigns...)
+            end
+            return $min_expr, $max_expr
+        end
+    end
+
+    # --- assume simplex has n = d + 1 vertices (for a d-dimensional simplex)
+    nverts = d_val + 1
+    project_body = build_project_expr(nverts)
+
+    quote
+        @inline function $(project_fname)(vertices::Vector{Vector{Int64}}, axis::Vector{Int64})
+            $(project_body)
+        end
+
+        @inline function $(esc(axis_fname))(axis::Vector{Int64})
+            min1, max1 = $(project_fname)($(esc(:s1_verts)), axis)
+            min2, max2 = $(project_fname)($(esc(:s2_verts)), axis)
+            return max1 <= min2 || max2 <= min1
+        end
+    end
 end
 
 """
@@ -94,10 +143,27 @@ function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
     s1_face_edges = s1.face_edges
     s2_face_edges = s2.face_edges
 
-    function axis_separates(axis::Vector{Int64})
+    @generate_axis_separate_fn 3
+    @generate_axis_separate_fn 4
+    @generate_axis_separate_fn 5
+    @generate_axis_separate_fn 6
+
+    function axis_separates_generic(axis::Vector{Int64})
         min1, max1 = _project(s1_verts, axis)
         min2, max2 = _project(s2_verts, axis)
         return max1 <= min2 || max2 <= min1
+    end
+
+    axis_separates = if dim == 3
+        axis_separates_3
+    elseif dim == 4
+        axis_separates_4
+    elseif dim == 5
+        axis_separates_5
+    elseif dim == 6
+        axis_separates_6
+    else
+        axis_separates_generic
     end
 
     # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
