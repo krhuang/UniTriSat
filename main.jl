@@ -45,7 +45,7 @@ if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_f
     include("Intersection_backends/gpu_intersection_6d_floats.jl")
 end
 
-
+include("Intersection_backends/cpu_intersection_3d.jl")
 include("Intersection_backends/cpu_intersection.jl")
 
 const CMS_LOADED = Ref(false)
@@ -592,6 +592,9 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         
         if use_gpu && !isnothing(intersect_func)
             intersect_func() # Execute the selected GPU function
+        elseif dim == 3
+            log_verbose("    Using specialized 3D CPU backend")
+            CPUIntersection3D.get_intersecting_pairs_cpu(P, S_indices)
         else
             if startswith(config.intersection_backend, "gpu")
                  log_verbose("     WARNING: GPU backend '$(config.intersection_backend)' for $(dim)D not available. Falling back to CPU.")
