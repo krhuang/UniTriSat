@@ -8,6 +8,87 @@ using Base.Threads
 
 export get_intersecting_pairs_cpu, simplices_intersect_sat_cpu
 
+macro generate_gcross_unrolled_full(d)
+    d_val = Int(d)
+    fname = Symbol("gcross", d_val)
+
+    # Compute permutation sign manually at macroexpansion time
+    function perm_sign(p::Vector{Int})
+        n = length(p)
+        invs = 0
+        for i in 1:n, j in (i+1):n
+            invs += p[i] > p[j] ? 1 : 0
+        end
+        return (-1)^invs
+    end
+
+    # Generate variable symbols for each matrix entry
+    vsym = [Symbol("v", i, "_", j) for i in 1:d_val, j in 1:(d_val-1)]
+
+    # Helper: build determinant term for a given minor using scalar variables
+    function det_expr_scalar(row_indices)
+        cols = 1:(d_val-1)
+        perms = collect(permutations(cols))
+        ex = :(0)
+        for p in perms
+            sgn = perm_sign(p)
+            prod_terms = [vsym[row_indices[r], p[r]] for r in 1:length(row_indices)]
+            prod_expr = Expr(:call, :*, prod_terms...)
+            ex = :($ex + $(sgn) * $prod_expr)
+        end
+        return ex
+    end
+
+    # Build each component of the generalized cross product
+    comp_exprs = Expr[]
+    rows_full = 1:d_val
+    for i in 1:d_val
+        rows_minor = filter(x -> x != i, rows_full)
+        ex = det_expr_scalar(rows_minor)
+        if isodd(i)
+            ex = :(-($ex))
+        end
+        push!(comp_exprs, :( $(Symbol("n", i)) = $ex ))
+    end
+
+    # Build scalar entry function
+    scalar_args = vec(vsym)
+    scalar_func_name = Symbol(fname, "_scalar!")
+    scalar_func = quote
+        @inline function $(esc(scalar_func_name))(vec::Vector{Int64}, $(scalar_args...))
+            # declare local variables
+            $( [:( $(Symbol("n", i)) = 0 ) for i in 1:d_val ]... )
+            # fill in the generalized cross product components
+            @inbounds begin
+                $(comp_exprs...)
+                # fill in vector destructively
+                $( [:( vec[$i] = $(Symbol("n", i)) ) for i in 1:d_val ]... )
+                return vec
+            end
+            #return $(Expr(:vect, [Symbol("n", i) for i in 1:d_val]...))
+        end
+    end
+
+    # Build vec wrapper function
+    vec_func = quote
+        function $(esc(fname))(vs::Vector{Vector{Int64}})
+            # unpack vector of vectors into scalar variables
+            $(Expr(:block, [:( $(Symbol("v", i, "_", j)) = vs[$j][$i] ) for i in 1:d_val, j in 1:(d_val-1)]...))
+            vec = Vector{Int64}(undef, $d_val)
+            # call scalar function with all the scalar variables
+            return $(esc(scalar_func_name))(
+                vec,
+                $( [Symbol("v", i, "_", j) for i in 1:d_val, j in 1:(d_val-1)]... )
+            )
+        end
+    end
+
+    quote
+        $scalar_func
+        $vec_func
+    end
+end
+
 """
     _project(vertices::Matrix, axis::Vector) -> Tuple{Real, Real}
 
@@ -34,6 +115,11 @@ minimale und maximale Skalarprodukt zurück.
     return min_proj, max_proj
 end
 
+@generate_gcross_unrolled_full 3
+@generate_gcross_unrolled_full 4
+@generate_gcross_unrolled_full 5
+@generate_gcross_unrolled_full 6
+
 """
     _generalized_cross_product(vectors::Vector{Vector{T}}) where T
 
@@ -44,28 +130,37 @@ function _generalized_cross_product(vectors::Vector{Vector{Int64}})
     n = length(vectors)
     d = length(vectors[1])
     @assert n == d - 1 "Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum."
-    
-    normal = Vector{Int64}(undef, d)
-    tmp = Matrix{Int64}(undef, d - 1, d - 1)
-    sign = 1
+    if d == 3
+        gcross3(vectors)
+    elseif d == 4
+        gcross4(vectors)
+    elseif d == 5
+        gcross5(vectors)
+    elseif d == 6
+        gcross6(vectors)
+    else
+        normal = Vector{Int64}(undef, d)
+        tmp = Matrix{Int64}(undef, d - 1, d - 1)
+        sign = 1
 
-    @inbounds for i in 1:d
-        # Computing the minor excluding the ith row
-        row_dst = 1
-        for row_src in 1:d
-            if row_src == i
-                continue
+        @inbounds for i in 1:d
+            # Computing the minor excluding the ith row
+            row_dst = 1
+            for row_src in 1:d
+                if row_src == i
+                    continue
+                end
+                # copy row_src-th vector into tmp[row_dst, :]
+                for j in 1:(d - 1)
+                    tmp[row_dst, j] = vectors[j][row_src]
+                end
+                row_dst += 1
             end
-            # copy row_src-th vector into tmp[row_dst, :]
-            for j in 1:(d - 1)
-                tmp[row_dst, j] = vectors[j][row_src]
-            end
-            row_dst += 1
+            sign = -sign
+            normal[i] = sign * LinearAlgebra.det_bareiss(tmp)
         end
-        sign = -sign
-        normal[i] = sign * LinearAlgebra.det_bareiss(tmp)
+        return normal
     end
-    return normal
 end
 
 struct Simplex
@@ -74,6 +169,47 @@ struct Simplex
     facet_p0::Vector{Vector{Int64}}      # corresponding p0 for each facet (to orient)
     edges::Vector{Vector{Int64}}         # edge vectors (j>i) stored as Vector{Int64}
     face_edges::Dict{Int, Vector{Vector{Int64}}} # maps face_dim => list of edge indices per face
+end
+
+# Evil macro.
+macro generate_cross_axes_case_scalar(d)
+    d_val = Int(d)
+    stmts = Expr[]
+
+    for k in 1:(d_val - 2)
+        l = d_val - 1 - k
+        scalar_func = Symbol("gcross", d_val, "_scalar!")
+
+        # Construct the argument list to pass scalars
+        # There are (k + l) vectors, each of dimension d
+        args = Expr[]
+        for j in 1:k
+            for i in 1:d_val
+                push!(args, :($(esc(:s1_edges))[f1_edges[$j]][$i]))
+            end
+        end
+        for j in 1:l
+            for i in 1:d_val
+                push!(args, :($(esc(:s2_edges))[f2_edges[$j]][$i]))
+            end
+        end
+
+        inner = quote
+            vec = Vector{Int64}(undef, $d_val)
+            @inbounds for f1_edges in $(esc(:s1_face_edges))[$k]
+                for f2_edges in $(esc(:s2_face_edges))[$l]
+                    axis = $scalar_func(vec, $(args...))
+                    if any(!iszero, axis) && $(esc(Symbol(:axis_separates)))(axis)
+                        return false
+                    end
+                end
+            end
+        end
+
+        push!(stmts, inner)
+    end
+
+    return Expr(:block, stmts...)
 end
 
 macro generate_axis_separate_fn(d)
@@ -179,21 +315,31 @@ function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
     # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
     # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
     # berechnet, wobei k+l = d-1.
-    edgeset = Vector{Vector{Int64}}(undef, dim - 1)
-    for k in 1:(dim-2)
-        l = dim - 1 - k
-        for f1_edges in s1_face_edges[k]
-            for f2_edges in s2_face_edges[l]
-                # combine edges spanning the two faces
-                for j in 1:k
-                    edgeset[j] = s1_edges[f1_edges[j]]
-                end
-                for j in 1:l
-                    edgeset[k+j] = s2_edges[f2_edges[j]]
-                end
-                axis = _generalized_cross_product(edgeset)
-                if any(!iszero, axis) && axis_separates(axis)
-                    return false
+    if dim == 3
+        @generate_cross_axes_case_scalar 3
+    elseif dim == 4
+        @generate_cross_axes_case_scalar 4
+    elseif dim == 5
+        @generate_cross_axes_case_scalar 5
+    elseif dim == 6
+        @generate_cross_axes_case_scalar 6
+    else
+        edgeset = Vector{Vector{Int64}}(undef, dim - 1)
+        for k in 1:(dim-2)
+            l = dim - 1 - k
+            for f1_edges in s1_face_edges[k]
+                for f2_edges in s2_face_edges[l]
+                    # combine edges spanning the two faces
+                    for j in 1:k
+                        edgeset[j] = s1_edges[f1_edges[j]]
+                    end
+                    for j in 1:l
+                        edgeset[k+j] = s2_edges[f2_edges[j]]
+                    end
+                    axis = _generalized_cross_product(edgeset)
+                    if any(!iszero, axis) && axis_separates(axis)
+                        return false
+                    end
                 end
             end
         end
