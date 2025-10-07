@@ -4,8 +4,9 @@ module CPUIntersection
 
 using LinearAlgebra
 using Combinatorics
+using Base.Threads
 
-export simplices_intersect_sat_cpu
+export get_intersecting_pairs_cpu, simplices_intersect_sat_cpu
 
 """
     _project(vertices::Matrix, axis::Vector) -> Tuple{Real, Real}
@@ -118,7 +119,7 @@ function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) w
     # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
     # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
     # berechnet, wobei k+l = d-1.
-        num_verts = size(s1_verts, 1)
+    num_verts = size(s1_verts, 1)
 
     # Reuse buffers for intermediate results
     max_k = dim - 1
@@ -169,6 +170,26 @@ function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) w
     # We've enumerated and tested all possible axes but none of them
     # separate. Therefore, the simplices must intersect.
     return true
+end
+
+function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indices::Vector, config)
+    num_simplices = length(S_indices)
+    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
+    next_i1 = Threads.Atomic{Int}(1)
+    @threads for _ in 1:nthreads()
+        tid = threadid()
+        while true
+            i1 = Threads.atomic_add!(next_i1, 1); if i1 > num_simplices break end
+            if config.terminal_output == "verbose" && tid == 1 && (i1 % 50 == 0 || i1 == num_simplices)
+                update_line("[$(Dates.format(now(), "HH:MM:SS"))]      ... checking intersections (outer loop): $i1 / $num_simplices")
+            end
+            for i2 in (i1 + 1):num_simplices
+                if simplices_intersect_sat_cpu(P[collect(S_indices[i1]), :], P[collect(S_indices[i2]), :])
+                    push!(thread_clauses[tid], [-(i1), -(i2)]); end
+            end
+        end
+    end
+    return vcat(thread_clauses...)
 end
 
 end # module CPUIntersection
