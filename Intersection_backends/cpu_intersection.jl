@@ -70,6 +70,14 @@ function _generalized_cross_product(vectors::Matrix{Int64})
     return normal
 end
 
+struct Simplex
+    verts::Matrix{Int64}                 # (num_verts) x d
+    facet_normals::Vector{Vector{Int64}} # list of normals (one per facet)
+    facet_p0::Vector{Vector{Int64}}      # corresponding p0 for each facet (to orient)
+    edges::Vector{Vector{Int64}}         # edge vectors (j>i) stored as Vector{Int64}
+    face_edges::Dict{Int, Vector{Vector{Int}}} # maps face_dim => list of edge indices per face
+end
+
 """
     simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T -> Bool
 
@@ -77,13 +85,10 @@ Checks if two d-dimensional simplices (given by their vertex matrices) intersect
 
 Returns True if they intersect, Otherwise False.
 """
-function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T
-    # Patch fix to make simplex vertices Int64's, rather than Rational{BigInt}
-    # TODO: fix this better
-    s1_verts = convert(Matrix{Int64}, s1_verts) 
-    s2_verts = convert(Matrix{Int64}, s2_verts)
+function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
+    s1_verts = s1.verts
+    s2_verts = s2.verts
     dim = size(s1_verts, 2)
-    num_verts = dim + 1
 
     function axis_separates(axis::Vector{Int64})
         min1, max1 = _project(s1_verts, axis)
@@ -92,76 +97,36 @@ function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) w
     end
 
     # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
-    for simplex_verts in (s1_verts, s2_verts)
-        # Eine Facette wird durch `dim` Ecken definiert
-        for facet_indices in combinations(1:num_verts, dim)
-            p0 = simplex_verts[facet_indices[1], :]
-            # Erzeuge `dim-1` Vektoren, die die Facette aufspannen
-            facet_vectors = hcat([simplex_verts[facet_indices[i], :] - p0 for i in 2:dim]...)
-            
-            axis = _generalized_cross_product(facet_vectors)
-            if all(iszero, axis); continue; end
-
-            # Orient the normals so that they point "inwards" in relation to the omitted point.
-            # TODO is this necessary?
-            remaining_vertex_idx = first(setdiff(1:num_verts, facet_indices))
-            p_off_face = simplex_verts[remaining_vertex_idx, :]
-            if dot(axis, p_off_face - p0) > 0
-                axis = -axis
-            end
+    for simplex in (s1, s2)
+        for axis in simplex.facet_normals
             if axis_separates(axis)
                 return false
             end
         end
     end
 
+    max_k = dim-2      # max dim for s1 face
+    max_l = dim-2      # max dim for s2 face
+    tmp_combined = zeros(Int64, dim, max_k + max_l)
+
     # --- Fall 3: Achsen, die aus Seitenflächen beider Simplizes gebildet werden ---
     # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
     # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
     # berechnet, wobei k+l = d-1.
-    num_verts = size(s1_verts, 1)
-
-    # Reuse buffers for intermediate results
-    max_k = dim - 1
-    max_l = dim - 1
-    max_vecs = max_k + max_l
-
-    # Assume d = size(s1_verts, 2)
-    d = size(s1_verts, 2)
-    tmp_f1 = zeros(Int64, d, max_k)
-    tmp_f2 = zeros(Int64, d, max_l)
-    combined = zeros(Int64, d, max_vecs)
-
-    for k in 1:(dim-1)
+    for k in 1:(dim-2)
         l = dim - 1 - k
-        if l < 1
-            continue
-        end
-
-        for f1_indices in combinations(1:num_verts, k + 1)
-            p1_0 = @view s1_verts[f1_indices[1], :]
-
-            # Fill f1_vectors in place
-            @views for j in 2:(k+1)
-                tmp_f1[:, j-1] .= s1_verts[f1_indices[j], :] .- p1_0
-            end
-
-            for f2_indices in combinations(1:num_verts, l + 1)
-                p2_0 = @view s2_verts[f2_indices[1], :]
-
-                @views for j in 2:(l+1)
-                    tmp_f2[:, j-1] .= s2_verts[f2_indices[j], :] .- p2_0
+        for f1_edges in s1.face_edges[k]
+            for f2_edges in s2.face_edges[l]
+                # combine edges spanning the two faces
+                for j in 1:k
+                    tmp_combined[:, j] .= s1.edges[f1_edges[j]]
                 end
-
-                combined[:, 1:k] .= @view tmp_f1[:, 1:k]
-                combined[:, (k+1):(k+l)] .= @view tmp_f2[:, 1:l]
-
-                axis = _generalized_cross_product(combined[:, 1:(k+l)])
-
-                if any(!iszero, axis)
-                    if axis_separates(axis)
-                        return false
-                    end
+                for j in 1:l
+                    tmp_combined[:, k+j] .= s2.edges[f2_edges[j]]
+                end
+                axis = _generalized_cross_product(tmp_combined[:, 1:(k+l)])
+                if any(!iszero, axis) && axis_separates(axis)
+                    return false
                 end
             end
         end
@@ -172,20 +137,107 @@ function simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) w
     return true
 end
 
-function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indices::Vector, config)
-    num_simplices = length(S_indices)
-    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
-    next_i1 = Threads.Atomic{Int}(1)
-    @threads for _ in 1:nthreads()
-        tid = threadid()
-        while true
-            i1 = Threads.atomic_add!(next_i1, 1); if i1 > num_simplices break end
-            if config.terminal_output == "verbose" && tid == 1 && (i1 % 50 == 0 || i1 == num_simplices)
-                update_line("[$(Dates.format(now(), "HH:MM:SS"))]      ... checking intersections (outer loop): $i1 / $num_simplices")
+# --- Compute facet normals and edge vectors for a single simplex ---
+function compute_simplex_data(verts::Matrix{Int64})
+    d = size(verts, 2)
+    num_verts = size(verts, 1)  # should equal d+1 for simplices
+    @assert num_verts == d + 1 "expected simplex with d+1 vertices"
+
+    facet_normals = Vector{Vector{Int64}}()
+    facet_p0 = Vector{Vector{Int64}}()
+
+    # Precompute all edges and index map
+    edges = Vector{Vector{Int64}}()
+    edge_index = Dict{Tuple{Int,Int}, Int}()
+    for i in 1:(num_verts-1)
+        for j in (i+1):num_verts
+            push!(edges, vec(verts[j, :] .- verts[i, :]))
+            edge_index[(i,j)] = length(edges)
+        end
+    end
+
+    # facets are combinations(1:num_verts, d)
+    for facet_indices in combinations(1:num_verts, d)
+        p0 = verts[facet_indices[1], :]            # 1 × d view
+        # build d-1 spanning vectors as d×(d-1) matrix (columns are vectors)
+        span = Matrix{Int64}(undef, d, d-1)
+        for j in 2:d
+            span[:, j - 1] .= verts[facet_indices[j], :] .- p0
+        end
+        normal = _generalized_cross_product(span)  # Int64 vector length d
+        if all(iszero, normal)
+            continue
+        end
+        # orient to point inward relative to omitted vertex:
+        remaining_idx = first(setdiff(1:num_verts, facet_indices))
+        p_off_face = verts[remaining_idx, :]
+        if dot(normal, p_off_face .- p0) > 0
+            normal .= -normal
+        end
+        push!(facet_normals, normal)
+        push!(facet_p0, vec(p0))  # store a copy of p0 (as Vector{Int64})
+    end
+
+    # --- precompute faces and exactly k spanning vectors per face ---
+    face_edges = Dict{Int, Vector{Vector{Int}}}()
+    for k in 1:(d-1)  # face dimension
+        face_edges[k] = Vector{Vector{Int}}()
+        for face_indices in combinations(1:num_verts, k+1)
+            # collect exactly k spanning edges for the generalized cross
+            e_idx = Int[]
+            p0 = face_indices[1]
+            for j in 2:(k+1)
+                pj = face_indices[j]
+                key = p0 < pj ? (p0,pj) : (pj,p0)
+                push!(e_idx, edge_index[key])
             end
-            for i2 in (i1 + 1):num_simplices
-                if simplices_intersect_sat_cpu(P[collect(S_indices[i1]), :], P[collect(S_indices[i2]), :])
-                    push!(thread_clauses[tid], [-(i1), -(i2)]); end
+            push!(face_edges[k], e_idx)
+        end
+    end
+
+    return Simplex(verts, facet_normals, facet_p0, edges, face_edges)
+end
+
+# Precompute the type conversion and also the generalized cross
+# products for each simplex.
+function prepare_simplices_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector)
+    num_simplices = length(S_indices)
+    simplices = Vector{Simplex}(undef, num_simplices)
+    for i in 1:num_simplices
+        simplices[i] = compute_simplex_data(convert(Matrix{Int64}, P[collect(S_indices[i]), :]))
+    end
+    return simplices
+end
+
+function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indices::Vector)
+    num_simplices = length(S_indices)
+
+    simplices = prepare_simplices_cpu(P, S_indices)
+    total_pairs = div(num_simplices * (num_simplices - 1), 2)
+
+    num_threads = nthreads()
+
+    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
+    # Split work evenly among threads
+    pairs_per_thread = div(total_pairs + num_threads - 1, num_threads)
+    @threads for thread_id in 1:num_threads
+        start_idx = (thread_id - 1) * pairs_per_thread + 1
+        end_idx = min(thread_id * pairs_per_thread, total_pairs)
+
+        clauses = thread_clauses[thread_id]
+
+        for idx in start_idx:end_idx
+            # Compute (i,j) from linear index
+            i = Int(floor((1 + sqrt(1 + 8*(idx-1))) / 2))
+            acc = div(i*(i-1), 2)
+            j = idx - acc + i
+            if j > num_simplices
+                continue
+            end
+
+            t1, t2 = simplices[i], simplices[j]
+            if simplices_intersect_sat_cpu(t1, t2)
+                push!(clauses, [-i, -j])
             end
         end
     end

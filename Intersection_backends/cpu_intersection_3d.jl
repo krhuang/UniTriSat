@@ -135,7 +135,7 @@ function get_intersecting_pairs_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vect
         append!(results, buf)
     end
 
-    return [ [i,j] for (i,j) in results ]
+    return [ [-i,-j] for (i,j) in results ]
 end
 
 end
