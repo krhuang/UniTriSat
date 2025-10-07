@@ -600,25 +600,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                  log_verbose("     WARNING: GPU backend '$(config.intersection_backend)' for $(dim)D not available. Falling back to CPU.")
             end
             log_verbose("     Using CPU backend.")
-            
-            cpu_intersect_func = CPUIntersection.simplices_intersect_sat_cpu
-            
-            thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
-            next_i1 = Threads.Atomic{Int}(1)
-            @threads for _ in 1:nthreads()
-                tid = threadid()
-                while true
-                    i1 = Threads.atomic_add!(next_i1, 1); if i1 > n_simplices break end
-                    if config.terminal_output == "verbose" && tid == 1 && (i1 % 50 == 0 || i1 == n_simplices)
-                        update_line("[$(Dates.format(now(), "HH:MM:SS"))]      ... checking intersections (outer loop): $i1 / $n_simplices")
-                    end
-                    for i2 in (i1 + 1):n_simplices
-                        if cpu_intersect_func(P[collect(S_indices[i1]), :], P[collect(S_indices[i2]), :])
-                            push!(thread_clauses[tid], [-(i1), -(i2)]); end
-                    end
-                end
-            end
-            vcat(thread_clauses...)
+            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices, config)
         end
     end
 
