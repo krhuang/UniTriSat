@@ -15,22 +15,15 @@ Projiziert die Ecken eines Polytops auf eine gegebene Achse und gibt das
 minimale und maximale Skalarprodukt zurück.
 """
 
-@inline function _project(vertices::Matrix{Int64}, axis::Vector{Int64})
-    n, d = size(vertices)
+@inline function _project(vertices::Vector{Vector{Int64}}, axis::Vector{Int64})
     @inbounds begin
         # compute first projection
-        s = 0
-        for j in 1:d
-            s += vertices[1, j] * axis[j]
-        end
+        s = dot(vertices[1], axis)
         min_proj = s
         max_proj = s
         # compute the rest
-        for i in 2:n
-            s = 0
-            for j in 1:d
-                s += vertices[i, j] * axis[j]
-            end
+        for i in 2:length(vertices)
+            s = dot(vertices[i], axis)
             if s < min_proj
                 min_proj = s
             elseif s > max_proj
@@ -42,27 +35,32 @@ minimale und maximale Skalarprodukt zurück.
 end
 
 """
-    _generalized_cross_product(vectors::Matrix{T}) where T -> Vector{T}
+    _generalized_cross_product(vectors::Vector{Vector{T}}) where T
 
 Berechnet das verallgemeinerte Kreuzprodukt für d-1 Vektoren im d-dimensionalen Raum.
 Das Ergebnis ist ein Vektor, der orthogonal zu allen Eingabevektoren ist.
-Die Eingabe `vectors` ist eine d x (d-1) Matrix, bei der jede Spalte ein Vektor ist.
 """
-function _generalized_cross_product(vectors::Matrix{Int64})
-    d, n = size(vectors)
+function _generalized_cross_product(vectors::Vector{Vector{Int64}})
+    n = length(vectors)
+    d = length(vectors[1])
     @assert n == d - 1 "Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum."
     
     normal = Vector{Int64}(undef, d)
     tmp = Matrix{Int64}(undef, d - 1, d - 1)
     sign = 1
 
-    @views for i in 1:d
+    @inbounds for i in 1:d
         # Computing the minor excluding the ith row
-        if i > 1
-            tmp[1:(i-1), :] .= vectors[1:(i-1), :]
-        end
-        if i < d
-            tmp[i:(d-1), :] .= vectors[(i+1):d, :]
+        row_dst = 1
+        for row_src in 1:d
+            if row_src == i
+                continue
+            end
+            # copy row_src-th vector into tmp[row_dst, :]
+            for j in 1:(d - 1)
+                tmp[row_dst, j] = vectors[j][row_src]
+            end
+            row_dst += 1
         end
         sign = -sign
         normal[i] = sign * LinearAlgebra.det_bareiss(tmp)
@@ -71,11 +69,13 @@ function _generalized_cross_product(vectors::Matrix{Int64})
 end
 
 struct Simplex
-    verts::Matrix{Int64}                 # (num_verts) x d
+    verts::Vector{Vector{Int64}}         # (num_verts) x d
     facet_normals::Vector{Vector{Int64}} # list of normals (one per facet)
     facet_p0::Vector{Vector{Int64}}      # corresponding p0 for each facet (to orient)
     edges::Vector{Vector{Int64}}         # edge vectors (j>i) stored as Vector{Int64}
-    face_edges::Dict{Int, Vector{Vector{Int}}} # maps face_dim => list of edge indices per face
+    face_edges::Dict{Int, Vector{Vector{Int64}}} # maps face_dim => list of edge indices per face
+end
+
 end
 
 """
@@ -88,7 +88,11 @@ Returns True if they intersect, Otherwise False.
 function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
     s1_verts = s1.verts
     s2_verts = s2.verts
-    dim = size(s1_verts, 2)
+    dim = length(s1_verts[1])
+    s1_edges = s1.edges
+    s2_edges = s2.edges
+    s1_face_edges = s1.face_edges
+    s2_face_edges = s2.face_edges
 
     function axis_separates(axis::Vector{Int64})
         min1, max1 = _project(s1_verts, axis)
@@ -105,26 +109,23 @@ function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
         end
     end
 
-    max_k = dim-2      # max dim for s1 face
-    max_l = dim-2      # max dim for s2 face
-    tmp_combined = zeros(Int64, dim, max_k + max_l)
-
     # --- Fall 3: Achsen, die aus Seitenflächen beider Simplizes gebildet werden ---
     # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
     # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
     # berechnet, wobei k+l = d-1.
+    edgeset = Vector{Vector{Int64}}(undef, dim - 1)
     for k in 1:(dim-2)
         l = dim - 1 - k
-        for f1_edges in s1.face_edges[k]
-            for f2_edges in s2.face_edges[l]
+        for f1_edges in s1_face_edges[k]
+            for f2_edges in s2_face_edges[l]
                 # combine edges spanning the two faces
                 for j in 1:k
-                    tmp_combined[:, j] .= s1.edges[f1_edges[j]]
+                    edgeset[j] = s1_edges[f1_edges[j]]
                 end
                 for j in 1:l
-                    tmp_combined[:, k+j] .= s2.edges[f2_edges[j]]
+                    edgeset[k+j] = s2_edges[f2_edges[j]]
                 end
-                axis = _generalized_cross_product(tmp_combined[:, 1:(k+l)])
+                axis = _generalized_cross_product(edgeset)
                 if any(!iszero, axis) && axis_separates(axis)
                     return false
                 end
@@ -137,11 +138,9 @@ function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
     return true
 end
 
-# --- Compute facet normals and edge vectors for a single simplex ---
-function compute_simplex_data(verts::Matrix{Int64})
-    d = size(verts, 2)
-    num_verts = size(verts, 1)  # should equal d+1 for simplices
-    @assert num_verts == d + 1 "expected simplex with d+1 vertices"
+# Compute facet normals and edge vectors for a single simplex.
+function compute_simplex_data(verts::Vector{Vector{Int64}}, d::Int64)
+    num_verts = d + 1
 
     facet_normals = Vector{Vector{Int64}}()
     facet_p0 = Vector{Vector{Int64}}()
@@ -151,31 +150,27 @@ function compute_simplex_data(verts::Matrix{Int64})
     edge_index = Dict{Tuple{Int,Int}, Int}()
     for i in 1:(num_verts-1)
         for j in (i+1):num_verts
-            push!(edges, vec(verts[j, :] .- verts[i, :]))
+            push!(edges, verts[j] - verts[i])
             edge_index[(i,j)] = length(edges)
         end
     end
 
     # facets are combinations(1:num_verts, d)
     for facet_indices in combinations(1:num_verts, d)
-        p0 = verts[facet_indices[1], :]            # 1 × d view
-        # build d-1 spanning vectors as d×(d-1) matrix (columns are vectors)
-        span = Matrix{Int64}(undef, d, d-1)
-        for j in 2:d
-            span[:, j - 1] .= verts[facet_indices[j], :] .- p0
-        end
+        p0 = verts[facet_indices[1]]            # 1 × d view
+        span = [verts[facet_indices[j]] - p0 for j in 2:d]
         normal = _generalized_cross_product(span)  # Int64 vector length d
         if all(iszero, normal)
             continue
         end
         # orient to point inward relative to omitted vertex:
         remaining_idx = first(setdiff(1:num_verts, facet_indices))
-        p_off_face = verts[remaining_idx, :]
-        if dot(normal, p_off_face .- p0) > 0
-            normal .= -normal
+        p_off_face = verts[remaining_idx]
+        if dot(normal, p_off_face - p0) > 0
+            normal = -normal
         end
         push!(facet_normals, normal)
-        push!(facet_p0, vec(p0))  # store a copy of p0 (as Vector{Int64})
+        push!(facet_p0, p0)
     end
 
     # --- precompute faces and exactly k spanning vectors per face ---
@@ -204,7 +199,13 @@ function prepare_simplices_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector)
     num_simplices = length(S_indices)
     simplices = Vector{Simplex}(undef, num_simplices)
     for i in 1:num_simplices
-        simplices[i] = compute_simplex_data(convert(Matrix{Int64}, P[collect(S_indices[i]), :]))
+        verts = P[collect(S_indices[i]), :]
+        num_verts = size(verts, 1)
+        d = size(verts, 2)
+        num_verts = size(verts, 1)  # should equal d+1 for simplices
+        @assert num_verts == d + 1 "expected simplex with d+1 vertices"
+        simplices[i] = compute_simplex_data([convert(Vector{Int64}, verts[i, :]) for i in 1:num_verts],
+                                            d)
     end
     return simplices
 end
