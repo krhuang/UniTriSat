@@ -5,6 +5,7 @@ module CPUIntersection
 using LinearAlgebra
 using Combinatorics
 using Base.Threads
+using StaticArrays
 
 export get_intersecting_pairs_cpu, simplices_intersect_sat_cpu
 
@@ -55,15 +56,13 @@ macro generate_gcross_unrolled_full(d)
     scalar_args = vec(vsym)
     scalar_func_name = Symbol(fname, "_scalar!")
     scalar_func = quote
-        @inline function $(esc(scalar_func_name))(vec::Vector{Int64}, $(scalar_args...))
+        @inline function $(esc(scalar_func_name))($(scalar_args...))
             # declare local variables
             $( [:( $(Symbol("n", i)) = 0 ) for i in 1:d_val ]... )
             # fill in the generalized cross product components
             @inbounds begin
                 $(comp_exprs...)
-                # fill in vector destructively
-                $( [:( vec[$i] = $(Symbol("n", i)) ) for i in 1:d_val ]... )
-                return vec
+                return SVector{$d_val, Int64}($((Symbol("n", i) for i in 1:d_val )... ))
             end
             #return $(Expr(:vect, [Symbol("n", i) for i in 1:d_val]...))
         end
@@ -71,13 +70,11 @@ macro generate_gcross_unrolled_full(d)
 
     # Build vec wrapper function
     vec_func = quote
-        function $(esc(fname))(vs::Vector{Vector{Int64}})
+        function $(esc(:_generalized_cross_product))(vs::MVector{$d_val - 1, SVector{$d_val, Int64}})
             # unpack vector of vectors into scalar variables
             $(Expr(:block, [:( $(Symbol("v", i, "_", j)) = vs[$j][$i] ) for i in 1:d_val, j in 1:(d_val-1)]...))
-            vec = Vector{Int64}(undef, $d_val)
             # call scalar function with all the scalar variables
             return $(esc(scalar_func_name))(
-                vec,
                 $( [Symbol("v", i, "_", j) for i in 1:d_val, j in 1:(d_val-1)]... )
             )
         end
@@ -87,32 +84,6 @@ macro generate_gcross_unrolled_full(d)
         $scalar_func
         $vec_func
     end
-end
-
-"""
-    _project(vertices::Matrix, axis::Vector) -> Tuple{Real, Real}
-
-Projiziert die Ecken eines Polytops auf eine gegebene Achse und gibt das
-minimale und maximale Skalarprodukt zurück.
-"""
-
-@inline function _project(vertices::Vector{Vector{Int64}}, axis::Vector{Int64})
-    @inbounds begin
-        # compute first projection
-        s = dot(vertices[1], axis)
-        min_proj = s
-        max_proj = s
-        # compute the rest
-        for i in 2:length(vertices)
-            s = dot(vertices[i], axis)
-            if s < min_proj
-                min_proj = s
-            elseif s > max_proj
-                max_proj = s
-            end
-        end
-    end
-    return min_proj, max_proj
 end
 
 @generate_gcross_unrolled_full 3
@@ -126,49 +97,39 @@ end
 Berechnet das verallgemeinerte Kreuzprodukt für d-1 Vektoren im d-dimensionalen Raum.
 Das Ergebnis ist ein Vektor, der orthogonal zu allen Eingabevektoren ist.
 """
-function _generalized_cross_product(vectors::Vector{Vector{Int64}})
-    n = length(vectors)
-    d = length(vectors[1])
-    @assert n == d - 1 "Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum."
-    if d == 3
-        gcross3(vectors)
-    elseif d == 4
-        gcross4(vectors)
-    elseif d == 5
-        gcross5(vectors)
-    elseif d == 6
-        gcross6(vectors)
-    else
-        normal = Vector{Int64}(undef, d)
-        tmp = Matrix{Int64}(undef, d - 1, d - 1)
-        sign = 1
+function _generalized_cross_product(vectors::MVector{N, SVector{D, Int64}}) where {N, D}
+    n = N
+    d = D
+    @assert N == D - 1 "Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum."
+    normal = zeros(MVector{D, Int64})
+    tmp = Matrix{Int64}(undef, n, n)
+    sign = 1
 
-        @inbounds for i in 1:d
-            # Computing the minor excluding the ith row
-            row_dst = 1
-            for row_src in 1:d
-                if row_src == i
-                    continue
-                end
-                # copy row_src-th vector into tmp[row_dst, :]
-                for j in 1:(d - 1)
-                    tmp[row_dst, j] = vectors[j][row_src]
-                end
-                row_dst += 1
+    @inbounds for i in 1:d
+        # Computing the minor excluding the ith row
+        row_dst = 1
+        for row_src in 1:d
+            if row_src == i
+                continue
             end
-            sign = -sign
-            normal[i] = sign * LinearAlgebra.det_bareiss(tmp)
+            # copy row_src-th vector into tmp[row_dst, :]
+            for j in 1:n
+                tmp[row_dst, j] = vectors[j][row_src]
+            end
+            row_dst += 1
         end
-        return normal
+        sign = -sign
+        normal[i] = sign * LinearAlgebra.det_bareiss(tmp)
     end
+    return normal
 end
 
-struct Simplex
-    verts::Vector{Vector{Int64}}         # (num_verts) x d
-    facet_normals::Vector{Vector{Int64}} # list of normals (one per facet)
-    facet_p0::Vector{Vector{Int64}}      # corresponding p0 for each facet (to orient)
-    edges::Vector{Vector{Int64}}         # edge vectors (j>i) stored as Vector{Int64}
-    face_edges::Dict{Int, Vector{Vector{Int64}}} # maps face_dim => list of edge indices per face
+struct Simplex{V, D}
+    verts::SVector{V, SVector{D, Int64}}         # (num_verts) x d
+    facet_normals::SVector{V, SVector{D, Int64}} # list of normals (one per facet)
+    facet_p0::SVector{V, SVector{D, Int64}}      # corresponding p0 for each facet (to orient)
+    edges::Vector{SVector{D, Int64}}         # edge vectors (j>i) stored as Vector{Int64}
+    face_edges::Vector{Vector{Vector{Int64}}} # maps face_dim => list of edge indices per face
 end
 
 # Evil macro.
@@ -195,11 +156,10 @@ macro generate_cross_axes_case_scalar(d)
         end
 
         inner = quote
-            vec = Vector{Int64}(undef, $d_val)
             @inbounds for f1_edges in $(esc(:s1_face_edges))[$k]
                 for f2_edges in $(esc(:s2_face_edges))[$l]
                     axis = $scalar_func(vec, $(args...))
-                    if any(!iszero, axis) && $(esc(Symbol(:axis_separates)))(axis)
+                    if any(!iszero, axis) && axis_separates($(esc(:s1_verts)), $(esc(:s2_verts)), axis)
                         return false
                     end
                 end
@@ -212,55 +172,20 @@ macro generate_cross_axes_case_scalar(d)
     return Expr(:block, stmts...)
 end
 
-macro generate_axis_separate_fn(d)
-    d_val = Int(d)
-    project_fname = Symbol(:_project_, d_val)
-    axis_fname = Symbol(:axis_separates_, d_val)
+"""
+    axis_separates(s1_verts, s2_verts, axis) -> Bool
 
-    # --- unrolled dot product: dot(vertices[i], axis)
-    dot_expr(i) = Expr(:call, :+, [:(vertices[$i][$j] * axis[$j]) for j in 1:d_val]...)
+Projiziert die Ecken eines Polytops auf eine gegebene Achse und gibt
+das minimale und maximale Skalarprodukt zurück. Twice to check if the
+given axis separates the two polytopes.
+"""
 
-    # --- build the unrolled project function body with min–max trees
-    function build_project_expr(nverts)
-        # Compute all projections explicitly
-        proj_syms = [Symbol(:p, i) for i in 1:nverts]
-        assigns = [:( $(proj_syms[i]) = $(dot_expr(i)) ) for i in 1:nverts]
-
-        # Build min–max trees as expressions
-        function tree(op, syms)
-            while length(syms) > 1
-                pairs = [Expr(:call, op, syms[i], syms[min(i+1, end)]) for i in 1:2:length(syms)]
-                syms = pairs
-            end
-            return syms[1]
-        end
-
-        min_expr = tree(:min, proj_syms)
-        max_expr = tree(:max, proj_syms)
-
-        quote
-            @inbounds begin
-                $(assigns...)
-            end
-            return $min_expr, $max_expr
-        end
-    end
-
-    # --- assume simplex has n = d + 1 vertices (for a d-dimensional simplex)
-    nverts = d_val + 1
-    project_body = build_project_expr(nverts)
-
-    quote
-        @inline function $(project_fname)(vertices::Vector{Vector{Int64}}, axis::Vector{Int64})
-            $(project_body)
-        end
-
-        @inline function $(esc(axis_fname))(axis::Vector{Int64})
-            min1, max1 = $(project_fname)($(esc(:s1_verts)), axis)
-            min2, max2 = $(project_fname)($(esc(:s2_verts)), axis)
-            return max1 <= min2 || max2 <= min1
-        end
-    end
+function axis_separates(s1_verts::SVector{V, SVector{D, Int64}},
+                        s2_verts::SVector{V, SVector{D, Int64}},
+                        axis) where {V, D}
+    projs1 = ntuple(i -> dot(s1_verts[i], axis), Val(V))
+    projs2 = ntuple(i -> dot(s2_verts[i], axis), Val(V))
+    return maximum(projs1) <= minimum(projs2) || maximum(projs2) <= minimum(projs1)
 end
 
 """
@@ -270,42 +195,18 @@ Checks if two d-dimensional simplices (given by their vertex matrices) intersect
 
 Returns True if they intersect, Otherwise False.
 """
-function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
+function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where {V, D}
     s1_verts = s1.verts
     s2_verts = s2.verts
-    dim = length(s1_verts[1])
     s1_edges = s1.edges
     s2_edges = s2.edges
     s1_face_edges = s1.face_edges
     s2_face_edges = s2.face_edges
 
-    @generate_axis_separate_fn 3
-    @generate_axis_separate_fn 4
-    @generate_axis_separate_fn 5
-    @generate_axis_separate_fn 6
-
-    function axis_separates_generic(axis::Vector{Int64})
-        min1, max1 = _project(s1_verts, axis)
-        min2, max2 = _project(s2_verts, axis)
-        return max1 <= min2 || max2 <= min1
-    end
-
-    axis_separates = if dim == 3
-        axis_separates_3
-    elseif dim == 4
-        axis_separates_4
-    elseif dim == 5
-        axis_separates_5
-    elseif dim == 6
-        axis_separates_6
-    else
-        axis_separates_generic
-    end
-
     # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
     for simplex in (s1, s2)
         for axis in simplex.facet_normals
-            if axis_separates(axis)
+            if axis_separates(s1_verts, s2_verts, axis)
                 return false
             end
         end
@@ -315,18 +216,18 @@ function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
     # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
     # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
     # berechnet, wobei k+l = d-1.
-    if dim == 3
+    if D == 3
         @generate_cross_axes_case_scalar 3
-    elseif dim == 4
+    elseif D == 4
         @generate_cross_axes_case_scalar 4
-    elseif dim == 5
+    elseif D == 5
         @generate_cross_axes_case_scalar 5
-    elseif dim == 6
+    elseif D == 6
         @generate_cross_axes_case_scalar 6
     else
-        edgeset = Vector{Vector{Int64}}(undef, dim - 1)
-        for k in 1:(dim-2)
-            l = dim - 1 - k
+        edgeset = zeros(MVector{D - 1, SVector{D, Int64}})
+        for k in 1:(D-2)
+            l = D - 1 - k
             for f1_edges in s1_face_edges[k]
                 for f2_edges in s2_face_edges[l]
                     # combine edges spanning the two faces
@@ -337,7 +238,7 @@ function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
                         edgeset[k+j] = s2_edges[f2_edges[j]]
                     end
                     axis = _generalized_cross_product(edgeset)
-                    if any(!iszero, axis) && axis_separates(axis)
+                    if any(!iszero, axis) && axis_separates(s1_verts, s2_verts, axis)
                         return false
                     end
                 end
@@ -351,14 +252,14 @@ function simplices_intersect_sat_cpu(s1::Simplex, s2::Simplex)
 end
 
 # Compute facet normals and edge vectors for a single simplex.
-function compute_simplex_data(verts::Vector{Vector{Int64}}, d::Int64)
-    num_verts = d + 1
+function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
+    num_verts = D + 1
 
-    facet_normals = Vector{Vector{Int64}}()
-    facet_p0 = Vector{Vector{Int64}}()
+    facet_normals = Vector{SVector{D, Int64}}()
+    facet_p0 = Vector{SVector{D, Int64}}()
 
     # Precompute all edges and index map
-    edges = Vector{Vector{Int64}}()
+    edges = Vector{SVector{D, Int64}}()
     edge_index = Dict{Tuple{Int,Int}, Int}()
     for i in 1:(num_verts-1)
         for j in (i+1):num_verts
@@ -368,9 +269,9 @@ function compute_simplex_data(verts::Vector{Vector{Int64}}, d::Int64)
     end
 
     # facets are combinations(1:num_verts, d)
-    for facet_indices in combinations(1:num_verts, d)
+    for facet_indices in combinations(1:num_verts, D)
         p0 = verts[facet_indices[1]]            # 1 × d view
-        span = [verts[facet_indices[j]] - p0 for j in 2:d]
+        span = MVector{D - 1, SVector{D, Int64}}(verts[facet_indices[j]] - p0 for j in 2:D)
         normal = _generalized_cross_product(span)  # Int64 vector length d
         if all(iszero, normal)
             continue
@@ -386,49 +287,50 @@ function compute_simplex_data(verts::Vector{Vector{Int64}}, d::Int64)
     end
 
     # --- precompute faces and exactly k spanning vectors per face ---
-    face_edges = Dict{Int, Vector{Vector{Int}}}()
-    for k in 1:(d-1)  # face dimension
-        face_edges[k] = Vector{Vector{Int}}()
-        for face_indices in combinations(1:num_verts, k+1)
+    face_edges = Vector{Vector{Vector{Int64}}}(undef, D - 1)
+    for k in 1:(D-1)  # face dimension
+        face_edges[k] = Vector{Vector{Int64}}(undef, binomial(num_verts, k + 1))
+        for (i, face_indices) in enumerate(combinations(1:num_verts, k+1))
             # collect exactly k spanning edges for the generalized cross
-            e_idx = Int[]
+            e_idx = Int64[]
             p0 = face_indices[1]
             for j in 2:(k+1)
                 pj = face_indices[j]
                 key = p0 < pj ? (p0,pj) : (pj,p0)
                 push!(e_idx, edge_index[key])
             end
-            push!(face_edges[k], e_idx)
+            face_edges[k][i] = e_idx
         end
     end
 
-    return Simplex(verts, facet_normals, facet_p0, edges, face_edges)
+    return Simplex{D + 1, D}(verts,
+                             SVector{D+1, SVector{D, Int64}}(facet_normals),
+                             SVector{D+1, SVector{D, Int64}}(facet_p0),
+                             edges,
+                             face_edges)
 end
 
 # Precompute the type conversion and also the generalized cross
 # products for each simplex.
-function prepare_simplices_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector)
+function prepare_simplices_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector, ::Val{D}) where D
     num_simplices = length(S_indices)
-    simplices = Vector{Simplex}(undef, num_simplices)
+    simplices = Vector{Simplex{D + 1, D}}(undef, num_simplices)
     for i in 1:num_simplices
         verts = P[collect(S_indices[i]), :]
-        num_verts = size(verts, 1)
-        d = size(verts, 2)
         num_verts = size(verts, 1)  # should equal d+1 for simplices
-        @assert num_verts == d + 1 "expected simplex with d+1 vertices"
-        simplices[i] = compute_simplex_data([convert(Vector{Int64}, verts[i, :]) for i in 1:num_verts],
-                                            d)
+        @assert num_verts == D + 1 "expected each simplex to have d+1 vertices"
+        sverts = SVector{D + 1, SVector{D,Int64}}(SVector{D,Int64}(verts[i, :]) for i in 1:(D + 1))
+        simplices[i] = compute_simplex_data(sverts)
     end
     return simplices
 end
 
-function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indices::Vector)
-    num_simplices = length(S_indices)
-
-    simplices = prepare_simplices_cpu(P, S_indices)
-    total_pairs = div(num_simplices * (num_simplices - 1), 2)
-
+# Essentially specialize the rest of the code on the dimension.
+function get_intersecting_pairs_cpu_aux(P::Matrix{Rational{BigInt}}, S_indices::Vector, ::Val{D}) where D
+    simplices::Vector{Simplex{D+1, D}} = prepare_simplices_cpu(P, S_indices, Val(D))
+    num_simplices = length(simplices)
     num_threads = nthreads()
+    total_pairs = div(num_simplices * (num_simplices - 1), 2)
 
     thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
     # Split work evenly among threads
@@ -455,6 +357,13 @@ function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indic
         end
     end
     return vcat(thread_clauses...)
+end
+
+function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indices::Vector)
+    first_verts = P[collect(S_indices[1]), :]
+    # compute dimension to make all code specialized on the dimension from here on out
+    d = size(first_verts, 2)
+    return get_intersecting_pairs_cpu_aux(P, S_indices, Val(d))
 end
 
 end # module CPUIntersection
