@@ -127,7 +127,6 @@ end
 struct Simplex{V, D}
     verts::SVector{V, SVector{D, Int64}}         # (num_verts) x d
     facet_normals::SVector{V, SVector{D, Int64}} # list of normals (one per facet)
-    facet_p0::SVector{V, SVector{D, Int64}}      # corresponding p0 for each facet (to orient)
     edges::Vector{SVector{D, Int64}}         # edge vectors (j>i) stored as Vector{Int64}
     face_edges::Vector{Vector{Vector{Int64}}} # maps face_dim => list of edge indices per face
 end
@@ -258,7 +257,6 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
     num_verts = D + 1
 
     facet_normals = Vector{SVector{D, Int64}}()
-    facet_p0 = Vector{SVector{D, Int64}}()
 
     # Precompute all edges and index map
     edges = Vector{SVector{D, Int64}}()
@@ -285,7 +283,6 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
             normal = -normal
         end
         push!(facet_normals, normal)
-        push!(facet_p0, p0)
     end
 
     # --- precompute faces and exactly k spanning vectors per face ---
@@ -307,7 +304,6 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
 
     return Simplex{D + 1, D}(verts,
                              SVector{D+1, SVector{D, Int64}}(facet_normals),
-                             SVector{D+1, SVector{D, Int64}}(facet_p0),
                              edges,
                              face_edges)
 end
