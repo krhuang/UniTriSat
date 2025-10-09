@@ -137,7 +137,7 @@ macro generate_cross_axes_case_scalar(d)
     d_val = Int(d)
     stmts = Expr[]
 
-    for k in 1:(d_val - 2)
+    for k in 1:div(d_val - 1, 2)
         l = d_val - 1 - k
         scalar_func = Symbol("gcross", d_val, "_scalar!")
 
@@ -212,10 +212,12 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         end
     end
 
-    # --- Fall 3: Achsen, die aus Seitenflächen beider Simplizes gebildet werden ---
-    # Eine Achse wird gebildet, indem man das verallgemeinerte Kreuzprodukt von
-    # k Vektoren von einer k-Fläche von s1 und l Vektoren von einer l-Fläche von s2
-    # berechnet, wobei k+l = d-1.
+    # --- Fall 3: Achsen, die aus Seitenflächen beider Simplizes
+    # gebildet werden --- Eine Achse wird gebildet, indem man das
+    # verallgemeinerte Kreuzprodukt von k Vektoren von einer k-Fläche
+    # von s1 und l Vektoren von einer l-Fläche von s2 berechnet, wobei
+    # k+l = d-1. Due to the anti-symmetric property of the cross
+    # product, we only need to check (k, l) pairs for k <= l.
     if D == 3
         @generate_cross_axes_case_scalar 3
     elseif D == 4
@@ -226,7 +228,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         @generate_cross_axes_case_scalar 6
     else
         edgeset = zeros(MVector{D - 1, SVector{D, Int64}})
-        for k in 1:(D-2)
+        for k in 1:div((D - 1), 2)
             l = D - 1 - k
             for f1_edges in s1_face_edges[k]
                 for f2_edges in s2_face_edges[l]
