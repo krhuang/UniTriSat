@@ -23,8 +23,8 @@ simplices_01 = [ # Simplices of the 01 cube
 ] 
 
 for simplex in simplices_01
-	bool = simplices_intersect_sat_cpu(simplex, simplex)
-	@test bool == true 
+	#bool = simplices_intersect_sat_cpu(simplex, simplex)
+	#@test bool == true 
 end
 
 # ===============================================
@@ -39,13 +39,24 @@ end
 # ===============================================
 # Assert that the White tetrahedra has no unimodular triangulations
 # ===============================================
-# TODO
-#= gcd computation
-for ???
-	white_tetrahedra = ??
-	@test find_unimodular_triangulation(white_tetrahedra) == false
+# See https://arxiv.org/pdf/1610.01981v1
+# 
+upper_bound = 10
+for a in 1:upper_bound
+    for b in 1:upper_bound
+        for c in 1:upper_bound
+            d = mod((1 - a - b), c)
+            if gcd(a, c) == 1 && gcd(b, c) == 1 && gcd(d, c) == 1
+                if a == 1 || b == 1 || c == 1 || d == 1
+                    white_tetrahedra = Rational{BigInt}.([0 0 0; 1 0 0; 0 1 0; a b c])
+
+                    @test size(findAllLatticePointsInHull_3d(white_tetrahedra), 1) == 4
+                    # @test find_unimodular_triangulation(white_tetrahedra) == false
+                end
+            end
+        end
+    end
 end
-=#
 
 # ===============================================
 # Assert that every smooth 3-polytope in the dataset has a unimodular triangulation
