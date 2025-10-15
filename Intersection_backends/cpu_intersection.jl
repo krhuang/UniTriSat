@@ -154,10 +154,14 @@ macro generate_cross_axes_case_scalar(d)
             end
         end
 
+        edge_count = binomial(d_val + 1, k + 1)
+
         inner = quote
-            @inbounds for f1_edges in $(esc(:s1_face_edges))[$k]
-                for f2_edges in $(esc(:s2_face_edges))[$l]
-                    axis = $scalar_func(vec, $(args...))
+            @inbounds for i in 1:$edge_count
+                f1_edges = $(esc(:s1_face_edges))[$k][i]
+                for j in 1:$edge_count
+                    f2_edges = $(esc(:s2_face_edges))[$l][j]
+                    axis = $scalar_func($(args...))
                     if any(!iszero, axis) && axis_separates($(esc(:s1_verts)), $(esc(:s2_verts)), axis)
                         return false
                     end
@@ -179,9 +183,9 @@ das minimale und maximale Skalarprodukt zurück. Twice to check if the
 given axis separates the two polytopes.
 """
 
-function axis_separates(s1_verts::SVector{V, SVector{D, Int64}},
-                        s2_verts::SVector{V, SVector{D, Int64}},
-                        axis) where {V, D}
+@inline function axis_separates(s1_verts::SVector{V, SVector{D, Int64}},
+                                s2_verts::SVector{V, SVector{D, Int64}},
+                                axis) where {V, D}
     projs1 = ntuple(i -> dot(s1_verts[i], axis), Val(V))
     projs2 = ntuple(i -> dot(s2_verts[i], axis), Val(V))
     return maximum(projs1) <= minimum(projs2) || maximum(projs2) <= minimum(projs1)
@@ -204,7 +208,9 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
 
     # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
     for simplex in (s1, s2)
-        for axis in simplex.facet_normals
+        facet_normals = simplex.facet_normals
+        for i in 1:V
+            axis = facet_normals[i]
             if axis_separates(s1_verts, s2_verts, axis)
                 return false
             end
@@ -229,18 +235,27 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         edgeset = zeros(MVector{D - 1, SVector{D, Int64}})
         for k in 1:div((D - 1), 2)
             l = D - 1 - k
-            for f1_edges in s1_face_edges[k]
-                for f2_edges in s2_face_edges[l]
-                    # combine edges spanning the two faces
-                    for j in 1:k
-                        edgeset[j] = s1_edges[f1_edges[j]]
-                    end
+            edge_count = binomial(D + 1, k + 1)
+            s1_face_edges_k = s1_face_edges[k]
+            s2_face_edges_l = s1_face_edges[l]
+            for i in 1:edge_count
+                f1_edges = s1_face_edges_k[i]
+                # combine edges spanning the two faces
+                for j in 1:k
+                    edgeset[j] = s1_edges[f1_edges[j]]
+                end
+                for j in 1:edge_count
+                    f2_edges = s2_face_edges_l[j]
                     for j in 1:l
                         edgeset[k+j] = s2_edges[f2_edges[j]]
                     end
                     axis = _generalized_cross_product(edgeset)
-                    if any(!iszero, axis) && axis_separates(s1_verts, s2_verts, axis)
-                        return false
+                    if !iszero(axis)
+                        projs1 = ntuple(i -> dot(s1_verts[i], axis), Val(V))
+                        projs2 = ntuple(i -> dot(s2_verts[i], axis), Val(V))
+                        if maximum(projs1) <= minimum(projs2) || maximum(projs2) <= minimum(projs1)
+                            return false
+                        end
                     end
                 end
             end
@@ -269,16 +284,17 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
     end
 
     # facets are combinations(1:num_verts, d)
-    for facet_indices in combinations(1:num_verts, D)
-        p0 = verts[facet_indices[1]]            # 1 × d view
-        span = MVector{D - 1, SVector{D, Int64}}(verts[facet_indices[j]] - p0 for j in 2:D)
+    for off_index in 1:num_verts
+        first_index = (off_index == 1) ? 2 : 1
+        p0 = verts[first_index]
+        span = MVector{D - 1, SVector{D, Int64}}(verts[facet_index] - p0
+                                                 for facet_index in (first_index + 1):num_verts
+                                                     if facet_index != off_index)
         normal = _generalized_cross_product(span)  # Int64 vector length d
         if all(iszero, normal)
             continue
         end
-        # orient to point inward relative to omitted vertex:
-        remaining_idx = first(setdiff(1:num_verts, facet_indices))
-        p_off_face = verts[remaining_idx]
+        p_off_face = verts[off_index]
         if dot(normal, p_off_face - p0) > 0
             normal = -normal
         end
