@@ -592,9 +592,6 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         
         if use_gpu && !isnothing(intersect_func)
             intersect_func() # Execute the selected GPU function
-        elseif dim == 3
-            log_verbose("    Using specialized 3D CPU backend")
-            CPUIntersection3D.get_intersecting_pairs_cpu(P, S_indices)
         else
             if startswith(config.intersection_backend, "gpu")
                  log_verbose("     WARNING: GPU backend '$(config.intersection_backend)' for $(dim)D not available. Falling back to CPU.")
