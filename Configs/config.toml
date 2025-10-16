@@ -1,6 +1,6 @@
 [files]
-polytopes_file = "Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt"
-log_file = "logs/4d_validated"
+polytopes_file = "Polytopes/smooth3polytopes_50processed"
+log_file = "logs/3d_validated"
 
 [run_settings]
 process_range = "-"	# A space-separated list of indices and ranges (e.g., "1-5 8 10-"). "-" means all.
@@ -8,8 +8,7 @@ processing_order = "normal"	# Options: "normal", "reversed", "random"
 sort_by = "P"			# "none": Use the order from the file. "P": Sort by # lattice points. "S": Sort by # simplices.
 solve_mode = "first"		# "first": Stop after one solution. "all": Find all solutions. "count": Count all solutions.
 find_all_simplices = false	# If true, finds all non-degenerate simplices. If false, only unimodular ones.
-intersection_backend = "cpu"	# Options: "cpu", "gpu_rationals", "gpu_floats", "AcceleratedKernels.jl" 
-#																					https://github.com/JuliaGPU/AcceleratedKernels.jl (backend-agnostic Julia package???)
+intersection_backend = "cpu"	# Options: "cpu", "gpu_rationals", "gpu_floats" 
 validate = true            # If true, validate GPU-found solutions using the precise CPU backend.
 
 [output_levels]
