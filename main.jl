@@ -9,6 +9,8 @@ using Printf
 using Base.Threads
 using TOML
 using Random
+# using Normaliz 
+# Could use Normaliz as the backend to find lattice points? 
 
 # --- Conditional Package Inclusion ---
 const CUDA_PACKAGES_LOADED = Ref(false)
@@ -219,6 +221,8 @@ function generalized_cross_product_4d(v1::Vector{T}, v2::Vector{T}, v3::Vector{T
     M = hcat(v1, v2, v3)
     return [ det(M[[2,3,4], :]), -det(M[[1,3,4], :]), det(M[[1,2,4], :]), -det(M[[1,2,3], :]) ]
 end
+
+# Seems to only be for plotting?
 
 function get_orthonormal_basis(normal::Vector{Rational{BigInt}})
     normal_f64 = Float64.(normal)
@@ -1049,4 +1053,6 @@ function main()
     end
 end
 
-main()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main() # TODO: patchwork fix; don't run main when importing
+end
