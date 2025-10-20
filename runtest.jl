@@ -24,9 +24,8 @@ simplices_01 = [ # Simplices of the 01 cube
 ] 
 
 for simplex in simplices_01
-	#bool = simplices_intersect_sat_cpu(simplex, simplex)
-	#@test bool == true 
-    println(polyhedron(vrep(simplex), lib))
+	bool = simplices_intersect_sat_cpu(simplex, simplex)
+	@test bool == true 
 end
 
 # ===============================================

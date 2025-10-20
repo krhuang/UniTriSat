@@ -1,9 +1,9 @@
 [files]
-polytopes_file = "Polytopes/smooth3polytopes_50processed"
-log_file = "logs/3d_validated"
+polytopes_file = "Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt"
+log_file = "logs/4d_validated"
 
 [run_settings]
-process_range = "-"	# A space-separated list of indices and ranges (e.g., "1-5 8 10-"). "-" means all.
+process_range = "1-15"	# A space-separated list of indices and ranges (e.g., "1-5 8 10-"). "-" means all.
 processing_order = "normal"	# Options: "normal", "reversed", "random"
 sort_by = "P"			# "none": Use the order from the file. "P": Sort by # lattice points. "S": Sort by # simplices.
 solve_mode = "first"		# "first": Stop after one solution. "all": Find all solutions. "count": Count all solutions.
