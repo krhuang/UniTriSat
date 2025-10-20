@@ -9,8 +9,9 @@ using Printf
 using Base.Threads
 using TOML
 using Random
+# using Oscar
 # using Normaliz 
-# Could use Normaliz as the backend to find lattice points? 
+# Could use Oscar or Normaliz as the backend to find lattice points? 
 
 # --- Conditional Package Inclusion ---
 const CUDA_PACKAGES_LOADED = Ref(false)
@@ -316,8 +317,30 @@ end
 
 # --- 3D Pipeline Functions ---
 
+#=
+function lattice_points_via_Oscar(vertices::Matrix{Rational{BigInt}})
+    # Build convex hull polytope
+    polytope = convex_hull(vertices)
+    
+    # Get lattice points
+    LP = lattice_points(polytope)
+    
+    println("A")
+    # Safely get size
+    dims = size(LP)
+    nrows = dims[1]
+    ncols = dims[end]  # works even if LP has one row or one column
+    println("B")
+    # Convert each entry to Rational{BigInt} and build Julia matrix
+    julia_matrix_LP = [Int(LP[i,j]) for i in 1:nrows, j in 1:ncols]
+    
+    println(julia_matrix_LP)
+    return julia_matrix_LP
+end
+=#
+
 function findAllLatticePointsInHull_3d(vertices::Matrix{Rational{BigInt}})
-    poly = polyhedron(vrep(vertices)); hr = hrep(poly)
+    poly = Polyhedra.polyhedron(vrep(vertices)); hr = hrep(poly)
     min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1)); max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
     lattice_points = Vector{Vector{Rational{BigInt}}}()
     for iz in min_coords[3]:max_coords[3], iy in min_coords[2]:max_coords[2], ix in min_coords[1]:max_coords[1]
@@ -337,22 +360,57 @@ function all_simplices_in_3d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     return simplex_indices
 end
 
-function precompute_internal_faces_3d(P::Matrix{Rational{BigInt}})
-    n = size(P, 1); if n < 3 return Set{NTuple{3, Int}}() end
-    poly = polyhedron(vrep(P)); hr = hrep(poly); planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, 3)); thread_sets = [Set{NTuple{3, Int}}() for _ in 1:nthreads()]
-    @threads for face_indices in potential_faces
-        face_points = P[collect(face_indices), :]
-        on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
-        if !on_boundary; push!(thread_sets[threadid()], Tuple(sort(collect(face_indices)))); end
+
+function precompute_internal_faces(P::Matrix{Rational{BigInt}}, dim::Int)
+    n = size(P, 1)
+    if n < dim
+        return Set{NTuple{dim, Int}}()
     end
-    return union(thread_sets...)
+
+    # Build polyhedron and collect halfspaces
+    poly = Polyhedra.polyhedron(vrep(P))
+    hr = hrep(poly)
+    planes = collect(halfspaces(hr))
+
+    # Generate all possible faces (index combinations)
+    potential_faces = collect(combinations(1:n, dim))
+
+    # Shared atomic counter to distribute work
+    next_idx = Threads.Atomic{Int}(1)
+
+    # Spawn one task per thread
+    tasks = [
+        Threads.@spawn begin
+            local_faces = Set{NTuple{dim, Int}}()
+            while true
+                i = Threads.atomic_add!(next_idx, 1)
+                if i > length(potential_faces)
+                    break
+                end
+
+                face_indices = potential_faces[i]
+                face_points = P[collect(face_indices), :]
+
+                # Check whether face lies on boundary plane
+                on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
+
+                if !on_boundary
+                    push!(local_faces, Tuple(sort(collect(face_indices))))
+                end
+            end
+            local_faces
+        end
+        for _ in 1:nthreads()
+    ]
+
+    # Merge thread results
+    return union(fetch.(tasks)...)
 end
 
 # --- 4D Pipeline Functions ---
 
 function findAllLatticePointsInHull_4d(vertices::Matrix{Rational{BigInt}})
-    poly = polyhedron(vrep(vertices)); hr = hrep(poly)
+    poly = Polyhedra.polyhedron(vrep(vertices)); hr = hrep(poly)
     min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1)); max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
     lattice_points = Vector{Vector{Rational{BigInt}}}()
     for iw in min_coords[4]:max_coords[4], iz in min_coords[3]:max_coords[3], iy in min_coords[2]:max_coords[2], ix in min_coords[1]:max_coords[1]
@@ -371,22 +429,10 @@ function all_simplices_in_4d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     return simplex_indices
 end
 
-function precompute_internal_faces_4d(P::Matrix{Rational{BigInt}})
-    n = size(P, 1); if n < 4 return Set{NTuple{4, Int}}() end
-    poly = polyhedron(vrep(P)); hr = hrep(poly); planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, 4)); thread_sets = [Set{NTuple{4, Int}}() for _ in 1:nthreads()]
-    @threads for face_indices in potential_faces
-        face_points = P[collect(face_indices), :]
-        on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
-        if !on_boundary; push!(thread_sets[threadid()], Tuple(sort(collect(face_indices)))); end
-    end
-    return union(thread_sets...)
-end
-
 # --- 5D Pipeline Functions ---
 
 function findAllLatticePointsInHull_5d(vertices::Matrix{Rational{BigInt}})
-    poly = polyhedron(vrep(vertices)); hr = hrep(poly)
+    poly = Polyhedra.polyhedron(vrep(vertices)); hr = hrep(poly)
     min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1))
     max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
     lattice_points = Vector{Vector{Rational{BigInt}}}()
@@ -410,28 +456,10 @@ function all_simplices_in_5d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     end
     return simplex_indices
 end
-
-function precompute_internal_faces_5d(P::Matrix{Rational{BigInt}})
-    n = size(P, 1)
-    if n < 5 return Set{NTuple{5, Int}}() end 
-    poly = polyhedron(vrep(P)); hr = hrep(poly)
-    planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, 5))
-    thread_sets = [Set{NTuple{5, Int}}() for _ in 1:nthreads()]
-    @threads for face_indices in potential_faces
-        face_points = P[collect(face_indices), :]
-        on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
-        if !on_boundary
-            push!(thread_sets[threadid()], Tuple(sort(collect(face_indices))))
-        end
-    end
-    return union(thread_sets...)
-end
-
 # --- 6D Pipeline Functions ---
 
 function findAllLatticePointsInHull_6d(vertices::Matrix{Rational{BigInt}})
-    poly = polyhedron(vrep(vertices)); hr = hrep(poly)
+    poly = Polyhedra.polyhedron(vrep(vertices)); hr = hrep(poly)
     min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1))
     max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
     lattice_points = Vector{Vector{Rational{BigInt}}}()
@@ -455,24 +483,6 @@ function all_simplices_in_6d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
     end
     return simplex_indices
 end
-
-function precompute_internal_faces_6d(P::Matrix{Rational{BigInt}})
-    n = size(P, 1)
-    if n < 6 return Set{NTuple{6, Int}}() end # A facet in 6D is defined by 6 points
-    poly = polyhedron(vrep(P)); hr = hrep(poly)
-    planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, 6))
-    thread_sets = [Set{NTuple{6, Int}}() for _ in 1:nthreads()]
-    @threads for face_indices in potential_faces
-        face_points = P[collect(face_indices), :]
-        on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
-        if !on_boundary
-            push!(thread_sets[threadid()], Tuple(sort(collect(face_indices))))
-        end
-    end
-    return union(thread_sets...)
-end
-
 
 # --- Main Processing Functions ---
 
@@ -536,15 +546,11 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     end
 
     log_verbose("Step 3: Precomputing internal faces..."); t_start = time_ns()
-    internal_faces_set = if dim == 3
-        precompute_internal_faces_3d(P)
-    elseif dim == 4
-        precompute_internal_faces_4d(P)
-    elseif dim == 5
-        precompute_internal_faces_5d(P)
-    else # dim == 6
-        precompute_internal_faces_6d(P)
-    end
+
+    # Precomputing internal faces (dimension-agnostic function)
+
+    internal_faces_set = precompute_internal_faces(P, dim)
+
     push!(timings, "Precompute internal faces (parallel)" => (time_ns() - t_start) / 1e9)
     log_verbose("-> Found $(length(internal_faces_set)) unique internal faces. Step 3 complete.\n")
 
@@ -611,25 +617,38 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
 
     log_verbose("Step 4b: Generating face-covering clauses..."); t_start = time_ns(); face_dim = dim
     face_clauses = let n_simplices = num_simplices
-        thread_face_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()]; next_simplex_idx = Threads.Atomic{Int}(1)
-        @threads for _ in 1:nthreads()
-            tid = threadid()
-            while true
-                i = Threads.atomic_add!(next_simplex_idx, 1); if i > n_simplices break end
-                if config.terminal_output == "verbose" && tid == 1 && (i % 100 == 0 || i == n_simplices)
-                    update_line("[$(Dates.format(now(), "HH:MM:SS"))]      ... checking for face covers: $i / $n_simplices")
-                end
-        
-                for face_indices in combinations(S_indices[i], face_dim)
-                    canonical_face = Tuple(sort(collect(face_indices)))
-                    if canonical_face in internal_faces_set
-                        coverers = [j for (j, s2) in enumerate(S_indices) if i != j && issubset(canonical_face, s2)]
-                        push!(thread_face_clauses[tid], vcat([-i], coverers))
+    next_simplex_idx = Threads.Atomic{Int}(1)
+
+        # one future per thread
+        tasks = [
+            Threads.@spawn begin
+                local_clauses = Vector{Vector{Int}}()
+                while true
+                    i = Threads.atomic_add!(next_simplex_idx, 1)
+                    if i > n_simplices
+                        break
+                    end
+
+                    if config.terminal_output == "verbose" && threadid() == 1 &&
+                        (i % 100 == 0 || i == n_simplices)
+                        update_line("[$(Dates.format(now(), "HH:MM:SS"))] ... checking for face covers: $i / $n_simplices")
+                    end
+
+                    for face_indices in combinations(S_indices[i], face_dim)
+                        canonical_face = Tuple(sort(collect(face_indices)))
+                        if canonical_face in internal_faces_set
+                            coverers = [j for (j, s2) in enumerate(S_indices) if i != j && issubset(canonical_face, s2)]
+                            push!(local_clauses, vcat([-i], coverers))
+                        end
                     end
                 end
+                local_clauses
             end
-        end
-        vcat(thread_face_clauses...)
+            for _ in 1:nthreads()
+        ]
+
+        # combine results
+        vcat(fetch.(tasks)...)
     end
     if config.terminal_output == "verbose"; update_line(""); println(stdout); end
     append!(cnf, face_clauses)
@@ -721,7 +740,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         if dim == 3
             temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python $(config.plotter_script) $(temp_path)`); finally rm(temp_path, force=true); end
         elseif dim == 4
-            initial_poly = polyhedron(vrep(initial_vertices)); boundary_planes = collect(halfspaces(hrep(initial_poly)))
+            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices)); boundary_planes = collect(halfspaces(hrep(initial_poly)))
             solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
             for (plane_idx, plane) in enumerate(boundary_planes)
                 facet_triangulation_4D = [s for s in solution_simplices_rational if count(v -> iszero(dot(plane.a, v) - plane.β), eachrow(s)) == 4]
@@ -740,7 +759,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
             end
         elseif dim == 5
             log_verbose("     Plotting induced 3D triangulations for 3-faces...")
-            initial_poly = polyhedron(vrep(initial_vertices))
+            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices))
             boundary_planes = collect(halfspaces(hrep(initial_poly)))
             solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
 
@@ -774,7 +793,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
             end
         elseif dim == 6
             log_verbose("     Plotting induced 3D triangulations for 3-faces...")
-            initial_poly = polyhedron(vrep(initial_vertices))
+            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices))
             boundary_planes = collect(halfspaces(hrep(initial_poly)))
             solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
 

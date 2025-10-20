@@ -15552,3 +15552,4168 @@ Solve SAT problem                            : 0.0618 seconds
 Total execution time                         : 0.9584 seconds
 Peak memory usage (Max RSS)                  : 941.82 MiB
 
+
+
+################################################################################
+# New Run Started at 2025-10-20T14:05:22.843
+################################################################################
+
+
+################################################################################
+# New Run Started at 2025-10-20T14:05:55.930
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+[14:05:59] Processing 4D Polytope #1
+[14:05:59] Initial vertices provided:
+[14:05:59] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[14:05:59] Step 1: Finding all lattice points...
+[14:05:59] -> Found 5 lattice points. Step 1 complete.
+
+[14:05:59] Step 2: Searching for unimodular 4-simplices...
+[14:05:59] -> Found 1 simplices. Step 2 complete.
+
+[14:05:59] Step 3: Precomputing internal faces...
+[14:05:59] -> Found 0 unique internal faces. Step 3 complete.
+
+[14:05:59] Step 4a: Generating intersection clauses...
+[14:05:59]      Using CPU backend.
+[14:06:00] -> Found 0 intersection clauses. Step 4a complete.
+
+[14:06:00] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 0 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 1 variables, 1 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #1 ---
+Find all lattice points                      : 0.0004 seconds
+Find all unimodular simplices                : 0.0574 seconds
+Precompute internal faces (parallel)         : 0.1619 seconds
+Generate intersection clauses                : 0.9085 seconds
+Generate face-covering clauses               : 0.3521 seconds
+Solve SAT problem                            : 0.0582 seconds
+Total execution time                         : 1.6718 seconds
+Peak memory usage (Max RSS)                  : 854.32 MiB
+
+[14:06:01] Processing 4D Polytope #2
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 8 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 32 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 14 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 218 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 56 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 32 variables, 275 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  1  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  0  1
+ 0  0  1  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #2 ---
+Find all lattice points                      : 0.0006 seconds
+Find all unimodular simplices                : 0.0271 seconds
+Precompute internal faces (parallel)         : 0.0645 seconds
+Generate intersection clauses                : 0.0009 seconds
+Generate face-covering clauses               : 0.0618 seconds
+Solve SAT problem                            : 0.0001 seconds
+Total execution time                         : 0.1562 seconds
+Peak memory usage (Max RSS)                  : 854.32 MiB
+
+[14:06:01] Processing 4D Polytope #3
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -2  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 9 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 52 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 22 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 545 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 96 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 52 variables, 642 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #3 ---
+Find all lattice points                      : 0.0008 seconds
+Find all unimodular simplices                : 0.0017 seconds
+Precompute internal faces (parallel)         : 0.0036 seconds
+Generate intersection clauses                : 0.0018 seconds
+Generate face-covering clauses               : 0.0003 seconds
+Solve SAT problem                            : 0.0003 seconds
+Total execution time                         : 0.0090 seconds
+Peak memory usage (Max RSS)                  : 854.32 MiB
+
+[14:06:01] Processing 4D Polytope #6
+[14:06:01] Initial vertices provided:
+[14:06:01] 9×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  1  0
+ 1  0  0  1
+ 0  1  1  0
+ 0  1  0  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 9 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 81 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 45 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 1162 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 189 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 81 variables, 1352 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 0  1  1  0
+ 0  1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  0  1
+ 0  1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 1  0  0  1
+ 0  1  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #6 ---
+Find all lattice points                      : 0.0005 seconds
+Find all unimodular simplices                : 0.0018 seconds
+Precompute internal faces (parallel)         : 0.0053 seconds
+Generate intersection clauses                : 0.0037 seconds
+Generate face-covering clauses               : 0.0005 seconds
+Solve SAT problem                            : 0.0005 seconds
+Total execution time                         : 0.0130 seconds
+Peak memory usage (Max RSS)                  : 857.34 MiB
+
+[14:06:01] Processing 4D Polytope #4
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -3  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 10 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 72 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 30 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 1034 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 136 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 72 variables, 1171 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #4 ---
+Find all lattice points                      : 0.0008 seconds
+Find all unimodular simplices                : 0.0034 seconds
+Precompute internal faces (parallel)         : 0.0054 seconds
+Generate intersection clauses                : 0.0032 seconds
+Generate face-covering clauses               : 0.0003 seconds
+Solve SAT problem                            : 0.0004 seconds
+Total execution time                         : 0.0143 seconds
+Peak memory usage (Max RSS)                  : 858.11 MiB
+
+[14:06:01] Processing 4D Polytope #5
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0   0  0  1
+ 0  -2  1  0
+ 0  -2  0  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 10 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 84 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 34 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 1399 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 160 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 84 variables, 1560 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0  -2  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0  -2  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   0  1  0
+ 0  -2  0  1
+ 0  -1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   0  1  0
+ 0  -1  0  1
+ 0   0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #5 ---
+Find all lattice points                      : 0.0007 seconds
+Find all unimodular simplices                : 0.0038 seconds
+Precompute internal faces (parallel)         : 0.0058 seconds
+Generate intersection clauses                : 0.0041 seconds
+Generate face-covering clauses               : 0.0004 seconds
+Solve SAT problem                            : 0.0005 seconds
+Total execution time                         : 0.0160 seconds
+Peak memory usage (Max RSS)                  : 859.39 MiB
+
+[14:06:01] Processing 4D Polytope #7
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -4  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 11 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 92 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 38 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 1675 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 176 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 92 variables, 1852 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -4  1
+ 0  0  -3  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #7 ---
+Find all lattice points                      : 0.0011 seconds
+Find all unimodular simplices                : 0.0072 seconds
+Precompute internal faces (parallel)         : 0.0471 seconds
+Generate intersection clauses                : 0.0065 seconds
+Generate face-covering clauses               : 0.0004 seconds
+Solve SAT problem                            : 0.0006 seconds
+Total execution time                         : 0.0637 seconds
+Peak memory usage (Max RSS)                  : 877.13 MiB
+
+[14:06:01] Processing 4D Polytope #8
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  0  1  0
+  0  0  0  1
+  2  1  0  0
+ -2  0  0  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 11 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 135 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 52 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 3571 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 262 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 135 variables, 3834 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 2  1  0  0
+ 2  0  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+  2  0  1  0
+ -1  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  0  0  1  0
+  1  0  1  0
+ -2  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  0  1  0
+  2  0  1  0
+ -1  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 2  1  0  0
+ 2  0  1  0
+ 0  0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #8 ---
+Find all lattice points                      : 0.0010 seconds
+Find all unimodular simplices                : 0.0068 seconds
+Precompute internal faces (parallel)         : 0.0088 seconds
+Generate intersection clauses                : 0.0101 seconds
+Generate face-covering clauses               : 0.0006 seconds
+Solve SAT problem                            : 0.0013 seconds
+Total execution time                         : 0.0293 seconds
+Peak memory usage (Max RSS)                  : 877.13 MiB
+
+[14:06:01] Processing 4D Polytope #9
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   3  0  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 11 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 116 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 46 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 2646 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 224 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 116 variables, 2871 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  3  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+ 0  2  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  2  0  1
+ 0  3  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #9 ---
+Find all lattice points                      : 0.0011 seconds
+Find all unimodular simplices                : 0.0072 seconds
+Precompute internal faces (parallel)         : 0.0074 seconds
+Generate intersection clauses                : 0.0077 seconds
+Generate face-covering clauses               : 0.0005 seconds
+Solve SAT problem                            : 0.0009 seconds
+Total execution time                         : 0.0254 seconds
+Peak memory usage (Max RSS)                  : 877.13 MiB
+
+[14:06:01] Processing 4D Polytope #10
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   4  0  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 12 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:01] -> Found 148 simplices. Step 2 complete.
+
+[14:06:01] Step 3: Precomputing internal faces...
+[14:06:01] -> Found 58 unique internal faces. Step 3 complete.
+
+[14:06:01] Step 4a: Generating intersection clauses...
+[14:06:01]      Using CPU backend.
+[14:06:01] -> Found 4285 intersection clauses. Step 4a complete.
+
+[14:06:01] Step 4b: Generating face-covering clauses...
+[14:06:01] -> Found 288 face-covering clauses. Step 4b complete.
+
+[14:06:01] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:01]      Problem details: 148 variables, 4574 clauses.
+[14:06:01]      This step may take a long time if the problem is complex.
+[14:06:01] -> SAT solver finished. Step 5 complete.
+[14:06:01] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:01] 
+1 valid triangulation(s) found.
+[14:06:01] 
+Displaying first valid triangulation:
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   0  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 0  1  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  4  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+ 0  2  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  2  0  1
+ 0  3  0  1
+[14:06:01] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  3  0  1
+ 0  4  0  1
+[14:06:01] 
+--- Timing & Memory Summary for Polytope #10 ---
+Find all lattice points                      : 0.0010 seconds
+Find all unimodular simplices                : 0.0119 seconds
+Precompute internal faces (parallel)         : 0.0554 seconds
+Generate intersection clauses                : 0.0119 seconds
+Generate face-covering clauses               : 0.0007 seconds
+Solve SAT problem                            : 0.0014 seconds
+Total execution time                         : 0.0829 seconds
+Peak memory usage (Max RSS)                  : 885.52 MiB
+
+[14:06:01] Processing 4D Polytope #11
+[14:06:01] Initial vertices provided:
+[14:06:01] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -5  1
+[14:06:01] Step 1: Finding all lattice points...
+[14:06:01] -> Found 12 lattice points. Step 1 complete.
+
+[14:06:01] Step 2: Searching for unimodular 4-simplices...
+[14:06:02] -> Found 112 simplices. Step 2 complete.
+
+[14:06:02] Step 3: Precomputing internal faces...
+[14:06:02] -> Found 46 unique internal faces. Step 3 complete.
+
+[14:06:02] Step 4a: Generating intersection clauses...
+[14:06:02]      Using CPU backend.
+[14:06:02] -> Found 2471 intersection clauses. Step 4a complete.
+
+[14:06:02] Step 4b: Generating face-covering clauses...
+[14:06:02] -> Found 216 face-covering clauses. Step 4b complete.
+
+[14:06:02] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:02]      Problem details: 112 variables, 2688 clauses.
+[14:06:02]      This step may take a long time if the problem is complex.
+[14:06:02] -> SAT solver finished. Step 5 complete.
+[14:06:02] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:02] 
+1 valid triangulation(s) found.
+[14:06:02] 
+Displaying first valid triangulation:
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -5  1
+ 0  0  -4  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -4  1
+ 0  0  -3  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:06:02] 
+--- Timing & Memory Summary for Polytope #11 ---
+Find all lattice points                      : 0.0013 seconds
+Find all unimodular simplices                : 0.0116 seconds
+Precompute internal faces (parallel)         : 0.0095 seconds
+Generate intersection clauses                : 0.0069 seconds
+Generate face-covering clauses               : 0.0006 seconds
+Solve SAT problem                            : 0.0008 seconds
+Total execution time                         : 0.0314 seconds
+Peak memory usage (Max RSS)                  : 885.52 MiB
+
+[14:06:02] Processing 4D Polytope #12
+[14:06:02] Initial vertices provided:
+[14:06:02] 8×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  2
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[14:06:02] Step 1: Finding all lattice points...
+[14:06:02] -> Found 12 lattice points. Step 1 complete.
+
+[14:06:02] Step 2: Searching for unimodular 4-simplices...
+[14:06:02] -> Found 216 simplices. Step 2 complete.
+
+[14:06:02] Step 3: Precomputing internal faces...
+[14:06:02] -> Found 79 unique internal faces. Step 3 complete.
+
+[14:06:02] Step 4a: Generating intersection clauses...
+[14:06:02]      Using CPU backend.
+[14:06:02] -> Found 9804 intersection clauses. Step 4a complete.
+
+[14:06:02] Step 4b: Generating face-covering clauses...
+[14:06:02] -> Found 424 face-covering clauses. Step 4b complete.
+
+[14:06:02] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:02]      Problem details: 216 variables, 10229 clauses.
+[14:06:02]      This step may take a long time if the problem is complex.
+[14:06:02] -> SAT solver finished. Step 5 complete.
+[14:06:02] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:02] 
+1 valid triangulation(s) found.
+[14:06:02] 
+Displaying first valid triangulation:
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  1  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 1  0  0  1
+ 0  0  1  2
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  1
+ 0  0  1  2
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  0  0  1
+ 1  0  0  2
+ 0  0  1  2
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 0  1  0  1
+ 1  0  0  2
+ 0  0  1  2
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  0  1
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  1
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[14:06:02] 5×4 Matrix{Int64}:
+ 0  0  0  1
+ 0  0  0  2
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[14:06:02] 
+--- Timing & Memory Summary for Polytope #12 ---
+Find all lattice points                      : 0.0006 seconds
+Find all unimodular simplices                : 0.0119 seconds
+Precompute internal faces (parallel)         : 0.0162 seconds
+Generate intersection clauses                : 0.0291 seconds
+Generate face-covering clauses               : 0.0011 seconds
+Solve SAT problem                            : 0.0024 seconds
+Total execution time                         : 0.0619 seconds
+Peak memory usage (Max RSS)                  : 885.52 MiB
+
+[14:06:02] Processing 4D Polytope #13
+[14:06:02] Initial vertices provided:
+[14:06:02] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0   0  0  1
+ 0  -3  1  0
+ 0  -3  0  1
+[14:06:02] Step 1: Finding all lattice points...
+[14:06:02] -> Found 12 lattice points. Step 1 complete.
+
+[14:06:02] Step 2: Searching for unimodular 4-simplices...
+[14:06:02] -> Found 160 simplices. Step 2 complete.
+
+[14:06:02] Step 3: Precomputing internal faces...
+[14:06:02] -> Found 62 unique internal faces. Step 3 complete.
+
+[14:06:02] Step 4a: Generating intersection clauses...
+[14:06:02]      Using CPU backend.
+[14:06:02] -> Found 5017 intersection clauses. Step 4a complete.
+
+[14:06:02] Step 4b: Generating face-covering clauses...
+[14:06:02] -> Found 312 face-covering clauses. Step 4b complete.
+
+[14:06:02] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:02]      Problem details: 160 variables, 5330 clauses.
+[14:06:02]      This step may take a long time if the problem is complex.
+[14:06:02] -> SAT solver finished. Step 5 complete.
+[14:06:02] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:02] 
+1 valid triangulation(s) found.
+[14:06:02] 
+Displaying first valid triangulation:
+[14:06:02] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0   0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -3  0  1
+ 0  -2  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -2  0  1
+ 0  -1  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -1  0  1
+ 0   0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0   0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0  -2  1  0
+ 0   0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   0  0  1
+[14:06:02] 
+--- Timing & Memory Summary for Polytope #13 ---
+Find all lattice points                      : 0.0008 seconds
+Find all unimodular simplices                : 0.0122 seconds
+Precompute internal faces (parallel)         : 0.0604 seconds
+Generate intersection clauses                : 0.0139 seconds
+Generate face-covering clauses               : 0.0007 seconds
+Solve SAT problem                            : 0.0016 seconds
+Total execution time                         : 0.0904 seconds
+Peak memory usage (Max RSS)                  : 896.54 MiB
+
+[14:06:02] Processing 4D Polytope #14
+[14:06:02] Initial vertices provided:
+[14:06:02] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  1  0  0
+ -2  0  1  0
+  0  0  0  1
+ -3  0  0  1
+[14:06:02] Step 1: Finding all lattice points...
+[14:06:02] -> Found 12 lattice points. Step 1 complete.
+
+[14:06:02] Step 2: Searching for unimodular 4-simplices...
+[14:06:02] -> Found 186 simplices. Step 2 complete.
+
+[14:06:02] Step 3: Precomputing internal faces...
+[14:06:02] -> Found 70 unique internal faces. Step 3 complete.
+
+[14:06:02] Step 4a: Generating intersection clauses...
+[14:06:02]      Using CPU backend.
+[14:06:02] -> Found 6773 intersection clauses. Step 4a complete.
+
+[14:06:02] Step 4b: Generating face-covering clauses...
+[14:06:02] -> Found 364 face-covering clauses. Step 4b complete.
+
+[14:06:02] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:02]      Problem details: 186 variables, 7138 clauses.
+[14:06:02]      This step may take a long time if the problem is complex.
+[14:06:02] -> SAT solver finished. Step 5 complete.
+[14:06:02] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:02] 
+1 valid triangulation(s) found.
+[14:06:02] 
+Displaying first valid triangulation:
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+ -2  0  1  0
+ -1  0  1  0
+ -3  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+ -1  0  1  0
+  0  0  1  0
+ -3  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  0  0  1  0
+ -3  0  0  1
+ -2  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[14:06:02] 
+--- Timing & Memory Summary for Polytope #14 ---
+Find all lattice points                      : 0.0011 seconds
+Find all unimodular simplices                : 0.0129 seconds
+Precompute internal faces (parallel)         : 0.0117 seconds
+Generate intersection clauses                : 0.0186 seconds
+Generate face-covering clauses               : 0.0009 seconds
+Solve SAT problem                            : 0.0020 seconds
+Total execution time                         : 0.0479 seconds
+Peak memory usage (Max RSS)                  : 896.54 MiB
+
+[14:06:02] Processing 4D Polytope #15
+[14:06:02] Initial vertices provided:
+[14:06:02] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  1  0  0
+ -2  0  1  0
+  0  0  0  1
+ -4  0  0  1
+[14:06:02] Step 1: Finding all lattice points...
+[14:06:02] -> Found 13 lattice points. Step 1 complete.
+
+[14:06:02] Step 2: Searching for unimodular 4-simplices...
+[14:06:02] -> Found 237 simplices. Step 2 complete.
+
+[14:06:02] Step 3: Precomputing internal faces...
+[14:06:02] -> Found 88 unique internal faces. Step 3 complete.
+
+[14:06:02] Step 4a: Generating intersection clauses...
+[14:06:02]      Using CPU backend.
+[14:06:02] -> Found 10980 intersection clauses. Step 4a complete.
+
+[14:06:02] Step 4b: Generating face-covering clauses...
+[14:06:02] -> Found 466 face-covering clauses. Step 4b complete.
+
+[14:06:02] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:06:02]      Problem details: 237 variables, 11447 clauses.
+[14:06:02]      This step may take a long time if the problem is complex.
+[14:06:02] -> SAT solver finished. Step 5 complete.
+[14:06:02] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:06:02] 
+1 valid triangulation(s) found.
+[14:06:02] 
+Displaying first valid triangulation:
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -1  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+ -2  0  1  0
+ -4  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  1  0  0
+ -2  0  1  0
+ -3  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+ -2  0  1  0
+ -4  0  0  1
+ -3  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -2  0  1  0
+ -1  0  1  0
+ -3  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -3  0  0  1
+ -2  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+  0  0  1  0
+  0  0  0  1
+[14:06:02] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[14:06:02] 
+--- Timing & Memory Summary for Polytope #15 ---
+Find all lattice points                      : 0.0011 seconds
+Find all unimodular simplices                : 0.0191 seconds
+Precompute internal faces (parallel)         : 0.0649 seconds
+Generate intersection clauses                : 0.0295 seconds
+Generate face-covering clauses               : 0.0012 seconds
+Solve SAT problem                            : 0.0031 seconds
+Total execution time                         : 0.1198 seconds
+Peak memory usage (Max RSS)                  : 901.80 MiB
+
+
+Run finished: 14:06:02
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:       15
+Triangulatable:                  15
+Non-Triangulatable:              0
+Total Run Time:                  00:00:02
+----------------------------------------
+
+
+################################################################################
+# New Run Started at 2025-10-20T14:29:32.278
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+[14:29:35] Processing 4D Polytope #1
+[14:29:35] Initial vertices provided:
+[14:29:35] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[14:29:35] Step 1: Finding all lattice points...
+[14:29:35] -> Found 5 lattice points. Step 1 complete.
+
+[14:29:35] Step 2: Searching for unimodular 4-simplices...
+[14:29:35] -> Found 1 simplices. Step 2 complete.
+
+[14:29:35] Step 3: Precomputing internal faces...
+[14:29:35] -> Found 0 unique internal faces. Step 3 complete.
+
+[14:29:35] Step 4a: Generating intersection clauses...
+[14:29:35]      Using CPU backend.
+[14:29:36] -> Found 0 intersection clauses. Step 4a complete.
+
+[14:29:36] Step 4b: Generating face-covering clauses...
+[14:29:37] -> Found 0 face-covering clauses. Step 4b complete.
+
+[14:29:37] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:37]      Problem details: 1 variables, 1 clauses.
+[14:29:37]      This step may take a long time if the problem is complex.
+[14:29:37] -> SAT solver finished. Step 5 complete.
+[14:29:37] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:37] 
+1 valid triangulation(s) found.
+[14:29:37] 
+Displaying first valid triangulation:
+[14:29:37] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[14:29:37] 
+--- Timing & Memory Summary for Polytope #1 ---
+Find all lattice points                      : 0.0005 seconds
+Find all unimodular simplices                : 0.0387 seconds
+Precompute internal faces (parallel)         : 0.2248 seconds
+Generate intersection clauses                : 0.7633 seconds
+Generate face-covering clauses               : 0.3160 seconds
+Solve SAT problem                            : 0.0581 seconds
+Total execution time                         : 1.8528 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:37] Processing 4D Polytope #2
+[14:29:37] Initial vertices provided:
+[14:29:37] 8×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[14:29:37] Step 1: Finding all lattice points...
+[14:29:37] -> Found 8 lattice points. Step 1 complete.
+
+[14:29:37] Step 2: Searching for unimodular 4-simplices...
+[14:29:37] -> Found 32 simplices. Step 2 complete.
+
+[14:29:37] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 14 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 218 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 56 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 32 variables, 275 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  1  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  0  1
+ 0  0  1  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #2 ---
+Find all lattice points                      : 0.0009 seconds
+Find all unimodular simplices                : 0.0266 seconds
+Precompute internal faces (parallel)         : 0.0775 seconds
+Generate intersection clauses                : 0.0008 seconds
+Generate face-covering clauses               : 0.0708 seconds
+Solve SAT problem                            : 0.0001 seconds
+Total execution time                         : 0.1778 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #3
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -2  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 9 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 52 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 22 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 545 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 96 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 52 variables, 642 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #3 ---
+Find all lattice points                      : 0.0008 seconds
+Find all unimodular simplices                : 0.0018 seconds
+Precompute internal faces (parallel)         : 0.0038 seconds
+Generate intersection clauses                : 0.0017 seconds
+Generate face-covering clauses               : 0.0002 seconds
+Solve SAT problem                            : 0.0003 seconds
+Total execution time                         : 0.0092 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #6
+[14:29:38] Initial vertices provided:
+[14:29:38] 9×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  1  0
+ 1  0  0  1
+ 0  1  1  0
+ 0  1  0  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 9 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 81 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 45 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 1162 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 189 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 81 variables, 1352 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 0  1  1  0
+ 0  1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  0  1
+ 0  1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 1  0  0  1
+ 0  1  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #6 ---
+Find all lattice points                      : 0.0006 seconds
+Find all unimodular simplices                : 0.0019 seconds
+Precompute internal faces (parallel)         : 0.0052 seconds
+Generate intersection clauses                : 0.0036 seconds
+Generate face-covering clauses               : 0.0004 seconds
+Solve SAT problem                            : 0.0005 seconds
+Total execution time                         : 0.0128 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #4
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -3  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 10 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 72 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 30 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 1034 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 136 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 72 variables, 1171 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #4 ---
+Find all lattice points                      : 0.0010 seconds
+Find all unimodular simplices                : 0.0037 seconds
+Precompute internal faces (parallel)         : 0.1342 seconds
+Generate intersection clauses                : 0.0030 seconds
+Generate face-covering clauses               : 0.0003 seconds
+Solve SAT problem                            : 0.0004 seconds
+Total execution time                         : 0.1435 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #5
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0   0  0  1
+ 0  -2  1  0
+ 0  -2  0  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 10 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 84 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 34 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 1399 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 160 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 84 variables, 1560 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0  -2  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0  -2  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   0  1  0
+ 0  -2  0  1
+ 0  -1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   0  1  0
+ 0  -1  0  1
+ 0   0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #5 ---
+Find all lattice points                      : 0.0009 seconds
+Find all unimodular simplices                : 0.0037 seconds
+Precompute internal faces (parallel)         : 0.0058 seconds
+Generate intersection clauses                : 0.0040 seconds
+Generate face-covering clauses               : 0.0003 seconds
+Solve SAT problem                            : 0.0005 seconds
+Total execution time                         : 0.0159 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #7
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -4  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 11 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 92 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 38 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 1675 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 176 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 92 variables, 1852 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -4  1
+ 0  0  -3  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #7 ---
+Find all lattice points                      : 0.0010 seconds
+Find all unimodular simplices                : 0.0067 seconds
+Precompute internal faces (parallel)         : 0.0079 seconds
+Generate intersection clauses                : 0.0049 seconds
+Generate face-covering clauses               : 0.0004 seconds
+Solve SAT problem                            : 0.0006 seconds
+Total execution time                         : 0.0221 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #8
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  0  1  0
+  0  0  0  1
+  2  1  0  0
+ -2  0  0  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 11 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 135 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 52 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 3571 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 262 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 135 variables, 3834 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 2  1  0  0
+ 2  0  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+  2  0  1  0
+ -1  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  0  0  1  0
+  1  0  1  0
+ -2  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  0  1  0
+  2  0  1  0
+ -1  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 2  1  0  0
+ 2  0  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #8 ---
+Find all lattice points                      : 0.0009 seconds
+Find all unimodular simplices                : 0.0067 seconds
+Precompute internal faces (parallel)         : 0.0093 seconds
+Generate intersection clauses                : 0.0094 seconds
+Generate face-covering clauses               : 0.0007 seconds
+Solve SAT problem                            : 0.0013 seconds
+Total execution time                         : 0.0290 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #9
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   3  0  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 11 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 116 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 46 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 2646 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 224 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 116 variables, 2871 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  3  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+ 0  2  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  2  0  1
+ 0  3  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #9 ---
+Find all lattice points                      : 0.0011 seconds
+Find all unimodular simplices                : 0.0072 seconds
+Precompute internal faces (parallel)         : 0.0100 seconds
+Generate intersection clauses                : 0.0076 seconds
+Generate face-covering clauses               : 0.0006 seconds
+Solve SAT problem                            : 0.0009 seconds
+Total execution time                         : 0.0280 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #10
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   4  0  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 12 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 148 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 58 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 4285 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 288 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 148 variables, 4574 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 0  1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  4  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+ 0  2  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  2  0  1
+ 0  3  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  3  0  1
+ 0  4  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #10 ---
+Find all lattice points                      : 0.0014 seconds
+Find all unimodular simplices                : 0.0577 seconds
+Precompute internal faces (parallel)         : 0.0159 seconds
+Generate intersection clauses                : 0.0119 seconds
+Generate face-covering clauses               : 0.0007 seconds
+Solve SAT problem                            : 0.0013 seconds
+Total execution time                         : 0.0895 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #11
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -5  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 12 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 112 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 46 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 2471 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 216 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 112 variables, 2688 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -5  1
+ 0  0  -4  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -4  1
+ 0  0  -3  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #11 ---
+Find all lattice points                      : 0.0011 seconds
+Find all unimodular simplices                : 0.0110 seconds
+Precompute internal faces (parallel)         : 0.0099 seconds
+Generate intersection clauses                : 0.0068 seconds
+Generate face-covering clauses               : 0.0005 seconds
+Solve SAT problem                            : 0.0008 seconds
+Total execution time                         : 0.0307 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #12
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  2
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 12 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 216 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 79 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 9804 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 424 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 216 variables, 10229 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  1  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 1  0  0  1
+ 0  0  1  2
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  1
+ 0  0  1  2
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  0  0  1
+ 1  0  0  2
+ 0  0  1  2
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 0  1  0  1
+ 1  0  0  2
+ 0  0  1  2
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  0  1
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  1
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[14:29:38] 5×4 Matrix{Int64}:
+ 0  0  0  1
+ 0  0  0  2
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #12 ---
+Find all lattice points                      : 0.0007 seconds
+Find all unimodular simplices                : 0.0121 seconds
+Precompute internal faces (parallel)         : 0.0620 seconds
+Generate intersection clauses                : 0.0287 seconds
+Generate face-covering clauses               : 0.0010 seconds
+Solve SAT problem                            : 0.0024 seconds
+Total execution time                         : 0.1076 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #13
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0   0  0  1
+ 0  -3  1  0
+ 0  -3  0  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 12 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 160 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 62 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 5017 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 312 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 160 variables, 5330 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0   0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -3  0  1
+ 0  -2  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -2  0  1
+ 0  -1  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -1  0  1
+ 0   0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0   0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0  -2  1  0
+ 0   0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #13 ---
+Find all lattice points                      : 0.0009 seconds
+Find all unimodular simplices                : 0.0119 seconds
+Precompute internal faces (parallel)         : 0.0107 seconds
+Generate intersection clauses                : 0.0138 seconds
+Generate face-covering clauses               : 0.0008 seconds
+Solve SAT problem                            : 0.0018 seconds
+Total execution time                         : 0.0404 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #14
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  1  0  0
+ -2  0  1  0
+  0  0  0  1
+ -3  0  0  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 12 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 186 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 70 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 6773 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 364 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 186 variables, 7138 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+ -2  0  1  0
+ -1  0  1  0
+ -3  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+ -1  0  1  0
+  0  0  1  0
+ -3  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  0  0  1  0
+ -3  0  0  1
+ -2  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #14 ---
+Find all lattice points                      : 0.0011 seconds
+Find all unimodular simplices                : 0.0118 seconds
+Precompute internal faces (parallel)         : 0.0516 seconds
+Generate intersection clauses                : 0.0179 seconds
+Generate face-covering clauses               : 0.0009 seconds
+Solve SAT problem                            : 0.0020 seconds
+Total execution time                         : 0.0858 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+[14:29:38] Processing 4D Polytope #15
+[14:29:38] Initial vertices provided:
+[14:29:38] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  1  0  0
+ -2  0  1  0
+  0  0  0  1
+ -4  0  0  1
+[14:29:38] Step 1: Finding all lattice points...
+[14:29:38] -> Found 13 lattice points. Step 1 complete.
+
+[14:29:38] Step 2: Searching for unimodular 4-simplices...
+[14:29:38] -> Found 237 simplices. Step 2 complete.
+
+[14:29:38] Step 3: Precomputing internal faces...
+[14:29:38] -> Found 88 unique internal faces. Step 3 complete.
+
+[14:29:38] Step 4a: Generating intersection clauses...
+[14:29:38]      Using CPU backend.
+[14:29:38] -> Found 10980 intersection clauses. Step 4a complete.
+
+[14:29:38] Step 4b: Generating face-covering clauses...
+[14:29:38] -> Found 466 face-covering clauses. Step 4b complete.
+
+[14:29:38] Step 5: Handing SAT problem to solver (PicoSAT)...
+[14:29:38]      Problem details: 237 variables, 11447 clauses.
+[14:29:38]      This step may take a long time if the problem is complex.
+[14:29:38] -> SAT solver finished. Step 5 complete.
+[14:29:38] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[14:29:38] 
+1 valid triangulation(s) found.
+[14:29:38] 
+Displaying first valid triangulation:
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -1  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+ -2  0  1  0
+ -4  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  1  0  0
+ -2  0  1  0
+ -3  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+ -2  0  1  0
+ -4  0  0  1
+ -3  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -2  0  1  0
+ -1  0  1  0
+ -3  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -3  0  0  1
+ -2  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+  0  0  1  0
+  0  0  0  1
+[14:29:38] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[14:29:38] 
+--- Timing & Memory Summary for Polytope #15 ---
+Find all lattice points                      : 0.0012 seconds
+Find all unimodular simplices                : 0.0204 seconds
+Precompute internal faces (parallel)         : 0.0562 seconds
+Generate intersection clauses                : 0.0280 seconds
+Generate face-covering clauses               : 0.0012 seconds
+Solve SAT problem                            : 0.0030 seconds
+Total execution time                         : 0.1109 seconds
+Peak memory usage (Max RSS)                  : 699.96 MiB
+
+
+Run finished: 14:29:38
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:       15
+Triangulatable:                  15
+Non-Triangulatable:              0
+Total Run Time:                  00:00:03
+----------------------------------------
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:20:53.193
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:23:19.153
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:25:26.347
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:48:42.743
+################################################################################
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:51:16.728
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:52:45.098
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:53:46.237
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:54:48.246
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:55:54.157
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T15:59:46.969
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+
+
+################################################################################
+# New Run Started at 2025-10-20T16:00:46.129
+################################################################################
+Number of threads:                       1
+Detected Dimension:                      4
+Solver requested:                        PicoSAT
+Solve mode:                              first
+Intersection backend selected:           cpu
+Validation enabled:                      true
+Input file:                              Polytopes/small-lattice-polytopes/data/smooth/4_polytopes.txt
+Number of polytopes found:               738
+Processing range:                        1-15
+Number of polytopes to process:          15
+Restricting to unimodular simplices:     true
+
+[16:00:49] Processing 4D Polytope #1
+[16:00:49] Initial vertices provided:
+[16:00:49] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[16:00:49] Step 1: Finding all lattice points...
+[16:00:49] -> Found 5 lattice points. Step 1 complete.
+
+[16:00:49] Step 2: Searching for unimodular 4-simplices...
+[16:00:49] -> Found 1 simplices. Step 2 complete.
+
+[16:00:49] Step 3: Precomputing internal faces...
+[16:00:49] -> Found 0 unique internal faces. Step 3 complete.
+
+[16:00:49] Step 4a: Generating intersection clauses...
+[16:00:49]      Using CPU backend.
+[16:00:50] -> Found 0 intersection clauses. Step 4a complete.
+
+[16:00:50] Step 4b: Generating face-covering clauses...
+[16:00:50] -> Found 0 face-covering clauses. Step 4b complete.
+
+[16:00:50] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:50]      Problem details: 1 variables, 1 clauses.
+[16:00:50]      This step may take a long time if the problem is complex.
+[16:00:51] -> SAT solver finished. Step 5 complete.
+[16:00:51] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:51] 
+1 valid triangulation(s) found.
+[16:00:51] 
+Displaying first valid triangulation:
+[16:00:51] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[16:00:51] 
+--- Timing & Memory Summary for Polytope #1 ---
+Find all lattice points                      : 0.0005 seconds
+Find all unimodular simplices                : 0.0385 seconds
+Precompute internal faces (parallel)         : 0.2244 seconds
+Generate intersection clauses                : 0.7728 seconds
+Generate face-covering clauses               : 0.3218 seconds
+Solve SAT problem                            : 0.0590 seconds
+Total execution time                         : 1.8633 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:51] Processing 4D Polytope #2
+[16:00:51] Initial vertices provided:
+[16:00:51] 8×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[16:00:51] Step 1: Finding all lattice points...
+[16:00:51] -> Found 8 lattice points. Step 1 complete.
+
+[16:00:51] Step 2: Searching for unimodular 4-simplices...
+[16:00:51] -> Found 32 simplices. Step 2 complete.
+
+[16:00:51] Step 3: Precomputing internal faces...
+[16:00:51] -> Found 14 unique internal faces. Step 3 complete.
+
+[16:00:51] Step 4a: Generating intersection clauses...
+[16:00:51]      Using CPU backend.
+[16:00:51] -> Found 218 intersection clauses. Step 4a complete.
+
+[16:00:51] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 56 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 32 variables, 275 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  1  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  0  1
+ 0  0  1  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+ 0  0  1  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #2 ---
+Find all lattice points                      : 0.0009 seconds
+Find all unimodular simplices                : 0.0281 seconds
+Precompute internal faces (parallel)         : 0.0769 seconds
+Generate intersection clauses                : 0.0007 seconds
+Generate face-covering clauses               : 0.0787 seconds
+Solve SAT problem                            : 0.0002 seconds
+Total execution time                         : 0.1866 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #3
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -2  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 9 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 52 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 22 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 545 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 96 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 52 variables, 642 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #3 ---
+Find all lattice points                      : 0.0021 seconds
+Find all unimodular simplices                : 0.0044 seconds
+Precompute internal faces (parallel)         : 0.0093 seconds
+Generate intersection clauses                : 0.0020 seconds
+Generate face-covering clauses               : 0.0004 seconds
+Solve SAT problem                            : 0.0003 seconds
+Total execution time                         : 0.0194 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #6
+[16:00:52] Initial vertices provided:
+[16:00:52] 9×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  1  0
+ 1  0  0  1
+ 0  1  1  0
+ 0  1  0  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 9 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 81 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 45 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 1162 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 189 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 81 variables, 1352 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 0  1  1  0
+ 0  1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  0  1
+ 0  1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  0  1
+ 0  1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 1  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 1  0  0  1
+ 0  1  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #6 ---
+Find all lattice points                      : 0.0007 seconds
+Find all unimodular simplices                : 0.0019 seconds
+Precompute internal faces (parallel)         : 0.0054 seconds
+Generate intersection clauses                : 0.0038 seconds
+Generate face-covering clauses               : 0.0004 seconds
+Solve SAT problem                            : 0.0005 seconds
+Total execution time                         : 0.0133 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #4
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -3  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 10 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 72 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 30 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 1034 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 136 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 72 variables, 1171 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #4 ---
+Find all lattice points                      : 0.0009 seconds
+Find all unimodular simplices                : 0.0037 seconds
+Precompute internal faces (parallel)         : 0.1346 seconds
+Generate intersection clauses                : 0.0030 seconds
+Generate face-covering clauses               : 0.0003 seconds
+Solve SAT problem                            : 0.0004 seconds
+Total execution time                         : 0.1435 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #5
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0   0  0  1
+ 0  -2  1  0
+ 0  -2  0  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 10 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 84 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 34 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 1399 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 160 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 84 variables, 1560 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0  -2  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0  -2  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   0  1  0
+ 0  -2  0  1
+ 0  -1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   0  1  0
+ 0  -1  0  1
+ 0   0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #5 ---
+Find all lattice points                      : 0.0009 seconds
+Find all unimodular simplices                : 0.0038 seconds
+Precompute internal faces (parallel)         : 0.0058 seconds
+Generate intersection clauses                : 0.0040 seconds
+Generate face-covering clauses               : 0.0003 seconds
+Solve SAT problem                            : 0.0005 seconds
+Total execution time                         : 0.0160 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #7
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -4  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 11 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 92 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 38 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 1675 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 176 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 92 variables, 1852 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -4  1
+ 0  0  -3  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #7 ---
+Find all lattice points                      : 0.0010 seconds
+Find all unimodular simplices                : 0.0066 seconds
+Precompute internal faces (parallel)         : 0.0078 seconds
+Generate intersection clauses                : 0.0047 seconds
+Generate face-covering clauses               : 0.0004 seconds
+Solve SAT problem                            : 0.0006 seconds
+Total execution time                         : 0.0217 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #8
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  0  1  0
+  0  0  0  1
+  2  1  0  0
+ -2  0  0  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 11 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 135 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 52 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 3571 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 262 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 135 variables, 3834 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 2  1  0  0
+ 2  0  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+  2  0  1  0
+ -1  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  0  0  1  0
+  1  0  1  0
+ -2  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  0  1  0
+  2  0  1  0
+ -1  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 2  1  0  0
+ 2  0  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #8 ---
+Find all lattice points                      : 0.0010 seconds
+Find all unimodular simplices                : 0.0068 seconds
+Precompute internal faces (parallel)         : 0.0090 seconds
+Generate intersection clauses                : 0.0097 seconds
+Generate face-covering clauses               : 0.0006 seconds
+Solve SAT problem                            : 0.0012 seconds
+Total execution time                         : 0.0290 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #9
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   3  0  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 11 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 116 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 46 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 2646 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 224 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 116 variables, 2871 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  3  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+ 0  2  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  2  0  1
+ 0  3  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #9 ---
+Find all lattice points                      : 0.0010 seconds
+Find all unimodular simplices                : 0.0071 seconds
+Precompute internal faces (parallel)         : 0.0093 seconds
+Generate intersection clauses                : 0.0076 seconds
+Generate face-covering clauses               : 0.0006 seconds
+Solve SAT problem                            : 0.0009 seconds
+Total execution time                         : 0.0272 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #10
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0  -2  1  0
+ 0   0  0  1
+ 0   4  0  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 12 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 148 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 58 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 4285 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 288 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 148 variables, 4574 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  0  1  0
+ 0  0  0  1
+ 0  1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  4  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  1  0  1
+ 0  2  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  2  0  1
+ 0  3  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  1  0  0
+ 0  0  1  0
+ 0  3  0  1
+ 0  4  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #10 ---
+Find all lattice points                      : 0.0014 seconds
+Find all unimodular simplices                : 0.0636 seconds
+Precompute internal faces (parallel)         : 0.0105 seconds
+Generate intersection clauses                : 0.0118 seconds
+Generate face-covering clauses               : 0.0007 seconds
+Solve SAT problem                            : 0.0013 seconds
+Total execution time                         : 0.0899 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #11
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0   1  0
+ 1  0   1  0
+ 0  1   1  0
+ 0  0   0  1
+ 0  0  -5  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 12 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 112 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 46 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 2471 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 216 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 112 variables, 2688 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -5  1
+ 0  0  -4  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -4  1
+ 0  0  -3  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -3  1
+ 0  0  -2  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -2  1
+ 0  0  -1  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0   0  0
+ 1  0   0  0
+ 0  1   0  0
+ 0  0  -1  1
+ 0  0   0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  1  0
+ 1  0  1  0
+ 0  1  1  0
+ 0  0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #11 ---
+Find all lattice points                      : 0.0011 seconds
+Find all unimodular simplices                : 0.0107 seconds
+Precompute internal faces (parallel)         : 0.0099 seconds
+Generate intersection clauses                : 0.0068 seconds
+Generate face-covering clauses               : 0.0006 seconds
+Solve SAT problem                            : 0.0008 seconds
+Total execution time                         : 0.0305 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #12
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  2
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 12 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 216 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 79 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 9804 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 424 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 216 variables, 10229 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  1  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 1  0  0  1
+ 0  0  1  2
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  1
+ 0  0  1  2
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 1  0  0  1
+ 1  0  0  2
+ 0  0  1  2
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  0
+ 0  1  0  1
+ 1  0  0  2
+ 0  0  1  2
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  0  0  1
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  0
+ 0  1  0  1
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[16:00:52] 5×4 Matrix{Int64}:
+ 0  0  0  1
+ 0  0  0  2
+ 1  0  0  2
+ 0  1  0  2
+ 0  0  1  2
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #12 ---
+Find all lattice points                      : 0.0007 seconds
+Find all unimodular simplices                : 0.0120 seconds
+Precompute internal faces (parallel)         : 0.0610 seconds
+Generate intersection clauses                : 0.0295 seconds
+Generate face-covering clauses               : 0.0012 seconds
+Solve SAT problem                            : 0.0024 seconds
+Total execution time                         : 0.1074 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #13
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0   0  1  0
+ 0   0  0  1
+ 0  -3  1  0
+ 0  -3  0  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 12 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 160 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 62 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 5017 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 312 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 160 variables, 5330 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0   0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -3  0  1
+ 0  -2  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -2  0  1
+ 0  -1  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 1   0  0  0
+ 0  -3  1  0
+ 0  -1  0  1
+ 0   0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   0  0  0
+ 0   1  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0   0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -3  1  0
+ 0  -2  1  0
+ 0   0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -2  1  0
+ 0  -1  1  0
+ 0   0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+ 0   1  0  0
+ 1   1  0  0
+ 0  -1  1  0
+ 0   0  1  0
+ 0   0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #13 ---
+Find all lattice points                      : 0.0009 seconds
+Find all unimodular simplices                : 0.0117 seconds
+Precompute internal faces (parallel)         : 0.0106 seconds
+Generate intersection clauses                : 0.0134 seconds
+Generate face-covering clauses               : 0.0008 seconds
+Solve SAT problem                            : 0.0017 seconds
+Total execution time                         : 0.0398 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #14
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  1  0  0
+ -2  0  1  0
+  0  0  0  1
+ -3  0  0  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 12 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 186 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 70 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 6773 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 364 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 186 variables, 7138 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+ -2  0  1  0
+ -1  0  1  0
+ -3  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+ -1  0  1  0
+  0  0  1  0
+ -3  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  0  0  1  0
+ -3  0  0  1
+ -2  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+  0  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #14 ---
+Find all lattice points                      : 0.0016 seconds
+Find all unimodular simplices                : 0.0484 seconds
+Precompute internal faces (parallel)         : 0.0129 seconds
+Generate intersection clauses                : 0.0178 seconds
+Generate face-covering clauses               : 0.0009 seconds
+Solve SAT problem                            : 0.0020 seconds
+Total execution time                         : 0.0844 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+[16:00:52] Processing 4D Polytope #15
+[16:00:52] Initial vertices provided:
+[16:00:52] 8×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  0  1  0  0
+  0  0  1  0
+  2  1  0  0
+ -2  0  1  0
+  0  0  0  1
+ -4  0  0  1
+[16:00:52] Step 1: Finding all lattice points...
+[16:00:52] -> Found 13 lattice points. Step 1 complete.
+
+[16:00:52] Step 2: Searching for unimodular 4-simplices...
+[16:00:52] -> Found 237 simplices. Step 2 complete.
+
+[16:00:52] Step 3: Precomputing internal faces...
+[16:00:52] -> Found 88 unique internal faces. Step 3 complete.
+
+[16:00:52] Step 4a: Generating intersection clauses...
+[16:00:52]      Using CPU backend.
+[16:00:52] -> Found 10980 intersection clauses. Step 4a complete.
+
+[16:00:52] Step 4b: Generating face-covering clauses...
+[16:00:52] -> Found 466 face-covering clauses. Step 4b complete.
+
+[16:00:52] Step 5: Handing SAT problem to solver (PicoSAT)...
+[16:00:52]      Problem details: 237 variables, 11447 clauses.
+[16:00:52]      This step may take a long time if the problem is complex.
+[16:00:52] -> SAT solver finished. Step 5 complete.
+[16:00:52] 
+Step 5a: Validation skipped (CPU backend already performed exact checks).
+[16:00:52] 
+1 valid triangulation(s) found.
+[16:00:52] 
+Displaying first valid triangulation:
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -1  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  0  1  0  0
+  1  1  0  0
+ -2  0  1  0
+ -4  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+  2  1  0  0
+ -2  0  1  0
+ -3  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  1  1  0  0
+ -2  0  1  0
+ -4  0  0  1
+ -3  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -2  0  1  0
+ -1  0  1  0
+ -3  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -3  0  0  1
+ -2  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  0  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -2  0  0  1
+ -1  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+  0  0  1  0
+  0  0  0  1
+[16:00:52] 5×4 Matrix{Int64}:
+  1  0  0  0
+  2  1  0  0
+ -1  0  1  0
+ -1  0  0  1
+  0  0  0  1
+[16:00:52] 
+--- Timing & Memory Summary for Polytope #15 ---
+Find all lattice points                      : 0.0012 seconds
+Find all unimodular simplices                : 0.0203 seconds
+Precompute internal faces (parallel)         : 0.0566 seconds
+Generate intersection clauses                : 0.0281 seconds
+Generate face-covering clauses               : 0.0011 seconds
+Solve SAT problem                            : 0.0030 seconds
+Total execution time                         : 0.1110 seconds
+Peak memory usage (Max RSS)                  : 696.07 MiB
+
+
+Run finished: 16:00:52
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:       15
+Triangulatable:                  15
+Non-Triangulatable:              0
+Total Run Time:                  00:00:03
+----------------------------------------
