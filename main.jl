@@ -316,9 +316,8 @@ function _normalize_axis(axis::Vector{Rational{BigInt}})
     return Rational{BigInt}.(int_axis)
 end
 
-# --- 3D Pipeline Functions ---
-
-
+# Computes the lattice points of a polytope (from its V-representation) via Oscar. Care is taken to convert between Oscar and Julia types
+# Calling Oscar and the conversion may be time-inefficient, but this presolve is anyways not a bottleneck
 function lattice_points_via_Oscar(vertices::Matrix{Rational{BigInt}})
     # Build convex hull polytope
     polytope = convex_hull(vertices)
@@ -371,6 +370,8 @@ function all_simplices(lattice_points::Matrix{Rational{BigInt}}; unimodular_only
     return simplex_indices
 end
 
+# Computes internal faces of simplices.
+# TODO: make this not require floats? The Polyhedra pacakge seems to always use floats...
 function precompute_internal_faces(P::Matrix{Rational{BigInt}}, dim::Int)
     n = size(P, 1)
     if n < dim
