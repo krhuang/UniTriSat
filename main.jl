@@ -1,5 +1,7 @@
 # unimodularTriangulationSAT.jl - v3.2 (mit Validierung)
 # Finds unimodular triangulations of 3D, 4D, 5D, and 6D lattice polytopes.
+
+using Oscar: convex_hull, lattice_points
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
@@ -9,7 +11,6 @@ using Printf
 using Base.Threads
 using TOML
 using Random
-# using Oscar
 # using Normaliz 
 # Could use Oscar or Normaliz as the backend to find lattice points? 
 
@@ -317,49 +318,58 @@ end
 
 # --- 3D Pipeline Functions ---
 
-#=
+
 function lattice_points_via_Oscar(vertices::Matrix{Rational{BigInt}})
     # Build convex hull polytope
     polytope = convex_hull(vertices)
     
     # Get lattice points
-    LP = lattice_points(polytope)
+    LP = lattice_points(polytope) # This returns a weird Oscar object: "SubObjectIterator{PointVector{ZZRingElem}}"
     
-    println("A")
-    # Safely get size
+    # retrieve dimensions
     dims = size(LP)
-    nrows = dims[1]
-    ncols = dims[end]  # works even if LP has one row or one column
-    println("B")
-    # Convert each entry to Rational{BigInt} and build Julia matrix
-    julia_matrix_LP = [Int(LP[i,j]) for i in 1:nrows, j in 1:ncols]
-    
-    println(julia_matrix_LP)
+
+    # Rows
+    nrows = dims[1] 
+    # Columns
+    ncols = size(LP[1])[1] # The dimensions of "SubObjectIterator{PointVector{ZZRingElem}}" are given weirdly
+
+    julia_matrix_LP = [Rational{BigInt}(LP[i][j]) for i in 1:nrows, j in 1:ncols] # Conversion from Oscar ZZRingElem type to Julia Int64 type
     return julia_matrix_LP
 end
-=#
 
-function findAllLatticePointsInHull_3d(vertices::Matrix{Rational{BigInt}})
-    poly = Polyhedra.polyhedron(vrep(vertices)); hr = hrep(poly)
-    min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1)); max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
-    lattice_points = Vector{Vector{Rational{BigInt}}}()
-    for iz in min_coords[3]:max_coords[3], iy in min_coords[2]:max_coords[2], ix in min_coords[1]:max_coords[1]
-        point = Rational{BigInt}.([ix, iy, iz])
-        if all(hr.A * point .<= hr.b); push!(lattice_points, point); end
+# --- Presolve functions ---
+# Functions here are used before passing to the intersection kernels
+
+"""
+    all_simplices(P::Matrix{Rational{BigInt}}; unimodular_only::Bool=false)
+
+Return all index tuples of (d+1)-element subsets of points in `P` that form
+non-degenerate simplices in ℚᵈ, optionally restricting to unimodular simplices
+(|det| == 1).
+
+TODO: make this work with arbitrary type ?
+"""
+function all_simplices(lattice_points::Matrix{Rational{BigInt}}; unimodular_only::Bool=false)
+    n, d = size(lattice_points)
+    simplex_indices = Vector{NTuple{d+1, Int}}()
+    if n < d + 1
+        return simplex_indices
     end
-    return isempty(lattice_points) ? Matrix{Rational{BigInt}}(undef, 0, 3) : vcat(lattice_points'...)
-end
 
-function all_simplices_in_3d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
-    n = size(P, 1); simplex_indices = Vector{NTuple{4, Int}}(); if n < 4 return simplex_indices end
-    for inds in combinations(1:n, 4)
-        p0, p1, p2, p3 = P[inds[1], :], P[inds[2], :], P[inds[3], :], P[inds[4], :]
-        M = vcat((p1 - p0)', (p2 - p0)', (p3 - p0)'); d = det(M)
-        if d != 0 && (!unimodular_only || abs(d) == 1); push!(simplex_indices, Tuple(inds)); end
+    for inds in combinations(1:n, d + 1)
+        p0 = lattice_points[inds[1], :]
+        # build matrix of difference vectors from p0
+        M = vcat([(lattice_points[inds[i], :] - p0)' for i in 2:(d + 1)]...)
+        # compute the determinant
+        det_val = det(M)
+        if det_val != 0 && (!unimodular_only || abs(det_val) == 1)
+            # if unimodular, add it
+            push!(simplex_indices, Tuple(inds))
+        end
     end
     return simplex_indices
 end
-
 
 function precompute_internal_faces(P::Matrix{Rational{BigInt}}, dim::Int)
     n = size(P, 1)
@@ -407,84 +417,8 @@ function precompute_internal_faces(P::Matrix{Rational{BigInt}}, dim::Int)
     return union(fetch.(tasks)...)
 end
 
-# --- 4D Pipeline Functions ---
-
-function findAllLatticePointsInHull_4d(vertices::Matrix{Rational{BigInt}})
-    poly = Polyhedra.polyhedron(vrep(vertices)); hr = hrep(poly)
-    min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1)); max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
-    lattice_points = Vector{Vector{Rational{BigInt}}}()
-    for iw in min_coords[4]:max_coords[4], iz in min_coords[3]:max_coords[3], iy in min_coords[2]:max_coords[2], ix in min_coords[1]:max_coords[1]
-        point = Rational{BigInt}.([ix, iy, iz, iw])
-        if all(hr.A * point .<= hr.b); push!(lattice_points, point); end
-    end
-    return isempty(lattice_points) ? Matrix{Rational{BigInt}}(undef, 0, 4) : vcat(lattice_points'...)
-end
-
-function all_simplices_in_4d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
-    n = size(P, 1); simplex_indices = Vector{NTuple{5, Int}}(); if n < 5 return simplex_indices end
-    for inds in combinations(1:n, 5)
-        p0 = P[inds[1], :]; M = vcat([(P[inds[i], :] - p0)' for i in 2:5]...); d = det(M)
-        if d != 0 && (!unimodular_only || abs(d) == 1); push!(simplex_indices, Tuple(inds)); end
-    end
-    return simplex_indices
-end
-
-# --- 5D Pipeline Functions ---
-
-function findAllLatticePointsInHull_5d(vertices::Matrix{Rational{BigInt}})
-    poly = Polyhedra.polyhedron(vrep(vertices)); hr = hrep(poly)
-    min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1))
-    max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
-    lattice_points = Vector{Vector{Rational{BigInt}}}()
-    for iv in min_coords[5]:max_coords[5], iw in min_coords[4]:max_coords[4], iz in min_coords[3]:max_coords[3], iy in min_coords[2]:max_coords[2], ix in min_coords[1]:max_coords[1]
-        point = Rational{BigInt}.([ix, iy, iz, iw, iv])
-        if all(hr.A * point .<= hr.b); push!(lattice_points, point); end
-    end
-    return isempty(lattice_points) ? Matrix{Rational{BigInt}}(undef, 0, 5) : vcat(lattice_points'...)
-end
-
-function all_simplices_in_5d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
-    n = size(P, 1); simplex_indices = Vector{NTuple{6, Int}}()
-    if n < 6 return simplex_indices end
-    for inds in combinations(1:n, 6)
-        p0 = P[inds[1], :]
-        M = vcat([(P[inds[i], :] - p0)' for i in 2:6]...)
-        d = det(M)
-        if d != 0 && (!unimodular_only || abs(d) == 1)
-            push!(simplex_indices, Tuple(inds))
-        end
-    end
-    return simplex_indices
-end
-# --- 6D Pipeline Functions ---
-
-function findAllLatticePointsInHull_6d(vertices::Matrix{Rational{BigInt}})
-    poly = Polyhedra.polyhedron(vrep(vertices)); hr = hrep(poly)
-    min_coords = floor.(Int, minimum(convert(Matrix{Float64}, vertices), dims=1))
-    max_coords = ceil.(Int, maximum(convert(Matrix{Float64}, vertices), dims=1))
-    lattice_points = Vector{Vector{Rational{BigInt}}}()
-    for iu in min_coords[6]:max_coords[6], iv in min_coords[5]:max_coords[5], iw in min_coords[4]:max_coords[4], iz in min_coords[3]:max_coords[3], iy in min_coords[2]:max_coords[2], ix in min_coords[1]:max_coords[1]
-        point = Rational{BigInt}.([ix, iy, iz, iw, iv, iu])
-        if all(hr.A * point .<= hr.b); push!(lattice_points, point); end
-    end
-    return isempty(lattice_points) ? Matrix{Rational{BigInt}}(undef, 0, 6) : vcat(lattice_points'...)
-end
-
-function all_simplices_in_6d(P::Matrix{Rational{BigInt}}; unimodular_only::Bool)
-    n = size(P, 1); simplex_indices = Vector{NTuple{7, Int}}()
-    if n < 7 return simplex_indices end
-    for inds in combinations(1:n, 7)
-        p0 = P[inds[1], :]
-        M = vcat([(P[inds[i], :] - p0)' for i in 2:7]...)
-        d = det(M)
-        if d != 0 && (!unimodular_only || abs(d) == 1)
-            push!(simplex_indices, Tuple(inds))
-        end
-    end
-    return simplex_indices
-end
-
 # --- Main Processing Functions ---
+# File reading and processing before passing to intersection kernel
 
 function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::Int, total_in_run::Int, config::Config)
     dim = size(initial_vertices_int, 2)
@@ -506,30 +440,21 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     if config.show_initial_vertices; log_verbose("Initial vertices provided:"); log_verbose(initial_vertices_int, is_display=true); end
 
     log_verbose("Step 1: Finding all lattice points..."); t_start = time_ns()
-    P = if dim == 3
-        findAllLatticePointsInHull_3d(initial_vertices)
-    elseif dim == 4
-        findAllLatticePointsInHull_4d(initial_vertices)
-    elseif dim == 5
-        findAllLatticePointsInHull_5d(initial_vertices)
-    else # dim == 6
-        findAllLatticePointsInHull_6d(initial_vertices)
-    end
+    
+    # Retrieve the lattice points of P
+    P = lattice_points_via_Oscar(initial_vertices)
+    
+    # =====Logs update=====
     push!(timings, "Find all lattice points" => (time_ns() - t_start) / 1e9); num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
     if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points..."); end
-    
     simplex_search_type = config.find_all_simplices ? "non-degenerate" : "unimodular"
     log_verbose("Step 2: Searching for $simplex_search_type $(dim)-simplices..."); t_start = time_ns()
-    S_indices = if dim == 3
-        all_simplices_in_3d(P, unimodular_only=!config.find_all_simplices)
-    elseif dim == 4
-        all_simplices_in_4d(P, unimodular_only=!config.find_all_simplices)
-    elseif dim == 5
-        all_simplices_in_5d(P, unimodular_only=!config.find_all_simplices)
-    else # dim == 6
-        all_simplices_in_6d(P, unimodular_only=!config.find_all_simplices)
-    end
+    # =====================
+    
+    # Retrieve the simplices of P
+    S_indices = all_simplices(P, unimodular_only=!config.find_all_simplices)
+
     push!(timings, "Find all $simplex_search_type simplices" => (time_ns() - t_start) / 1e9); num_simplices_found = length(S_indices)
     log_verbose("-> Found $num_simplices_found simplices. Step 2 complete.\n")
     if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found..."); end
@@ -852,7 +777,7 @@ end
 function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config, range_to_process, log_stream)
     indices_to_process = collect(range_to_process)
 
-    if config.sort_by in ["P", "S"]
+    if config.sort_by in ["#Lattice Points", "#Simplices"]
         println("Pre-calculating metrics for sorting by '$(config.sort_by)'...")
         metrics = []
         total = length(indices_to_process)
@@ -860,29 +785,15 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
             update_line("Sorting pre-calculation: $i / $total")
             initial_vertices = Rational{BigInt}.(polytopes[p_idx])
             
-            P = if dim == 3
-                findAllLatticePointsInHull_3d(initial_vertices)
-            elseif dim == 4
-                findAllLatticePointsInHull_4d(initial_vertices)
-            elseif dim == 5
-                findAllLatticePointsInHull_5d(initial_vertices)
-            else # dim == 6
-                findAllLatticePointsInHull_6d(initial_vertices)
-            end
+            # Retrieve the lattice points of the polytope
+            P = lattice_points_via_Oscar(initial_vertices)
+
             num_points = size(P, 1)
 
             if config.sort_by == "P"
                 push!(metrics, (p_idx, num_points))
             elseif config.sort_by == "S"
-                S_indices = if dim == 3
-                    all_simplices_in_3d(P, unimodular_only=!config.find_all_simplices)
-                elseif dim == 4
-                    all_simplices_in_4d(P, unimodular_only=!config.find_all_simplices)
-                elseif dim == 5
-                    all_simplices_in_5d(P, unimodular_only=!config.find_all_simplices)
-                else # dim == 6
-                    all_simplices_in_6d(P, unimodular_only=!config.find_all_simplices)
-                end
+                S_indices = all_simplices(P, unimodular_only=!config.find_all_simplices)
                 num_simplices = length(S_indices)
                 push!(metrics, (p_idx, num_simplices))
             end
