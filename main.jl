@@ -224,7 +224,7 @@ function generalized_cross_product_4d(v1::Vector{T}, v2::Vector{T}, v3::Vector{T
     return [ det(M[[2,3,4], :]), -det(M[[1,3,4], :]), det(M[[1,2,4], :]), -det(M[[1,2,3], :]) ]
 end
 
-# Seems to only be for plotting?
+# --- Seems to only be for plotting? ---
 
 function get_orthonormal_basis(normal::Vector{Rational{BigInt}})
     normal_f64 = Float64.(normal)
@@ -325,7 +325,7 @@ function lattice_points_via_Oscar(vertices::Matrix{Rational{BigInt}})
     # Get lattice points
     LP = lattice_points(polytope) # This returns a weird Oscar object: "SubObjectIterator{PointVector{ZZRingElem}}"
     
-    # retrieve dimensions
+    # Retrieve dimension
     dims = size(LP)
 
     # Rows
@@ -445,21 +445,22 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     # Retrieve the lattice points of P
     P = lattice_points_via_Oscar(initial_vertices)
     
-    # =====Logs update=====
+    # -----Logs update-----
     push!(timings, "Find all lattice points" => (time_ns() - t_start) / 1e9); num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
     if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points..."); end
     simplex_search_type = config.find_all_simplices ? "non-degenerate" : "unimodular"
     log_verbose("Step 2: Searching for $simplex_search_type $(dim)-simplices..."); t_start = time_ns()
-    # =====================
+    # ---------------------
     
     # Retrieve the simplices of P
     S_indices = all_simplices(P, unimodular_only=!config.find_all_simplices)
 
+    # -----Logs update-----
     push!(timings, "Find all $simplex_search_type simplices" => (time_ns() - t_start) / 1e9); num_simplices_found = length(S_indices)
     log_verbose("-> Found $num_simplices_found simplices. Step 2 complete.\n")
     if config.terminal_output in ["multi-line", "single-line"]; update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found..."); end
-
+    # Check if we found *no* (unimodular) simplices
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
         msg = "no $simplex_search_type simplices exist"
@@ -470,10 +471,10 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
         end
         return ProcessResult(id, 0, total_time, num_lattice_points, num_simplices_found, :not_run, verbose_log, minimal_log, [])
     end
-
     log_verbose("Step 3: Precomputing internal faces..."); t_start = time_ns()
+    # ---------------------
 
-    # Precomputing internal faces (dimension-agnostic function)
+    # --- Precomputing internal faces (dimension-agnostic function) ---
 
     internal_faces_set = precompute_internal_faces(P, dim)
 
