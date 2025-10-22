@@ -221,7 +221,7 @@ end
 
 # Computes the lattice points of a polytope (from its V-representation) via Oscar. Care is taken to convert between Oscar and Julia types
 # Calling Oscar and the conversion may be time-inefficient, but this presolve is anyways not a bottleneck
-function lattice_points_via_Oscar(vertices::Matrix{Rational{BigInt}})
+function lattice_points_via_Oscar(vertices::Matrix{Int})
     # Build convex hull polytope
     polytope = convex_hull(vertices)
     
@@ -236,13 +236,13 @@ function lattice_points_via_Oscar(vertices::Matrix{Rational{BigInt}})
     # Columns
     ncols = size(LP[1])[1] # The dimensions of "SubObjectIterator{PointVector{ZZRingElem}}" are given weirdly
 
-    julia_matrix_LP = [Rational{BigInt}(LP[i][j]) for i in 1:nrows, j in 1:ncols] # Conversion from Oscar ZZRingElem type to Julia Int64 type
+    julia_matrix_LP = [Int(LP[i][j]) for i in 1:nrows, j in 1:ncols] # Conversion from Oscar ZZRingElem type to Julia Int64 type
     return julia_matrix_LP
 end
 
 
 """
-    all_simplices(P::Matrix{Rational{BigInt}}; unimodular_only::Bool=false)
+    all_simplices(lattice_points::Matrix{Int}; unimodular_only::Bool=false)
 
 Return all index tuples of (d+1)-element subsets of points in `P` that form
 non-degenerate simplices in ℚᵈ, optionally restricting to unimodular simplices
@@ -250,7 +250,7 @@ non-degenerate simplices in ℚᵈ, optionally restricting to unimodular simplic
 
 TODO: make this work with arbitrary type ?
 """
-function all_simplices(lattice_points::Matrix{Rational{BigInt}}; unimodular_only::Bool=false)
+function all_simplices(lattice_points::Matrix{Int}; unimodular_only::Bool=false)
     n, d = size(lattice_points)
     simplex_indices = Vector{NTuple{d+1, Int}}()
     if n < d + 1
@@ -273,14 +273,14 @@ end
 
 # Computes internal faces of simplices.
 # TODO: make this not require floats? The Polyhedra pacakge seems to always use floats...
-function precompute_internal_faces(P::Matrix{Rational{BigInt}}, dim::Int)
-    n = size(P, 1)
+function precompute_internal_faces(vertices::Matrix{Int}, dim::Int)
+    n = size(vertices, 1)
     if n < dim
         return Set{NTuple{dim, Int}}()
     end
 
     # Build polyhedron and collect halfspaces
-    poly = Polyhedra.polyhedron(vrep(P))
+    poly = Polyhedra.polyhedron(vrep(vertices))
     hr = hrep(poly)
     planes = collect(halfspaces(hr))
 
@@ -301,7 +301,7 @@ function precompute_internal_faces(P::Matrix{Rational{BigInt}}, dim::Int)
                 end
 
                 face_indices = potential_faces[i]
-                face_points = P[collect(face_indices), :]
+                face_points = vertices[collect(face_indices), :]
 
                 # Check whether face lies on boundary plane
                 on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
@@ -322,12 +322,12 @@ end
 # --- Main Processing Functions ---
 # File reading and processing before passing to intersection kernel
 
-function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::Int, total_in_run::Int, config::Config)
-    dim = size(initial_vertices_int, 2)
+function process_polytope(initial_vertices::Matrix{Int}, id::Int, run_idx::Int, total_in_run::Int, config::Config)
+    dim = size(initial_vertices, 2)
     buf = IOBuffer()
     timings = Vector{Pair{String, Float64}}()
     t_start_total = time_ns()
-    initial_vertices = Rational{BigInt}.(initial_vertices_int)
+    #initial_vertices = Rational{BigInt}.(initial_vertices_int)
     validation_status = :not_run # NEU: Initialisierung des Validierungsstatus
 
     function log_verbose(msg...; is_display::Bool=false)
@@ -339,7 +339,7 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
     end
     
     log_verbose("Processing $(dim)D Polytope #$id")
-    if config.show_initial_vertices; log_verbose("Initial vertices provided:"); log_verbose(initial_vertices_int, is_display=true); end
+    if config.show_initial_vertices; log_verbose("Initial vertices provided:"); log_verbose(initial_vertices, is_display=true); end
 
     log_verbose("Step 1: Finding all lattice points..."); t_start = time_ns()
     
@@ -686,7 +686,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, dim::Int, config::Config
         total = length(indices_to_process)
         for (i, p_idx) in enumerate(indices_to_process)
             update_line("Sorting pre-calculation: $i / $total")
-            initial_vertices = Rational{BigInt}.(polytopes[p_idx])
+            initial_vertices = polytopes[p_idx]
             
             # Retrieve the lattice points of the polytope
             P = lattice_points_via_Oscar(initial_vertices)
