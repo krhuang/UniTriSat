@@ -326,7 +326,7 @@ end
 
 # Precompute the type conversion and also the generalized cross
 # products for each simplex.
-function prepare_simplices_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector, ::Val{D}) where D
+function prepare_simplices_cpu(P::Matrix{Int}, S_indices::Vector, ::Val{D}) where D
     num_simplices = length(S_indices)
     simplices = Vector{Simplex{D + 1, D}}(undef, num_simplices)
     for i in 1:num_simplices
@@ -340,7 +340,7 @@ function prepare_simplices_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector, :
 end
 
 # Essentially specialize the rest of the code on the dimension.
-function get_intersecting_pairs_cpu_aux(P::Matrix{Rational{BigInt}}, S_indices::Vector, ::Val{D}) where D
+function get_intersecting_pairs_cpu_aux(P::Matrix{Int}, S_indices::Vector, ::Val{D}) where D
     simplices::Vector{Simplex{D+1, D}} = prepare_simplices_cpu(P, S_indices, Val(D))
     num_simplices = length(simplices)
     num_threads = nthreads()
@@ -373,7 +373,7 @@ function get_intersecting_pairs_cpu_aux(P::Matrix{Rational{BigInt}}, S_indices::
     return vcat(thread_clauses...)
 end
 
-function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indices::Vector)
+function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector)
     first_verts = P[collect(S_indices[1]), :]
     # compute dimension to make all code specialized on the dimension from here on out
     d = size(first_verts, 2)
