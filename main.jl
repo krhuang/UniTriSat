@@ -1,7 +1,7 @@
 # unimodularTriangulationSAT.jl - v3.2 (mit Validierung)
 # Finds unimodular triangulations of 3D, 4D, 5D, and 6D lattice polytopes.
 
-using Oscar: convex_hull, lattice_points
+using Oscar: convex_hull, lattice_points, intersect, dim, volume
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
@@ -52,6 +52,7 @@ end
 
 include("Intersection_backends/cpu_intersection_3d.jl")
 include("Intersection_backends/cpu_intersection.jl")
+include("Intersection_backends/cpu_intersection_Oscar.jl")
 
 const CMS_LOADED = Ref(false)
 try
@@ -304,7 +305,7 @@ function precompute_internal_faces(vertices::Matrix{Int}, dim::Int)
                 face_points = vertices[collect(face_indices), :]
 
                 # Check whether face lies on boundary plane
-                on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
+                on_boundary = any(plane -> all(iszero.(face_points * plane.a .- plane.β)), planes)
 
                 if !on_boundary
                     push!(local_faces, Tuple(sort(collect(face_indices))))
@@ -386,58 +387,10 @@ function process_polytope(initial_vertices::Matrix{Int}, id::Int, run_idx::Int, 
 
     log_verbose("Step 4a: Generating intersection clauses..."); t_start = time_ns()
     
-    intersection_clauses = let n_simplices = num_simplices
-        intersect_func = nothing
-        use_gpu = false
+    #intersection_clauses = CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
+    #intersection_clauses = CPUIntersection3D.get_intersecting_pairs_cpu(P, S_indices)
+    intersection_clauses = CPUIntersection_Oscar.get_intersecting_pairs_via_Oscar(P, S_indices)
 
-        if config.intersection_backend == "gpu_rationals"
-            if dim == 3 && isdefined(Main, :GPUIntersection3D)
-                log_verbose("     Using 3D GPU backend (Rationals)...")
-                intersect_func = () -> Main.GPUIntersection3D.get_intersecting_pairs_gpu(P, S_indices)
-                use_gpu = true
-            elseif dim == 4 && isdefined(Main, :GPUIntersection4D)
-                log_verbose("     Using 4D GPU backend (Rationals)...")
-                intersect_func = () -> Main.GPUIntersection4D.get_intersecting_pairs_gpu_4d(P, S_indices)
-                use_gpu = true
-            elseif dim == 5 && isdefined(Main, :GPUIntersection5D)
-                log_verbose("     Using 5D GPU backend (Rationals)...")
-                intersect_func = () -> Main.GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
-                use_gpu = true
-            elseif dim == 6 && isdefined(Main, :GPUIntersection6D)
-                log_verbose("     Using 6D GPU backend (Rationals)...")
-                intersect_func = () -> Main.GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
-                use_gpu = true
-            end
-        elseif config.intersection_backend == "gpu_floats"
-            if dim == 3 && isdefined(Main, :GPUIntersection3DFloats)
-                log_verbose("     Using 3D GPU backend (Floats)...")
-                intersect_func = () -> Main.GPUIntersection3DFloats.get_intersecting_pairs_gpu(P, S_indices)
-                use_gpu = true
-            elseif dim == 4 && isdefined(Main, :GPUIntersection4DFloats)
-                log_verbose("     Using 4D GPU backend (Floats)...")
-                intersect_func = () -> Main.GPUIntersection4DFloats.get_intersecting_pairs_gpu_4d(P, S_indices)
-                use_gpu = true
-            elseif dim == 5 && isdefined(Main, :GPUIntersection5DFloats)
-                log_verbose("     Using 5D GPU backend (Floats)...")
-                intersect_func = () -> Main.GPUIntersection5DFloats.get_intersecting_pairs_gpu_5d(P, S_indices)
-                use_gpu = true
-            elseif dim == 6 && isdefined(Main, :GPUIntersection6DFloats)
-                log_verbose("     Using 6D GPU backend (Floats)...")
-                intersect_func = () -> Main.GPUIntersection6DFloats.get_intersecting_pairs_gpu_6d(P, S_indices)
-                use_gpu = true
-            end
-        end
-        
-        if use_gpu && !isnothing(intersect_func)
-            intersect_func() # Execute the selected GPU function
-        else
-            if startswith(config.intersection_backend, "gpu")
-                 log_verbose("     WARNING: GPU backend '$(config.intersection_backend)' for $(dim)D not available. Falling back to CPU.")
-            end
-            log_verbose("     Using CPU backend.")
-            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
-        end
-    end
 
     if config.terminal_output == "verbose"; update_line(""); println(stdout); end
     push!(timings, "Generate intersection clauses" => (time_ns() - t_start) / 1e9); 
@@ -504,22 +457,26 @@ function process_polytope(initial_vertices::Matrix{Int}, id::Int, run_idx::Int, 
     log_verbose("-> SAT solver finished. Step 5 complete.")
     push!(timings, "Solve SAT problem" => (time_ns() - t_start_solve) / 1e9);
     
-    # --- NEUER VALIDIERUNGSBLOCK ---
+    # --- Validation Block begins ---
     first_sol_indices = Int[]
     if num_solutions > 0
         first_sol_indices = findall(l -> l > 0, first(solutions))
     end
 
-    if config.validate && num_solutions > 0 && config.intersection_backend != "cpu"
-        log_verbose("\nStep 5a: Validating solution using precise CPU intersection checker...")
+    if config.validate && num_solutions > 0 
+        log_verbose("\nStep 5a: Validating solution using Oscar functions...")
         validation_status = :passed # Annahme: bestanden, bis Fehler gefunden wird
-        cpu_intersect_func = CPUIntersection.simplices_intersect_sat_cpu
+        #cpu_intersect_func = CPUIntersection.simplices_intersect_sat_cpu
         solution_simplices_to_check = collect(first_sol_indices)
         num_check = length(solution_simplices_to_check)
-        intersection_found_by_cpu = false
+        if volume(convex_hull(initial_vertices)) * factorial(dim) != num_check 
+            throw("Validation Failed Error! Expected normalized volume ", volume(convex_hull(initial_vertices)), " but have ", num_check, " simplices in the triangulation")
+        end
+
+        intersection_found = false # Flag for finding an intersection
 
         for i in 1:num_check
-            if intersection_found_by_cpu; break; end
+            if intersection_found; break; end
             s1_point_indices = S_indices[solution_simplices_to_check[i]]
             s1_points = P[collect(s1_point_indices), :]
 
@@ -527,12 +484,14 @@ function process_polytope(initial_vertices::Matrix{Int}, id::Int, run_idx::Int, 
                 s2_point_indices = S_indices[solution_simplices_to_check[j]]
                 s2_points = P[collect(s2_point_indices), :]
                 
-                if cpu_intersect_func(s1_points, s2_points)
-                    log_verbose("   VALIDATION FAILED: Intersection found between solution simplex $i and $j by CPU checker.")
+                if interior_intersection_via_Oscar(s1_points, s2_points)
+                    # TODO: this message should stick out more
+                    log_verbose("   WARNING--VALIDATION FAILED: Intersection found between solution simplex $i and $j by CPU checker.")
                     log_verbose("   Simplex $i indices: $s1_point_indices")
                     log_verbose("   Simplex $j indices: $s2_point_indices")
                     validation_status = :failed
-                    intersection_found_by_cpu = true
+                    intersection_found = true
+                    throw("Validation Failed Error! This indicates a bug in the code.")
                     break
                 end
             end
@@ -548,7 +507,7 @@ function process_polytope(initial_vertices::Matrix{Int}, id::Int, run_idx::Int, 
         log_verbose("\nStep 5a: Validation skipped (CPU backend already performed exact checks).")
         validation_status = :passed
     end
-    # --- ENDE VALIDIERUNGSBLOCK ---
+    # --- End of Validation Block ---
 
     total_time = (time_ns() - t_start_total) / 1e9; push!(timings, "Total execution time" => total_time)
     log_verbose("\n$(num_solutions) valid triangulation(s) found.")

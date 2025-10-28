@@ -2,6 +2,7 @@
 
 module CPUIntersection
 
+using Oscar: convex_hull, lattice_points, intersect, dim
 using LinearAlgebra
 using Combinatorics
 using Base.Threads
@@ -94,8 +95,8 @@ end
 """
     _generalized_cross_product(vectors::Vector{Vector{T}}) where T
 
-Berechnet das verallgemeinerte Kreuzprodukt für d-1 Vektoren im d-dimensionalen Raum.
-Das Ergebnis ist ein Vektor, der orthogonal zu allen Eingabevektoren ist.
+Computes the generalized cross product for d-1 vectors in d-dimensional space. 
+The result is a vector orthogonal to all input vectors.
 """
 function _generalized_cross_product(vectors::MVector{N, SVector{D, Int64}}) where {N, D}
     n = N
@@ -178,9 +179,9 @@ end
 """
     axis_separates(s1_verts, s2_verts, axis) -> Bool
 
-Projiziert die Ecken eines Polytops auf eine gegebene Achse und gibt
-das minimale und maximale Skalarprodukt zurück. Twice to check if the
-given axis separates the two polytopes.
+Projects the vertices of a polytope onto a given axis and returns
+the min/max dot products. Used to check whether the given axis
+separates the two polytopes.
 """
 
 @inline function axis_separates(s1_verts::SVector{V, SVector{D, Int64}},
@@ -206,7 +207,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
     s1_face_edges = s1.face_edges
     s2_face_edges = s2.face_edges
 
-    # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
+    # --- Cases 1 and 2: Axes perpendicular to the facets of s1 and s2 ---
     for simplex in (s1, s2)
         facet_normals = simplex.facet_normals
         for i in 1:V
@@ -217,12 +218,12 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         end
     end
 
-    # --- Fall 3: Achsen, die aus Seitenflächen beider Simplizes
-    # gebildet werden --- Eine Achse wird gebildet, indem man das
-    # verallgemeinerte Kreuzprodukt von k Vektoren von einer k-Fläche
-    # von s1 und l Vektoren von einer l-Fläche von s2 berechnet, wobei
-    # k+l = d-1. Due to the anti-symmetric property of the cross
-    # product, we only need to check (k, l) pairs for k <= l.
+    
+    # --- Case 3: Axes formed from faces (side facets) of both simplices ---
+    # An axis is formed by computing the generalized cross product of
+    # k vectors from a k-face of s1 and l vectors from an l-face of s2,
+    # where k + l = d - 1. Due to the antisymmetry of the cross product,
+    # we only need to check (k, l) pairs with k <= l.
     if D == 3
         @generate_cross_axes_case_scalar 3
     elseif D == 4
@@ -232,12 +233,13 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
     elseif D == 6
         @generate_cross_axes_case_scalar 6
     else
-        edgeset = zeros(MVector{D - 1, SVector{D, Int64}})
+        println("this got used")
+        edgeset = MVector{D-1, SVector{D, Int64}}(undef)
         for k in 1:div((D - 1), 2)
             l = D - 1 - k
             edge_count = binomial(D + 1, k + 1)
             s1_face_edges_k = s1_face_edges[k]
-            s2_face_edges_l = s1_face_edges[l]
+            s2_face_edges_l = s2_face_edges[l] # there was a typo here
             for i in 1:edge_count
                 f1_edges = s1_face_edges_k[i]
                 # combine edges spanning the two faces
@@ -261,6 +263,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
             end
         end
     end
+    
 
     # We've enumerated and tested all possible axes but none of them
     # separate. Therefore, the simplices must intersect.
@@ -268,6 +271,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
 end
 
 # Compute facet normals and edge vectors for a single simplex.
+# Returns a "Simplex" object
 function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
     num_verts = D + 1
 
@@ -340,37 +344,34 @@ function prepare_simplices_cpu(P::Matrix{Int}, S_indices::Vector, ::Val{D}) wher
 end
 
 # Essentially specialize the rest of the code on the dimension.
+# Here we split the work amongst threads. We have to split choices i, j such that i<j amongst the finite #threads
+# TODO: make sure this can do threading ? 
 function get_intersecting_pairs_cpu_aux(P::Matrix{Int}, S_indices::Vector, ::Val{D}) where D
     simplices::Vector{Simplex{D+1, D}} = prepare_simplices_cpu(P, S_indices, Val(D))
-    num_simplices = length(simplices)
-    num_threads = nthreads()
-    total_pairs = div(num_simplices * (num_simplices - 1), 2)
+    n = length(simplices)
+    clauses = Vector{Vector{Int}}()
 
-    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
-    # Split work evenly among threads
-    pairs_per_thread = div(total_pairs + num_threads - 1, num_threads)
-    @threads for thread_id in 1:num_threads
-        start_idx = (thread_id - 1) * pairs_per_thread + 1
-        end_idx = min(thread_id * pairs_per_thread, total_pairs)
-
-        clauses = thread_clauses[thread_id]
-
-        for idx in start_idx:end_idx
-            # Compute (i,j) from linear index
-            i = Int(floor((1 + sqrt(1 + 8*(idx-1))) / 2))
-            acc = div(i*(i-1), 2)
-            j = idx - acc + i
-            if j > num_simplices
-                continue
-            end
-
+    for i in 1:n-1
+        for j in i+1:n
             t1, t2 = simplices[i], simplices[j]
+            #=intersection = intersect(convex_hull(t1.verts), convex_hull(t2.verts))
+            if simplices_intersect_sat_cpu(t1, t2)
+                if dim(intersection) != 3
+                    println("Error, ", dim(intersection), " is <3, but the simplices aren't separated \n")
+                end
+            else
+                if dim(intersection) == 3
+                    println("Error ", dim(intersection), " is 3, but the simplices are separated \n")
+                end
+            end
+            =#
             if simplices_intersect_sat_cpu(t1, t2)
                 push!(clauses, [-i, -j])
             end
         end
     end
-    return vcat(thread_clauses...)
+
+    return clauses
 end
 
 function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector)

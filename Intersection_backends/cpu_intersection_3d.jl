@@ -72,7 +72,7 @@ end
 # ----------------------------
 # Prepare tetrahedra from Rational{BigInt} CPU matrix
 # ----------------------------
-function prepare_tetrahedra_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector{NTuple{4,Int}})
+function prepare_tetrahedra_cpu(P::Matrix{Int}, S_indices::Vector{NTuple{4,Int}})
     num_simplices = length(S_indices)
     simplices = Vector{SMatrix{4,3,Int64}}(undef, num_simplices)
     for i in 1:num_simplices
@@ -80,9 +80,7 @@ function prepare_tetrahedra_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector{N
         mat = MMatrix{4,3,Int64}(undef)
         for r in 1:4, c in 1:3
             r_big = P[idxs[r], c]
-            n, d = Int(r_big.num), Int(r_big.den)
-            @assert d == 1
-            mat[r,c] = n
+            mat[r,c] = r_big
         end
         simplices[i] = SMatrix{4,3,Int64}(mat)
     end
@@ -92,7 +90,7 @@ end
 # ----------------------------
 # Multithreaded intersection
 # ----------------------------
-function get_intersecting_pairs_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector{NTuple{4, Int}})
+function get_intersecting_pairs_cpu(P::Matrix{Int}, S_indices::Vector{NTuple{4, Int}})
     num_simplices = length(S_indices)
     if num_simplices < 2
         return Vector{Tuple{Int,Int}}()
@@ -108,7 +106,7 @@ function get_intersecting_pairs_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vect
     # Split work evenly among threads
     pairs_per_thread = div(total_pairs + num_threads - 1, num_threads)
 
-    Threads.@threads for thread_id in 1:num_threads
+    Threads.@spawn for thread_id in 1:num_threads
         start_idx = (thread_id - 1) * pairs_per_thread + 1
         end_idx = min(thread_id * pairs_per_thread, total_pairs)
         buf = thread_buffers[thread_id]

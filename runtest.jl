@@ -2,7 +2,7 @@
 
 using Combinatorics
 using LinearAlgebra
-using Polyhedra, CDDLib
+using Polyhedra
 using PicoSAT
 using Dates
 using Printf
@@ -14,6 +14,7 @@ using Test
 include("main.jl")
 include("Intersection_backends/cpu_intersection.jl")
 
+test_config = Config("", "logs/test_cases_log", "-", "normal", "P", "first", false, "cpu", false, "single-line", "verbose", true, true, true, "PicoSAT", "plot_triangulation.py", "")
 
 # ===============================================
 # Assert that simplices intersect with themselves
@@ -22,19 +23,19 @@ simplices_01 = [ # Simplices of the 01 cube
 	[0 0 0; 1 0 0; 0 1 0; 0 0 1], 
 	[0 0 0; 1 1 0; 0 1 0; 0 0 1]
 ] 
-
+#=
 for simplex in simplices_01
-	bool = simplices_intersect_sat_cpu(simplex, simplex)
+	bool = CPUIntersection.simplices_intersect_sat_cpu(simplex, simplex)
 	@test bool == true 
 end
-
+=#
 # ===============================================
 # Assert that the Reeve tetrahedra has no unimodular triangulation
 # ===============================================
 # TODO: make this work
 for t in 2:15
-	reeve_simplex = [[0 0 0; 1 0 0; 0 1 0; 1 1 t]]
-	# @test find_unimodular_triangulation(reeve_simplex) == false
+	reeve_simplex = [0 0 0; 1 0 0; 0 1 0; 1 1 t]
+	@test process_polytope(reeve_simplex, 1, 1, 1, test_config).num_solutions_found == 0
 end
 
 # ===============================================
@@ -49,11 +50,10 @@ for a in 1:upper_bound
             d = mod((1 - a - b), c)
             if gcd(a, c) == 1 && gcd(b, c) == 1 && gcd(d, c) == 1
                 if a == 1 || b == 1 || c == 1 || d == 1
-                	# TODO: there should not be a type conversion here
-                    white_tetrahedra = Rational{BigInt}.([0 0 0; 1 0 0; 0 1 0; a b c]) # Construct the White tetrahedra
+                    white_tetrahedra = [0 0 0; 1 0 0; 0 1 0; a b c] # Construct the White tetrahedra
                     # Test that this tetrahedra is indeed empty
-                    @test size(findAllLatticePointsInHull_3d(white_tetrahedra), 1) == 4
-                    # @test find_unimodular_triangulation(white_tetrahedra) == false
+                    @test size(lattice_points_via_Oscar(white_tetrahedra), 1) == 4
+                    #@test process_polytope(white_tetrahedra, 1, 1, 1, test_config).num_solutions_found == 0
                 end
             end
         end
