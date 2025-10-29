@@ -132,6 +132,7 @@ struct Simplex{V, D}
 end
 
 # Evil macro.
+#=
 macro generate_cross_axes_case_scalar(d)
     d_val = Int(d)
     stmts = Expr[]
@@ -174,7 +175,7 @@ macro generate_cross_axes_case_scalar(d)
 
     return Expr(:block, stmts...)
 end
-
+=#
 """
     axis_separates(s1_verts, s2_verts, axis) -> Bool
 
@@ -223,6 +224,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
     # von s1 und l Vektoren von einer l-Fläche von s2 berechnet, wobei
     # k+l = d-1. Due to the anti-symmetric property of the cross
     # product, we only need to check (k, l) pairs for k <= l.
+    #=
     if D == 3
         @generate_cross_axes_case_scalar 3
     elseif D == 4
@@ -231,36 +233,51 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         @generate_cross_axes_case_scalar 5
     elseif D == 6
         @generate_cross_axes_case_scalar 6
-    else
-        edgeset = zeros(MVector{D - 1, SVector{D, Int64}})
-        for k in 1:div((D - 1), 2)
+    else=#
+        # Iterate over all face combinations (k, l) such that k + l == D - 1
+        for k in 1:(D - 2)
             l = D - 1 - k
-            edge_count = binomial(D + 1, k + 1)
             s1_face_edges_k = s1_face_edges[k]
-            s2_face_edges_l = s1_face_edges[l]
-            for i in 1:edge_count
-                f1_edges = s1_face_edges_k[i]
-                # combine edges spanning the two faces
-                for j in 1:k
-                    edgeset[j] = s1_edges[f1_edges[j]]
-                end
-                for j in 1:edge_count
-                    f2_edges = s2_face_edges_l[j]
-                    for j in 1:l
-                        edgeset[k+j] = s2_edges[f2_edges[j]]
+            s2_face_edges_l = s2_face_edges[l]
+
+            count1 = length(s1_face_edges_k)
+            count2 = length(s2_face_edges_l)
+
+            for i1 in 1:count1
+                f1_edges = s1_face_edges_k[i1]
+
+                for i2 in 1:count2
+                    f2_edges = s2_face_edges_l[i2]
+
+                    # Build the combined edge set spanning both simplices' faces
+                    edgeset = MVector{D - 1, SVector{D, Int64}}(undef)
+                    for j1 in 1:k
+                        edgeset[j1] = s1_edges[f1_edges[j1]]
                     end
+                    for j2 in 1:l
+                        edgeset[k + j2] = s2_edges[f2_edges[j2]]
+                    end
+
+                    # Compute the generalized cross product (should yield a normal in ℝᴰ)
                     axis = _generalized_cross_product(edgeset)
                     if !iszero(axis)
+                        # Project both simplices onto the axis
                         projs1 = ntuple(i -> dot(s1_verts[i], axis), Val(V))
                         projs2 = ntuple(i -> dot(s2_verts[i], axis), Val(V))
-                        if maximum(projs1) <= minimum(projs2) || maximum(projs2) <= minimum(projs1)
-                            return false
+
+                        max1, min1 = maximum(projs1), minimum(projs1)
+                        max2, min2 = maximum(projs2), minimum(projs2)
+
+                        # Separating Axis Theorem check
+                        if max1 < min2 || max2 < min1
+                            return false  # Separation found
                         end
                     end
                 end
             end
         end
-    end
+    #end
+    
 
     # We've enumerated and tested all possible axes but none of them
     # separate. Therefore, the simplices must intersect.

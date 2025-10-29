@@ -52,6 +52,7 @@ end
 
 include("Intersection_backends/cpu_intersection_3d.jl")
 include("Intersection_backends/cpu_intersection.jl")
+include("Intersection_backends/cpu_intersection_Oscar.jl")
 
 const CMS_LOADED = Ref(false)
 try
@@ -435,7 +436,8 @@ function process_polytope(initial_vertices_int::Matrix{Int}, id::Int, run_idx::I
                  log_verbose("     WARNING: GPU backend '$(config.intersection_backend)' for $(dim)D not available. Falling back to CPU.")
             end
             log_verbose("     Using CPU backend.")
-            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
+            #CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
+            CPUIntersection_Oscar.get_intersecting_pairs_via_Oscar(P, S_indices)
         end
     end
 
