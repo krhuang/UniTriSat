@@ -132,6 +132,7 @@ struct Simplex{V, D}
 end
 
 # Evil macro.
+#=
 macro generate_cross_axes_case_scalar(d)
     d_val = Int(d)
     stmts = Expr[]
@@ -174,7 +175,7 @@ macro generate_cross_axes_case_scalar(d)
 
     return Expr(:block, stmts...)
 end
-
+=#
 """
     axis_separates(s1_verts, s2_verts, axis) -> Bool
 
@@ -186,6 +187,9 @@ given axis separates the two polytopes.
 @inline function axis_separates(s1_verts::SVector{V, SVector{D, Int64}},
                                 s2_verts::SVector{V, SVector{D, Int64}},
                                 axis) where {V, D}
+    if iszero(axis)
+        return false
+    end
     projs1 = ntuple(i -> dot(s1_verts[i], axis), Val(V))
     projs2 = ntuple(i -> dot(s2_verts[i], axis), Val(V))
     return maximum(projs1) <= minimum(projs2) || maximum(projs2) <= minimum(projs1)
@@ -223,6 +227,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
     # von s1 und l Vektoren von einer l-Fläche von s2 berechnet, wobei
     # k+l = d-1. Due to the anti-symmetric property of the cross
     # product, we only need to check (k, l) pairs for k <= l.
+    #=
     if D == 3
         @generate_cross_axes_case_scalar 3
     elseif D == 4
@@ -231,36 +236,43 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         @generate_cross_axes_case_scalar 5
     elseif D == 6
         @generate_cross_axes_case_scalar 6
-    else
-        edgeset = zeros(MVector{D - 1, SVector{D, Int64}})
-        for k in 1:div((D - 1), 2)
+    else=#
+        # Iterate over all face combinations (k, l) such that k + l == D - 1
+        for k in 1:(D - 2)
             l = D - 1 - k
-            edge_count = binomial(D + 1, k + 1)
             s1_face_edges_k = s1_face_edges[k]
-            s2_face_edges_l = s1_face_edges[l]
-            for i in 1:edge_count
-                f1_edges = s1_face_edges_k[i]
-                # combine edges spanning the two faces
-                for j in 1:k
-                    edgeset[j] = s1_edges[f1_edges[j]]
-                end
-                for j in 1:edge_count
-                    f2_edges = s2_face_edges_l[j]
-                    for j in 1:l
-                        edgeset[k+j] = s2_edges[f2_edges[j]]
+            s2_face_edges_l = s2_face_edges[l]
+
+            count1 = length(s1_face_edges_k)
+            count2 = length(s2_face_edges_l)
+
+            for i1 in 1:count1
+                f1_edges = s1_face_edges_k[i1]
+
+                for i2 in 1:count2
+                    f2_edges = s2_face_edges_l[i2]
+
+                    # Build the combined edge set spanning both simplices' faces
+                    edgeset = MVector{D - 1, SVector{D, Int64}}(undef)
+                    for j1 in 1:k
+                        edgeset[j1] = s1_edges[f1_edges[j1]]
                     end
+                    for j2 in 1:l
+                        edgeset[k + j2] = s2_edges[f2_edges[j2]]
+                    end
+
+                    # Compute the generalized cross product (should yield a normal in ℝᴰ)
                     axis = _generalized_cross_product(edgeset)
                     if !iszero(axis)
-                        projs1 = ntuple(i -> dot(s1_verts[i], axis), Val(V))
-                        projs2 = ntuple(i -> dot(s2_verts[i], axis), Val(V))
-                        if maximum(projs1) <= minimum(projs2) || maximum(projs2) <= minimum(projs1)
+                        if axis_separates(s1_verts, s2_verts, axis)
                             return false
                         end
                     end
                 end
             end
         end
-    end
+    #end
+    
 
     # We've enumerated and tested all possible axes but none of them
     # separate. Therefore, the simplices must intersect.
@@ -326,7 +338,7 @@ end
 
 # Precompute the type conversion and also the generalized cross
 # products for each simplex.
-function prepare_simplices_cpu(P::Matrix{Int}, S_indices::Vector, ::Val{D}) where D
+function prepare_simplices_cpu(P::Matrix{Rational{BigInt}}, S_indices::Vector, ::Val{D}) where D
     num_simplices = length(S_indices)
     simplices = Vector{Simplex{D + 1, D}}(undef, num_simplices)
     for i in 1:num_simplices
@@ -340,40 +352,34 @@ function prepare_simplices_cpu(P::Matrix{Int}, S_indices::Vector, ::Val{D}) wher
 end
 
 # Essentially specialize the rest of the code on the dimension.
-function get_intersecting_pairs_cpu_aux(P::Matrix{Int}, S_indices::Vector, ::Val{D}) where D
+function get_intersecting_pairs_cpu_aux(P::Matrix{Rational{BigInt}}, S_indices::Vector, ::Val{D}) where D
     simplices::Vector{Simplex{D+1, D}} = prepare_simplices_cpu(P, S_indices, Val(D))
-    num_simplices = length(simplices)
-    num_threads = nthreads()
-    total_pairs = div(num_simplices * (num_simplices - 1), 2)
+    n = length(simplices)
+    if n ≤ 1
+        return Vector{Vector{Int}}()
+    end
 
-    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
-    # Split work evenly among threads
-    pairs_per_thread = div(total_pairs + num_threads - 1, num_threads)
-    @threads for thread_id in 1:num_threads
-        start_idx = (thread_id - 1) * pairs_per_thread + 1
-        end_idx = min(thread_id * pairs_per_thread, total_pairs)
-
-        clauses = thread_clauses[thread_id]
-
-        for idx in start_idx:end_idx
-            # Compute (i,j) from linear index
-            i = Int(floor((1 + sqrt(1 + 8*(idx-1))) / 2))
-            acc = div(i*(i-1), 2)
-            j = idx - acc + i
-            if j > num_simplices
-                continue
+    # Spawn one task per outer index `i`
+    tasks = Vector{Task}(undef, n - 1)
+    for i in 1:(n - 1)
+        tasks[i] = @spawn begin
+            local_clauses = Vector{Vector{Int}}()
+            t1 = simplices[i]
+            for j in (i + 1):n
+                t2 = simplices[j]
+                if simplices_intersect_sat_cpu(t1, t2)
+                    push!(local_clauses, [-i, -j])
+                end
             end
-
-            t1, t2 = simplices[i], simplices[j]
-            if simplices_intersect_sat_cpu(t1, t2)
-                push!(clauses, [-i, -j])
-            end
+            local_clauses
         end
     end
-    return vcat(thread_clauses...)
+
+    # Collect results from all tasks
+    return vcat(fetch.(tasks)...)
 end
 
-function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector)
+function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indices::Vector)
     first_verts = P[collect(S_indices[1]), :]
     # compute dimension to make all code specialized on the dimension from here on out
     d = size(first_verts, 2)
@@ -381,3 +387,4 @@ function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector)
 end
 
 end # module CPUIntersection
+
