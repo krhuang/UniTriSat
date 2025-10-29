@@ -1,4 +1,3 @@
-
 include("Triangulate.jl")
 using .Triangulate
 
@@ -12,7 +11,7 @@ triangulate(
     only_unimodular=true,
     find_all=false,
     log_file="",
-    terminal_output=true,
+    terminal_output="running, final, table",
     validate=false
     )
 
@@ -26,11 +25,12 @@ triangulate(
     only_unimodular=true,
     find_all=false,
     log_file="",
-    terminal_output=true,
+    terminal_output="running, final, table",
     validate=false
     )
 
 
+print("-")
 print("Test 3, Vol 16 3D. Expect 3288 triangulatable polytopes")
 print("-")
 print("\n")
@@ -40,6 +40,48 @@ triangulate(
     only_unimodular=true,
     find_all=false,
     log_file="",
-    terminal_output=true,
+    terminal_output="running, final, table",
+    validate=false
+    )
+
+print("-")
+print("Test 4, Vol 10 4D. Expect 618 triangulatable polytopes")
+print("-")
+print("\n")
+triangulate(
+    "Polytopes/small-lattice-polytopes/data/4-polytopes/v10.txt",
+    intersection_backend="cpu",
+    only_unimodular=true,
+    find_all=false,
+    log_file="",
+    terminal_output="running, final, table",
+    validate=false
+    )
+
+print("-")
+print("Test 5, Vol 10 5D. Expect 841 triangulatable polytopes")
+print("-")
+print("\n")
+triangulate(
+    "Polytopes/small-lattice-polytopes/data/5-polytopes/v10.txt",
+    intersection_backend="cpu",
+    only_unimodular=true,
+    find_all=false,
+    log_file="",
+    terminal_output="running, final, table",
+    validate=false
+    )
+
+print("-")
+print("Test 6, Vol 10 6D. Expect 959 triangulatable polytopes")
+print("-")
+print("\n")
+triangulate(
+    "Polytopes/small-lattice-polytopes/data/6-polytopes/v10.txt",
+    intersection_backend="cpu",
+    only_unimodular=true,
+    find_all=false,
+    log_file="",
+    terminal_output="running, final, table",
     validate=false
     )

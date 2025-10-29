@@ -13,7 +13,7 @@ using Base.Threads
 using TOML
 using Random
 # using Normaliz 
-# Could use Oscar or Normaliz as the backend to find lattice points? 
+# Could use Oscar or Normaliz as the backend to find lattice points?
 # plotting functions
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 # --- Conditional Package Inclusion ---
@@ -149,7 +149,8 @@ end
 
 # for logs
 function update_line(message::String)
-    print(stdout, "\r" * message * "\u001b[K"); flush(stdout)
+    print(stdout, "\r" * message * "\u001b[K");
+    flush(stdout)
 end
 
 
@@ -220,9 +221,10 @@ end
 """
 Konfigurationsstruktur für den Triangulierungslauf.
 GEÄNDERT: source_file entfernt.
+GEÄNDERT: terminal_output ist jetzt ein String.
 """
 mutable struct Config
-    terminal_output::Bool
+    terminal_output::String # WAR: Bool
     only_unimodular::Bool
     intersection_backend::String
     find_all::Bool
@@ -235,8 +237,9 @@ end
 """
 Verarbeitet ein einzelnes Polytop.
 GEÄNDERT: 'dim' wird jetzt hier zuverlässig bestimmt und nicht mehr übergeben.
+GEÄNDERT: Nimmt 'show_running_updates::Bool' entgegen, um Terminal-Updates zu steuern.
 """
-function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config)
+function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool)
     # WICHTIG: dim wird hier pro Polytop bestimmt
     dim = size(initial_vertices, 2)
     
@@ -263,7 +266,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     
     num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
-    if config.terminal_output
+    if show_running_updates # GEÄNDERT
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points...")
     end
     
@@ -276,7 +279,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     num_simplices_found = length(S_indices)
     log_verbose("-> Found $num_simplices_found simplices. Step 2 complete.\n")
-    if config.terminal_output
+    if show_running_updates # GEÄNDERT
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found...")
     end
     
@@ -382,7 +385,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     
     log_verbose("Step 5: Handing SAT problem to solver...");
     log_verbose("      Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
-    if config.terminal_output
+    if show_running_updates # GEÄNDERT
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found solving...")
     end
     
@@ -446,7 +449,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         log_verbose("\nStep 6: Plotting results...")
         # 'dim' wird hier korrekt für die Plot-Logik verwendet
         if dim == 3
-             # temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(config.plotter, first_solution_simplices)); close(temp_io); run(`$(config.plotter) $(temp_path)`); finally rm(temp_path, force=true); end
+             temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(config.plotter, first_solution_simplices)); close(temp_io); run(`$(config.plotter) $(temp_path)`); finally rm(temp_path, force=true); end
         elseif dim == 4
             # ... (Plotting-Code für 4D) ...
         elseif dim == 5
@@ -454,6 +457,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         elseif dim == 6
             # ... (Plotting-Code für 6D) ...
         end
+        
         log_verbose("-> Plotting complete. Step 6 complete.")
     end
 
@@ -484,10 +488,25 @@ end
 """
 Führt die Verarbeitung für eine Liste von Polytopen durch.
 GEÄNDERT: Nimmt 'display_dim_str' und 'source_description' statt 'dim' und 'config.source_file'.
+GEÄNDERT: Parst config.terminal_output und steuert die Ausgabe über Flags.
 """
 function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String, source_description::String, config::Config, log_stream)
 
-    if config.terminal_output != "none"
+    # --- NEU: Terminal-Ausgabe-Flags parsen ---
+    components_str = lowercase(replace(config.terminal_output, " " => ""))
+    if components_str == "true" # Abwärtskompatibilität
+        components_str = "all"
+    elseif components_str == "false" # Abwärtskompatibilität
+        components_str = ""
+    end
+
+    show_initial = occursin("initial", components_str) || occursin("all", components_str)
+    show_running = occursin("running", components_str) || occursin("all", components_str)
+    show_table = occursin("table", components_str) || occursin("all", components_str)
+    show_final = occursin("final", components_str) || occursin("all", components_str)
+    # --- Ende: Parsing ---
+
+    if show_initial # GEÄNDERT
         # --- Terminal Summary ---
         term_summary_buf = IOBuffer()
         println(term_summary_buf, "Run started at:                      $(Dates.format(now(), "HH:MM:SS"))")
@@ -506,24 +525,24 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
         end
         println(term_summary_buf, "")
         print(stdout, String(take!(term_summary_buf)))
+    end
 
-        # --- Log File Summary ---
-        if !isnothing(log_stream)
-            log_summary_buf = IOBuffer()
-            println(log_summary_buf, "Number of threads:                   $(nthreads())")
-            # GEÄNDERT: Verwendet display_dim_str
-            println(log_summary_buf, "Detected Dimension:                  $(display_dim_str)")
-            println(log_summary_buf, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
-            println(log_summary_buf, "Intersection backend selected:       $(config.intersection_backend)")
-            println(log_summary_buf, "Validation enabled:                  $(config.validate)")
-            # GEÄNDERT: Verwendet source_description
-            println(log_summary_buf, "Input source:                        $(source_description)")
-            println(log_summary_buf, "Number of polytopes found:           $(length(polytopes))")
-            println(log_summary_buf, "Restricting to unimodular simplices: $(config.only_unimodular)")
-            println(log_summary_buf, "")
-            print(log_stream, String(take!(log_summary_buf)))
-            flush(log_stream)
-        end
+    # --- Log File Summary (unverändert, da nicht Terminal) ---
+    if !isnothing(log_stream)
+        log_summary_buf = IOBuffer()
+        println(log_summary_buf, "Number of threads:                   $(nthreads())")
+        # GEÄNDERT: Verwendet display_dim_str
+        println(log_summary_buf, "Detected Dimension:                  $(display_dim_str)")
+        println(log_summary_buf, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
+        println(log_summary_buf, "Intersection backend selected:       $(config.intersection_backend)")
+        println(log_summary_buf, "Validation enabled:                  $(config.validate)")
+        # GEÄNDERT: Verwendet source_description
+        println(log_summary_buf, "Input source:                        $(source_description)")
+        println(log_summary_buf, "Number of polytopes found:           $(length(polytopes))")
+        println(log_summary_buf, "Restricting to unimodular simplices: $(config.only_unimodular)")
+        println(log_summary_buf, "")
+        print(log_stream, String(take!(log_summary_buf)))
+        flush(log_stream)
     end
 
     t_start_run = time()
@@ -536,7 +555,8 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
 
     for (i, P) in enumerate(polytopes)
         # 'P' (Matrix{Int}) wird übergeben, process_polytope bestimmt die dim selbst
-        result = process_polytope(P, i, length(polytopes), config)
+        # GEÄNDERT: Übergibt show_running Flag an process_polytope
+        result = process_polytope(P, i, length(polytopes), config, show_running)
         push!(results, result)
         
         if result.num_solutions_found > 0
@@ -551,9 +571,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
             popfirst!(recent_times)
         end
 
-        if config.terminal_output
+        if show_running # GEÄNDERT
             if !is_first_single_line_update
-                print(stdout, "\u001b[4A")
+                print(stdout, "\u001b[4A") # Bewegt sich 4 Zeilen nach oben, um Block zu überschreiben
             end
             is_first_single_line_update = false
             
@@ -567,10 +587,12 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
                 eta_str = format_duration(eta_seconds)
             end
 
+            # 4-Zeilen-Block
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Elapsed Time:", format_duration(elapsed_time))
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Estimated Time Left:", eta_str)
             @printf(stdout, "\r%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Triangulatable:", triangulations_found_count)
             @printf(stdout, "\r%-40s \u001b[31m%d\u001b[0m\u001b[K\n", "Non-Triangulatable:", non_triangulatable_count)
+            # 1-Zeilen-Status
             print(stdout, "\r" * result.minimal_log * "\u001b[K")
             flush(stdout)
         end
@@ -581,9 +603,16 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
         end
     end
     
-    if config.terminal_output
-        println()
+    # --- NEU: Cursor-Steuerung ---
+    if show_running
+        # Bewegt den Cursor 5 Zeilen nach oben (4-Zeilen-Block + 1 minimal_log Zeile)
+        # und löscht den Bildschirm von dort nach unten, um Platz für die
+        # finale Zusammenfassung zu machen.
+        print(stdout, "\u001b[5A") # 5 Zeilen hoch
+        print(stdout, "\u001b[0J") # Von Cursor bis Ende löschen
     end
+    # Das alte `println()` [source 64] wurde entfernt.
+
     total_time_run = time() - t_start_run
     
     avg_solutions_str = ""
@@ -591,52 +620,57 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
         avg_solutions_str = @sprintf("Average Solutions/Polytope:      %.2f\n", total_solutions_found / length(polytopes))
     end
 
-    # --- Aggregierte Statistik-Tabelle ---
-    stats_table_buf = IOBuffer()
-    if !isempty(results)
-        step_times = Dict{String, Vector{Float64}}()
-        step_bytes = Dict{String, Vector{Int64}}()
-        step_order = String[]
+    # --- Aggregierte Statistik-Tabelle (wird nur erstellt, wenn show_table true ist) ---
+    stats_table_str = ""
+    if show_table
+        stats_table_buf = IOBuffer()
+        if !isempty(results)
+            step_times = Dict{String, Vector{Float64}}()
+            step_bytes = Dict{String, Vector{Int64}}()
+            step_order = String[]
 
-        for res in results
-            for stat in res.step_stats
-                if !haskey(step_times, stat.name)
-                    step_times[stat.name] = Float64[]
-                    step_bytes[stat.name] = Int64[]
-                    push!(step_order, stat.name)
+            for res in results
+                for stat in res.step_stats
+                    if !haskey(step_times, stat.name)
+                        step_times[stat.name] = Float64[]
+                        step_bytes[stat.name] = Int64[]
+                        push!(step_order, stat.name)
+                    end
+                    push!(step_times[stat.name], stat.duration_s)
+                    push!(step_bytes[stat.name], stat.alloc_bytes)
                 end
-                push!(step_times[stat.name], stat.duration_s)
-                push!(step_bytes[stat.name], stat.alloc_bytes)
+            end
+
+            println(stats_table_buf, "\n--- Detailed Step Statistics (Aggregated) ---")
+            println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
+                                            "Step Name", "Total Time", "Avg Time", "Max Memory", "Avg Memory"))
+            println(stats_table_buf, "-"^89)
+
+            for step_name in step_order
+                times = step_times[step_name]
+                bytes = step_bytes[step_name]
+                
+                if isempty(times); continue; end 
+                
+                total_time = sum(times)
+                avg_time = total_time / length(times)
+                max_mem = isempty(bytes) ? 0 : maximum(bytes)
+                avg_mem = isempty(bytes) ? 0.0 : sum(bytes) / length(bytes)
+
+                println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
+                                                step_name,
+                                                format_duration(total_time),
+                                                @sprintf("%.3f s", avg_time),
+                                                format_bytes(max_mem),
+                                                format_bytes(avg_mem)))
             end
         end
-
-        println(stats_table_buf, "\n--- Detailed Step Statistics (Aggregated) ---")
-        println(stats_table_buf, @sprintf("%-37s | %-12s | %-12s | %-12s | %-12s",
-                                        "Step Name", "Total Time", "Avg Time", "Max Memory", "Avg Memory"))
-        println(stats_table_buf, "-"^89)
-
-        for step_name in step_order
-            times = step_times[step_name]
-            bytes = step_bytes[step_name]
-            
-            if isempty(times); continue; end 
-            
-            total_time = sum(times)
-            avg_time = total_time / length(times)
-            max_mem = isempty(bytes) ? 0 : maximum(bytes)
-            avg_mem = isempty(bytes) ? 0.0 : sum(bytes) / length(bytes)
-
-            println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
-                                            step_name,
-                                            format_duration(total_time),
-                                            @sprintf("%.3f s", avg_time),
-                                            format_bytes(max_mem),
-                                            format_bytes(avg_mem)))
-        end
+        stats_table_str = String(take!(stats_table_buf))
     end
     # --- Ende: Aggregierte Statistik-Tabelle ---
 
-    summary_str = """
+    # --- Finale Zusammenfassung (Kern) ---
+    summary_core_str = """
 
     Run finished: $(Dates.format(now(), "HH:MM:SS"))
 
@@ -648,12 +682,24 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
     Non-Triangulatable:            \u001b[31m$non_triangulatable_count\u001b[0m
     $(avg_solutions_str)Total Run Time:                $(format_duration(total_time_run))
     ----------------------------------------
-    $(String(take!(stats_table_buf))) 
     """
-    print(stdout, summary_str)
-    if !isnothing(log_stream)
-        print(log_stream, replace(summary_str, r"\u001b\[\d+m" => ""))
+
+    # --- Getrenntes Drucken der finalen Teile ---
+    if show_final
+        print(stdout, summary_core_str)
     end
+    
+    if show_table
+        print(stdout, stats_table_str) # Druckt die Tabelle (oder einen leeren String)
+        println(stdout) # Fügt einen Zeilenumbruch nach der Tabelle hinzu
+    end
+    
+    # Log-Stream erhält die kombinierte, nicht-farbige Ausgabe
+    if !isnothing(log_stream)
+        final_log_str = summary_core_str * stats_table_str
+        print(log_stream, replace(final_log_str, r"\u001b\[\d+m" => ""))
+    end
+
     return results
 end
 
@@ -661,8 +707,9 @@ end
 
 """
 NEU: Trianguliert ein einzelnes Polyhedron-Objekt.
+GEÄNDERT: terminal_output ist String
 """
-function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::Bool=false, validate::Bool=false, plotter::String="")
+function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
     vmatrix = _convert_polyhedron_to_vmatrix(polytope)
     if isempty(vmatrix)
         @error("Konnte Polyeder nicht verarbeiten.")
@@ -678,8 +725,9 @@ end
 
 """
 NEU: Trianguliert einen Vektor von Polyhedron-Objekten.
+GEÄNDERT: terminal_output ist String
 """
-function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::Bool=false, validate::Bool=false, plotter::String="")
+function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
     vmatrices = Matrix{Int}[]
     for p in polytopes
         vmatrix = _convert_polyhedron_to_vmatrix(p)
@@ -702,8 +750,9 @@ end
 """
 Haupt-API-Funktion: Liest Polytope aus einer Datei und startet die Triangulierung.
 GEÄNDERT: Übergibt 'path_to_polytopes' als 'source_description' an _triangulate.
+GEÄNDERT: terminal_output ist String
 """
-function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::Bool=false, validate::Bool=false, plotter::String="")
+function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
     local polytopes
     try
         polytopes = read_polytopes_from_file(path_to_polytopes)
@@ -723,10 +772,11 @@ GEÄNDERT:
 - Entfernt 'source_file' aus der Config-Erstellung.
 - Ermittelt 'display_dim_str' (kann "Mixed" sein) statt 'dim'.
 - Übergibt 'display_dim_str' und 'source_description' an 'run_processing'.
+- GEÄNDERT: terminal_output ist String
 """
-function _triangulate(polytopes::Vector{Matrix{Int}}, source_description::String, intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::Bool=false, validate::Bool=false, plotter::String="")
+function _triangulate(polytopes::Vector{Matrix{Int}}, source_description::String, intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
 
-    # GEÄNDERT: Config-Erstellung ohne source_file
+    # GEÄNDERT: Config-Erstellung ohne source_file, terminal_output ist String
     config = Config(terminal_output, only_unimodular, intersection_backend, find_all, validate, plotter)
 
     # --- Pre-run Checks ---
