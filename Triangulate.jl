@@ -50,7 +50,6 @@ if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_f
     include("Intersection_backends/gpu_intersection_6d_floats.jl")
 end
 
-include("Intersection_backends/cpu_intersection_3d.jl")
 include("Intersection_backends/cpu_intersection.jl")
 
 # --- Angepasste Strukturen ---
@@ -330,7 +329,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         if use_gpu && !isnothing(intersect_func)
             intersect_func()
         else
-            if !config.intersection_backend in ["cpu", "gpu", nothing]
+            if !(config.intersection_backend in ["cpu", "gpu", nothing])
                 @warn("I do not know config.intersection_backend '$(config.intersection_backend)'. Falling back to CPU.")
                 log_verbose("      WARNING: I do not know config.intersection_backend '$(config.intersection_backend)'. Falling back to CPU.")
             end
