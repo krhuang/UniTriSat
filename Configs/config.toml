@@ -1,6 +1,6 @@
 [files]
 polytopes_file = "Polytopes/small-lattice-polytopes/data/3-polytopes/v12.txt"
-log_file = "logs/debug_v12_3d_Oscar"
+log_file = "logs/debug_v12_3d_cpu1"
 
 [run_settings]
 process_range = "-"	# A space-separated list of indices and ranges (e.g., "1-5 8 10-"). "-" means all.

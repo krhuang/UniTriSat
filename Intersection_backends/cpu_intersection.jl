@@ -187,6 +187,9 @@ given axis separates the two polytopes.
 @inline function axis_separates(s1_verts::SVector{V, SVector{D, Int64}},
                                 s2_verts::SVector{V, SVector{D, Int64}},
                                 axis) where {V, D}
+    if iszero(axis)
+        return false
+    end
     projs1 = ntuple(i -> dot(s1_verts[i], axis), Val(V))
     projs2 = ntuple(i -> dot(s2_verts[i], axis), Val(V))
     return maximum(projs1) <= minimum(projs2) || maximum(projs2) <= minimum(projs1)
@@ -261,16 +264,8 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
                     # Compute the generalized cross product (should yield a normal in ℝᴰ)
                     axis = _generalized_cross_product(edgeset)
                     if !iszero(axis)
-                        # Project both simplices onto the axis
-                        projs1 = ntuple(i -> dot(s1_verts[i], axis), Val(V))
-                        projs2 = ntuple(i -> dot(s2_verts[i], axis), Val(V))
-
-                        max1, min1 = maximum(projs1), minimum(projs1)
-                        max2, min2 = maximum(projs2), minimum(projs2)
-
-                        # Separating Axis Theorem check
-                        if max1 < min2 || max2 < min1
-                            return false  # Separation found
+                        if axis_separates(s1_verts, s2_verts, axis)
+                            return false
                         end
                     end
                 end
@@ -359,35 +354,29 @@ end
 # Essentially specialize the rest of the code on the dimension.
 function get_intersecting_pairs_cpu_aux(P::Matrix{Rational{BigInt}}, S_indices::Vector, ::Val{D}) where D
     simplices::Vector{Simplex{D+1, D}} = prepare_simplices_cpu(P, S_indices, Val(D))
-    num_simplices = length(simplices)
-    num_threads = nthreads()
-    total_pairs = div(num_simplices * (num_simplices - 1), 2)
+    n = length(simplices)
+    if n ≤ 1
+        return Vector{Vector{Int}}()
+    end
 
-    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
-    # Split work evenly among threads
-    pairs_per_thread = div(total_pairs + num_threads - 1, num_threads)
-    @threads for thread_id in 1:num_threads
-        start_idx = (thread_id - 1) * pairs_per_thread + 1
-        end_idx = min(thread_id * pairs_per_thread, total_pairs)
-
-        clauses = thread_clauses[thread_id]
-
-        for idx in start_idx:end_idx
-            # Compute (i,j) from linear index
-            i = Int(floor((1 + sqrt(1 + 8*(idx-1))) / 2))
-            acc = div(i*(i-1), 2)
-            j = idx - acc + i
-            if j > num_simplices
-                continue
+    # Spawn one task per outer index `i`
+    tasks = Vector{Task}(undef, n - 1)
+    for i in 1:(n - 1)
+        tasks[i] = @spawn begin
+            local_clauses = Vector{Vector{Int}}()
+            t1 = simplices[i]
+            for j in (i + 1):n
+                t2 = simplices[j]
+                if simplices_intersect_sat_cpu(t1, t2)
+                    push!(local_clauses, [-i, -j])
+                end
             end
-
-            t1, t2 = simplices[i], simplices[j]
-            if simplices_intersect_sat_cpu(t1, t2)
-                push!(clauses, [-i, -j])
-            end
+            local_clauses
         end
     end
-    return vcat(thread_clauses...)
+
+    # Collect results from all tasks
+    return vcat(fetch.(tasks)...)
 end
 
 function get_intersecting_pairs_cpu_generic(P::Matrix{Rational{BigInt}}, S_indices::Vector)
