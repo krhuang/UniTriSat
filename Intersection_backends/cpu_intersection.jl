@@ -338,29 +338,34 @@ end
 # Essentially specialize the rest of the code on the dimension.
 function get_intersecting_pairs_cpu_aux(P::Matrix{BigInt}, S_indices::Vector, ::Val{D}) where D
     simplices::Vector{Simplex{D+1, D}} = prepare_simplices_cpu(P, S_indices, Val(D))
-    n = length(simplices)
-    if n ≤ 1
+    num_simplices = length(simplices)
+    if num_simplices <= 1
         return Vector{Vector{Int}}()
     end
 
-    # Spawn one task per outer index `i`
-    tasks = Vector{Task}(undef, n - 1)
-    for i in 1:(n - 1)
-        tasks[i] = @spawn begin
-            local_clauses = Vector{Vector{Int}}()
+    total_pairs = div(num_simplices * (num_simplices - 1), 2)
+
+    num_threads = nthreads()
+    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
+    block_size = div(num_simplices + num_threads - 1, num_threads)
+    @threads for thread_id in 1:num_threads
+        i_start = (thread_id - 1) * block_size + 1
+        i_end = min(thread_id * block_size, num_simplices - 1)
+
+        clauses = thread_clauses[thread_id]
+
+        for i in i_start:i_end
             t1 = simplices[i]
-            for j in (i + 1):n
+            for j in i+1:num_simplices
                 t2 = simplices[j]
                 if simplices_intersect_sat_cpu(t1, t2)
-                    push!(local_clauses, [-i, -j])
+                    push!(clauses, [-i, -j])
                 end
             end
-            local_clauses
         end
     end
 
-    # Collect results from all tasks
-    return vcat(fetch.(tasks)...)
+    return vcat(thread_clauses...)
 end
 
 function get_intersecting_pairs_cpu_generic(P::Matrix{BigInt}, S_indices::Vector)
