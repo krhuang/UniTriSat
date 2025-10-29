@@ -6,7 +6,7 @@ using .Triangulate
 
 # 3. Jetzt funktioniert dein Aufruf wie beabsichtigt
 triangulate(
-    "Polytopes/small-lattice-polytopes/data/3-polytopes/v16.txt",
+    "Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt",
     intersection_backend="cpu",
     only_unimodular=true,
     find_all=false,

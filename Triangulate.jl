@@ -89,7 +89,7 @@ function format_duration(total_seconds::Float64)
     return @sprintf("%02d:%02d:%02d", h, m, s)
 end
 
-function format_bytes(b::Int64)
+function format_bytes(b::Real)
     if b > 1024^3
         return @sprintf("%.2f GiB", b / 1024^3)
     elseif b > 1024^2
@@ -141,7 +141,7 @@ function _convert_polyhedron_to_vmatrix(p::Polyhedron)
         # vcat(vektor'...): Konvertiert jeden (Spalten-)Vektor zu einem Zeilenvektor und kettet sie vertikal
         return vcat([Int.(v)' for v in vlist(p)]...)
     catch e
-        @error("Fehler bei der Konvertierung von Polyhedron zu Matrix{Int}. Stellen Sie sicher, dass alle Scheitelpunkte ganzzahlig sind. Fehler: $e")
+        @error("Error converting Polyhedron object to Matrix{Int}: $e")
         return Matrix{Int}(undef, 0, 0) # Leere Matrix zurückgeben
     end
 end
@@ -161,11 +161,11 @@ function lattice_points_via_Oscar(vertices::Matrix{Int})
     dims = size(LP)
     nrows = dims[1] 
     ncols = size(LP[1])[1]
-    julia_matrix_LP = [Int(LP[i][j]) for i in 1:nrows, j in 1:ncols]
+    julia_matrix_LP = [Rational{BigInt}(LP[i][j]) for i in 1:nrows, j in 1:ncols]
     return julia_matrix_LP
 end
 
-function all_simplices(lattice_points::Matrix{Int}; only_unimodular::Bool=false)
+function all_simplices(lattice_points::Matrix{Rational{BigInt}}; only_unimodular::Bool=false)
     n, d = size(lattice_points)
     simplex_indices = Vector{NTuple{d+1, Int}}()
     if n < d + 1
@@ -183,7 +183,7 @@ function all_simplices(lattice_points::Matrix{Int}; only_unimodular::Bool=false)
     return simplex_indices
 end
 
-function internal_faces(vertices::Matrix{Int}, dim::Int)
+function internal_faces(vertices::Matrix{Rational{BigInt}}, dim::Int)
     n = size(vertices, 1)
     if n < dim
         return Set{NTuple{dim, Int}}()
@@ -292,7 +292,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     # 'dim' wird hier korrekt verwendet
     timed_result_faces = @timed internal_faces(P, dim)
     internal_faces_set = timed_result_faces.value
-    push!(step_stats, StepStats("Precompute internal faces (parallel)", timed_result_faces.time, timed_result_faces.bytes))
+    push!(step_stats, StepStats("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
 
     log_verbose("-> Found $(length(internal_faces_set)) unique internal faces. Step 3 complete.\n")
 
@@ -611,7 +611,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
         end
 
         println(stats_table_buf, "\n--- Detailed Step Statistics (Aggregated) ---")
-        println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
+        println(stats_table_buf, @sprintf("%-37s | %-12s | %-12s | %-12s | %-12s",
                                         "Step Name", "Total Time", "Avg Time", "Max Memory", "Avg Memory"))
         println(stats_table_buf, "-"^89)
 
