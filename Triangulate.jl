@@ -161,11 +161,11 @@ function lattice_points_via_Oscar(vertices::Matrix{Int})
     dims = size(LP)
     nrows = dims[1] 
     ncols = size(LP[1])[1]
-    julia_matrix_LP = [Rational{BigInt}(LP[i][j]) for i in 1:nrows, j in 1:ncols]
+    julia_matrix_LP = [BigInt(LP[i][j]) for i in 1:nrows, j in 1:ncols]
     return julia_matrix_LP
 end
 
-function all_simplices(lattice_points::Matrix{Rational{BigInt}}; only_unimodular::Bool=false)
+function all_simplices(lattice_points::Matrix{BigInt}; only_unimodular::Bool=false)
     n, d = size(lattice_points)
     simplex_indices = Vector{NTuple{d+1, Int}}()
     if n < d + 1
@@ -183,7 +183,7 @@ function all_simplices(lattice_points::Matrix{Rational{BigInt}}; only_unimodular
     return simplex_indices
 end
 
-function internal_faces(vertices::Matrix{Rational{BigInt}}, dim::Int)
+function internal_faces(vertices::Matrix{BigInt}, dim::Int)
     n = size(vertices, 1)
     if n < dim
         return Set{NTuple{dim, Int}}()
