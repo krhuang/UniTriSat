@@ -343,8 +343,6 @@ function get_intersecting_pairs_cpu_aux(P::Matrix{BigInt}, S_indices::Vector, ::
         return Vector{Vector{Int}}()
     end
 
-    total_pairs = div(num_simplices * (num_simplices - 1), 2)
-
     num_threads = nthreads()
     thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
     block_size = div(num_simplices + num_threads - 1, num_threads)
