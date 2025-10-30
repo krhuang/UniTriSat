@@ -5,7 +5,7 @@ export triangulate
 using Oscar: convex_hull, lattice_points
 using Combinatorics
 using LinearAlgebra
-using Polyhedra # Importiert für die Konvertierung
+using Polyhedra
 using PicoSAT
 using Dates
 using Printf
@@ -17,55 +17,47 @@ using Random
 # plotting functions
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 # --- Conditional Package Inclusion ---
-const CUDA_PACKAGES_LOADED = Ref(false)
-try
-    using CUDA, StaticArrays, CUDA.Adapt
-    CUDA_PACKAGES_LOADED[] = true
-catch
-end
-
-# ... (Rest der include-Anweisungen für GPU-Backends bleibt unverändert) ...
-if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d.jl")
-    include("Intersection_backends/gpu_intersection_3d.jl")
-end
-if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d.jl")
-    include("Intersection_backends/gpu_intersection_4d.jl")
-end
-if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d.jl")
-    include("Intersection_backends/gpu_intersection_5d.jl")
-end
-if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d.jl")
-    include("Intersection_backends/gpu_intersection_6d.jl")
-end
-if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d_floats.jl")
-    include("Intersection_backends/gpu_intersection_3d_floats.jl")
-end
-if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d_floats.jl")
-    include("Intersection_backends/gpu_intersection_4d_floats.jl")
-end
-if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d_floats.jl")
-    include("Intersection_backends/gpu_intersection_5d_floats.jl")
-end
-if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_floats.jl")
-    include("Intersection_backends/gpu_intersection_6d_floats.jl")
-end
+# const CUDA_PACKAGES_LOADED = Ref(false)
+# try
+#     using CUDA, StaticArrays, CUDA.Adapt
+#     CUDA_PACKAGES_LOADED[] = true
+# catch
+# end
+#
+# # ... (Rest der include-Anweisungen für GPU-Backends bleibt unverändert) ...
+# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d.jl")
+#     include("Intersection_backends/gpu_intersection_3d.jl")
+# end
+# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d.jl")
+#     include("Intersection_backends/gpu_intersection_4d.jl")
+# end
+# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d.jl")
+#     include("Intersection_backends/gpu_intersection_5d.jl")
+# end
+# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d.jl")
+#     include("Intersection_backends/gpu_intersection_6d.jl")
+# end
+# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d_floats.jl")
+#     include("Intersection_backends/gpu_intersection_3d_floats.jl")
+# end
+# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d_floats.jl")
+#     include("Intersection_backends/gpu_intersection_4d_floats.jl")
+# end
+# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d_floats.jl")
+#     include("Intersection_backends/gpu_intersection_5d_floats.jl")
+# end
+# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_floats.jl")
+#     include("Intersection_backends/gpu_intersection_6d_floats.jl")
+# end
 
 include("Intersection_backends/cpu_intersection.jl")
 
-# --- Angepasste Strukturen ---
-
-"""
-Speichert die gemessene Performance für einen einzelnen Verarbeitungsschritt.
-"""
 struct StepStats
     name::String
     duration_s::Float64
     alloc_bytes::Int64
 end
 
-"""
-Speichert das Gesamtergebnis der Verarbeitung eines einzelnen Polytops.
-"""
 struct ProcessResult
     id::Int
     num_solutions_found::Int
@@ -78,7 +70,14 @@ struct ProcessResult
     step_stats::Vector{StepStats}
 end
 
-# --- Hilfsfunktionen ---
+mutable struct Config
+    terminal_output::String
+    only_unimodular::Bool
+    intersection_backend::String
+    find_all::Bool
+    validate::Bool
+    plotter::String
+end
 
 function format_duration(total_seconds::Float64)
     total_seconds_int = floor(Int, total_seconds)
@@ -129,30 +128,20 @@ function read_polytopes_from_file(filepath::String)
     return polytopes
 end
 
-"""
-NEU: Konvertiert ein Polyhedra.jl Polyhedron-Objekt in eine Matrix{Int} 
-von Scheitelpunkten (V-Rep), wie sie vom Rest des Skripts erwartet wird.
-Nimmt an, dass die Scheitelpunkte ganzzahlig sind.
-"""
 function _convert_polyhedron_to_vmatrix(p::Polyhedron)
-    # vlist(p) gibt einen Iterator von Vektoren (Punkten) zurück
-    # Wir müssen sicherstellen, dass sie als Ints und als Zeilenvektoren in einer Matrix landen
     try
-        # vcat(vektor'...): Konvertiert jeden (Spalten-)Vektor zu einem Zeilenvektor und kettet sie vertikal
-        return vcat([Int.(v)' for v in vlist(p)]...)
+        return vcat([Int.(v)' for v in points(p)]...)
     catch e
         @error("Error converting Polyhedron object to Matrix{Int}: $e")
         return Matrix{Int}(undef, 0, 0) # Leere Matrix zurückgeben
     end
 end
 
-
 # for logs
 function update_line(message::String)
     print(stdout, "\r" * message * "\u001b[K");
     flush(stdout)
 end
-
 
 # --- Presolve functions ---
 
@@ -218,31 +207,12 @@ function internal_faces(vertices::Matrix{BigInt}, dim::Int)
     return union(fetch.(tasks)...)
 end
 
-"""
-Konfigurationsstruktur für den Triangulierungslauf.
-GEÄNDERT: source_file entfernt.
-GEÄNDERT: terminal_output ist jetzt ein String.
-"""
-mutable struct Config
-    terminal_output::String # WAR: Bool
-    only_unimodular::Bool
-    intersection_backend::String
-    find_all::Bool
-    validate::Bool
-    plotter::String
-end
-
 # --- Main Processing Functions ---
 
-"""
-Verarbeitet ein einzelnes Polytop.
-GEÄNDERT: 'dim' wird jetzt hier zuverlässig bestimmt und nicht mehr übergeben.
-GEÄNDERT: Nimmt 'show_running_updates::Bool' entgegen, um Terminal-Updates zu steuern.
-"""
 function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool)
-    # WICHTIG: dim wird hier pro Polytop bestimmt
+
     dim = size(initial_vertices, 2)
-    
+
     buf = IOBuffer()
     step_stats = Vector{StepStats}()
     t_start_total = time_ns()
@@ -254,8 +224,8 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         full_msg = "[$timestamp] " * s_msg
         println(buf, full_msg)
     end
-    
-    log_verbose("Processing $(dim)D Polytope #$run_idx") # 'dim' ist jetzt lokal
+
+    log_verbose("Processing $(dim)D Polytope #$run_idx")
     log_verbose("Initial vertices provided:")
     log_verbose(initial_vertices, is_display=true)
 
@@ -263,16 +233,16 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     timed_result_lp = @timed lattice_points_via_Oscar(initial_vertices)
     P = timed_result_lp.value
     push!(step_stats, StepStats("Find all lattice points", timed_result_lp.time, timed_result_lp.bytes))
-    
+
     num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
-    if show_running_updates # GEÄNDERT
+    if show_running_updates
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points...")
     end
-    
+
     simplex_search_type = config.only_unimodular ? "unimodular" : "non-degenerate"
     log_verbose("Step 2: Searching for $simplex_search_type $(dim)-simplices...")
-    
+
     timed_result_simplices = @timed all_simplices(P, only_unimodular=config.only_unimodular)
     S_indices = timed_result_simplices.value
     push!(step_stats, StepStats("Find all $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
@@ -282,17 +252,16 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     if show_running_updates # GEÄNDERT
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found...")
     end
-    
+
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
         msg = "no $simplex_search_type simplices exist"
         verbose_log = String(take!(buf)) * "\nNo simplices available. Cannot proceed."
         return ProcessResult(run_idx, 0, total_time, num_lattice_points, num_simplices_found, verbose_log, msg, [], step_stats)
     end
-    
+
     log_verbose("Step 3: Computing internal faces...")
-    
-    # 'dim' wird hier korrekt verwendet
+
     timed_result_faces = @timed internal_faces(P, dim)
     internal_faces_set = timed_result_faces.value
     push!(step_stats, StepStats("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
@@ -304,31 +273,30 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     push!(cnf, collect(1:num_simplices))
 
     log_verbose("Step 4a: Generating intersection clauses...")
-    
+
     timed_result_intersections = @timed let n_simplices = num_simplices
         intersect_func = nothing
-        use_gpu = false
+         use_gpu = false
 
-        if config.intersection_backend == "gpu"
-            # 'dim' wird hier korrekt verwendet, um das Backend auszuwählen
-            if dim == 3 && isdefined(Main, :GPUIntersection3D)
-                log_verbose("      Using 3D GPU backend...")
-                intersect_func = () -> Main.GPUIntersection3D.get_intersecting_pairs_gpu(P, S_indices)
-                use_gpu = true
-            elseif dim == 4 && isdefined(Main, :GPUIntersection4D)
-                log_verbose("      Using 4D GPU backend...")
-                intersect_func = () -> Main.GPUIntersection4D.get_intersecting_pairs_gpu_4d(P, S_indices)
-                use_gpu = true
-            elseif dim == 5 && isdefined(Main, :GPUIntersection5D)
-                log_verbose("      Using 5D GPU backend...")
-                intersect_func = () -> Main.GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
-                use_gpu = true
-            elseif dim == 6 && isdefined(Main, :GPUIntersection6D)
-                log_verbose("      Using 6D GPU backend...")
-                intersect_func = () -> Main.GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
-                use_gpu = true
-            end
-        end
+#         if config.intersection_backend == "gpu"
+#             if dim == 3 && isdefined(Main, :GPUIntersection3D)
+#                 log_verbose("      Using 3D GPU backend...")
+#                 intersect_func = () -> Main.GPUIntersection3D.get_intersecting_pairs_gpu(P, S_indices)
+#                 use_gpu = true
+#             elseif dim == 4 && isdefined(Main, :GPUIntersection4D)
+#                 log_verbose("      Using 4D GPU backend...")
+#                 intersect_func = () -> Main.GPUIntersection4D.get_intersecting_pairs_gpu_4d(P, S_indices)
+#                 use_gpu = true
+#             elseif dim == 5 && isdefined(Main, :GPUIntersection5D)
+#                 log_verbose("      Using 5D GPU backend...")
+#                 intersect_func = () -> Main.GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
+#                 use_gpu = true
+#             elseif dim == 6 && isdefined(Main, :GPUIntersection6D)
+#                 log_verbose("      Using 6D GPU backend...")
+#                 intersect_func = () -> Main.GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
+#                 use_gpu = true
+#             end
+#         end
         if use_gpu && !isnothing(intersect_func)
             intersect_func()
         else
@@ -344,14 +312,14 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
             CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
         end
     end
-    
+
     intersection_clauses = timed_result_intersections.value
     push!(step_stats, StepStats("Generate intersection clauses", timed_result_intersections.time, timed_result_intersections.bytes))
     append!(cnf, intersection_clauses)
     log_verbose("-> Found $(length(intersection_clauses)) intersection clauses. Step 4a complete.\n")
 
     log_verbose("Step 4b: Generating face-covering clauses...")
-    face_dim = dim # 'dim' wird hier korrekt verwendet
+    face_dim = dim
 
     timed_result_face_clauses = @timed let n_simplices = num_simplices
         next_simplex_idx = Threads.Atomic{Int}(1)
@@ -377,18 +345,18 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         ]
         vcat(fetch.(tasks)...)
     end
-    
+
     face_clauses = timed_result_face_clauses.value
     append!(cnf, face_clauses)
     push!(step_stats, StepStats("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
     log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4b complete.\n")
-    
+
     log_verbose("Step 5: Handing SAT problem to solver...");
     log_verbose("      Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
-    if show_running_updates # GEÄNDERT
+    if show_running_updates
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices_found solving...")
     end
-    
+
     solutions = []
     num_solutions = 0
     solver_func = PicoSAT
@@ -405,10 +373,10 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
             push!(solutions, solution)
         end
     end
-    
+
     push!(step_stats, StepStats("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
-    
+
     first_sol_indices = Int[]
     if num_solutions > 0
         first_sol_indices = findall(l -> l > 0, first(solutions))
@@ -418,7 +386,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         log_verbose("\nStep 5a: Validating solution (not yet implemented)...")
         timed_validation = @timed begin
             validation_status = :passed
-            #TODO implement validation
+            #TODO implement validation or remove validation
         end
         push!(step_stats, StepStats("Validation", timed_validation.time, timed_validation.bytes))
 
@@ -432,7 +400,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     total_time = (time_ns() - t_start_total) / 1e9
     log_verbose("\n$(num_solutions) valid triangulation(s) found.")
-    
+
     first_solution_simplices = Vector{Matrix{Int}}()
     if num_solutions > 0 && !isempty(first_sol_indices)
         first_solution_simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in first_sol_indices]
@@ -444,22 +412,180 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
             log_verbose(s, is_display=true)
         end
     end
-    
+
     if !isempty(config.plotter)
         log_verbose("\nStep 6: Plotting results...")
-        # 'dim' wird hier korrekt für die Plot-Logik verwendet
         if dim == 3
-             temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(config.plotter, first_solution_simplices)); close(temp_io); run(`$(config.plotter) $(temp_path)`); finally rm(temp_path, force=true); end
+            temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+
         elseif dim == 4
-            # ... (Plotting-Code für 4D) ...
+
+            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices)); boundary_planes = collect(halfspaces(hrep(initial_poly)))
+
+            solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
+
+            for (plane_idx, plane) in enumerate(boundary_planes)
+
+                facet_triangulation_4D = [s for s in solution_simplices_rational if count(v -> iszero(dot(plane.a, v) - plane.β), eachrow(s)) == 4]
+
+                if isempty(facet_triangulation_4D); continue; end
+
+                log_verbose("     Plotting induced 3D triangulation for facet #$plane_idx...")
+
+                origin_4d = facet_triangulation_4D[1][1,:]; basis_3d = get_orthonormal_basis(plane.a)
+
+                projected_simplices = Vector{Matrix{Int}}()
+
+                for s in facet_triangulation_4D
+
+                    face_vertices_on_plane = filter(v -> iszero(dot(plane.a, v) - plane.β), eachrow(s))
+
+                    if length(face_vertices_on_plane) == 4
+
+                        projected_verts_3d = [round.(Int, [dot(v - origin_4d, b) for b in basis_3d]) for v in face_vertices_on_plane]
+
+                        push!(projected_simplices, vcat(projected_verts_3d'...))
+
+                    end
+
+                end
+
+                temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(projected_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+
+            end
+
         elseif dim == 5
-            # ... (Plotting-Code für 5D) ...
+
+            log_verbose("     Plotting induced 3D triangulations for 3-faces...")
+
+            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices))
+
+            boundary_planes = collect(halfspaces(hrep(initial_poly)))
+
+            solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
+
+
+            for i in 1:length(boundary_planes)
+
+                for j in (i + 1):length(boundary_planes)
+
+                    plane1 = boundary_planes[i]
+
+                    plane2 = boundary_planes[j]
+
+
+                    face_simplices_5D = [s for s in solution_simplices_rational if count(v -> iszero(dot(plane1.a, v) - plane1.β) && iszero(dot(plane2.a, v) - plane2.β), eachrow(s)) >= 4]
+
+                    if isempty(face_simplices_5D); continue; end
+
+
+                    log_verbose("     Plotting 3-face defined by facets #$i and #$j...")
+
+                    
+
+                    origin_5d = first(filter(v -> iszero(dot(plane1.a, v) - plane1.β) && iszero(dot(plane2.a, v) - plane2.β), eachrow(face_simplices_5D[1])))
+
+                    basis_3d = get_orthonormal_basis_for_subspace_3d(plane1.a, plane2.a)
+
+                    
+
+                    projected_simplices = Vector{Matrix{Int}}()
+
+                    for s in face_simplices_5D
+
+                        verts_on_face = filter(v -> iszero(dot(plane1.a, v) - plane1.β) && iszero(dot(plane2.a, v) - plane2.β), eachrow(s))
+
+                        for tetra_verts in combinations(verts_on_face, 4)
+
+                            projected_verts_3d = [round.(Int, [dot(v - origin_5d, b) for b in basis_3d]) for v in tetra_verts]
+
+                            push!(projected_simplices, vcat(projected_verts_3d'...))
+
+                        end
+
+                    end
+
+                    
+
+                    if !isempty(projected_simplices)
+
+                        unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
+
+                        temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+
+                    end
+
+                end
+
+            end
+
         elseif dim == 6
-            # ... (Plotting-Code für 6D) ...
+
+            log_verbose("     Plotting induced 3D triangulations for 3-faces...")
+
+            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices))
+
+            boundary_planes = collect(halfspaces(hrep(initial_poly)))
+
+            solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
+
+
+            # Iterate over all triples of facets to find 3-dimensional faces
+
+            for i in 1:length(boundary_planes), j in (i+1):length(boundary_planes), k in (j+1):length(boundary_planes)
+
+                p1, p2, p3 = boundary_planes[i], boundary_planes[j], boundary_planes[k]
+
+                
+
+                face_simplices_6D = [s for s in solution_simplices_rational if count(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(s)) >= 4]
+
+                if isempty(face_simplices_6D); continue; end
+
+
+                log_verbose("     Plotting 3-face defined by facets #$i, #$j, and #$k...")
+
+                
+
+                origin_6d = first(filter(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(face_simplices_6D[1])))
+
+                basis_3d = get_orthonormal_basis_for_subspace_3d_from_6d(p1.a, p2.a, p3.a)
+
+
+
+                projected_simplices = Vector{Matrix{Int}}()
+
+                for s in face_simplices_6D
+
+                    verts_on_face = filter(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(s))
+
+                    for tetra_verts in combinations(verts_on_face, 4)
+
+                        projected_verts_3d = [round.(Int, [dot(v - origin_6d, b) for b in basis_3d]) for v in tetra_verts]
+
+                        push!(projected_simplices, vcat(projected_verts_3d'...))
+
+                    end
+
+                end
+
+
+
+                if !isempty(projected_simplices)
+
+                    unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
+
+                    temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+
+                end
+
+            end
+
         end
-        
+
         log_verbose("-> Plotting complete. Step 6 complete.")
-    end
+
+    end 
 
     summary_buf = IOBuffer()
     println(summary_buf, "\n--- Timing & Memory Summary for Polytope #$run_idx ---")
@@ -473,7 +599,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     peak_ram_bytes = Sys.maxrss()
     println(summary_buf, @sprintf("%-45s: %.2f MiB", "Peak memory usage (Max RSS)", peak_ram_bytes / 1024^2))
     log_verbose(String(take!(summary_buf)))
-    
+
     result_str = ""
     if num_solutions > 0
         result_str = @sprintf("\u001b[32mfound %d solution(s)\u001b[0m in %.2f s", num_solutions, total_time)
@@ -481,48 +607,28 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         result_str = @sprintf("\u001b[31mno solution exists\u001b[0m, searched for %.2f s", total_time)
     end
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices_found, result_str)
-    
+
     return ProcessResult(run_idx, num_solutions, total_time, num_lattice_points, num_simplices_found, String(take!(buf)), minimal_log, first_solution_simplices, step_stats)
 end
 
-"""
-Führt die Verarbeitung für eine Liste von Polytopen durch.
-GEÄNDERT: Nimmt 'display_dim_str' und 'source_description' statt 'dim' und 'config.source_file'.
-GEÄNDERT: Parst config.terminal_output und steuert die Ausgabe über Flags.
-"""
-function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String, source_description::String, config::Config, log_stream)
+function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stream)
 
-    # --- NEU: Terminal-Ausgabe-Flags parsen ---
     components_str = lowercase(replace(config.terminal_output, " " => ""))
-    if components_str == "true" # Abwärtskompatibilität
-        components_str = "all"
-    elseif components_str == "false" # Abwärtskompatibilität
-        components_str = ""
-    end
 
     show_initial = occursin("initial", components_str) || occursin("all", components_str)
     show_running = occursin("running", components_str) || occursin("all", components_str)
     show_table = occursin("table", components_str) || occursin("all", components_str)
     show_final = occursin("final", components_str) || occursin("all", components_str)
-    # --- Ende: Parsing ---
 
-    if show_initial # GEÄNDERT
-        # --- Terminal Summary ---
+    if show_initial
         term_summary_buf = IOBuffer()
         println(term_summary_buf, "Run started at:                      $(Dates.format(now(), "HH:MM:SS"))")
         println(term_summary_buf, "Number of threads:                   $(nthreads())")
-        # GEÄNDERT: Verwendet display_dim_str
-        println(term_summary_buf, "Detected Dimension:                  $(display_dim_str)") 
         println(term_summary_buf, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
         println(term_summary_buf, "Intersection backend selected:       $(config.intersection_backend)")
         println(term_summary_buf, "Validation enabled:                  $(config.validate)")
-        # GEÄNDERT: Verwendet source_description
-        println(term_summary_buf, "Input source:                        $(source_description)")
         println(term_summary_buf, "Number of polytopes found:           $(length(polytopes))")
         println(term_summary_buf, "Restricting to unimodular simplices: $(config.only_unimodular)")
-        if !isnothing(log_stream)
-            # (log_file ist nicht mehr in config, Info wird nicht mehr gedruckt)
-        end
         println(term_summary_buf, "")
         print(stdout, String(take!(term_summary_buf)))
     end
@@ -531,13 +637,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
     if !isnothing(log_stream)
         log_summary_buf = IOBuffer()
         println(log_summary_buf, "Number of threads:                   $(nthreads())")
-        # GEÄNDERT: Verwendet display_dim_str
-        println(log_summary_buf, "Detected Dimension:                  $(display_dim_str)")
         println(log_summary_buf, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
         println(log_summary_buf, "Intersection backend selected:       $(config.intersection_backend)")
         println(log_summary_buf, "Validation enabled:                  $(config.validate)")
-        # GEÄNDERT: Verwendet source_description
-        println(log_summary_buf, "Input source:                        $(source_description)")
         println(log_summary_buf, "Number of polytopes found:           $(length(polytopes))")
         println(log_summary_buf, "Restricting to unimodular simplices: $(config.only_unimodular)")
         println(log_summary_buf, "")
@@ -554,8 +656,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
     results = ProcessResult[]
 
     for (i, P) in enumerate(polytopes)
-        # 'P' (Matrix{Int}) wird übergeben, process_polytope bestimmt die dim selbst
-        # GEÄNDERT: Übergibt show_running Flag an process_polytope
         result = process_polytope(P, i, length(polytopes), config, show_running)
         push!(results, result)
         
@@ -571,9 +671,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
             popfirst!(recent_times)
         end
 
-        if show_running # GEÄNDERT
+        if show_running
             if !is_first_single_line_update
-                print(stdout, "\u001b[4A") # Bewegt sich 4 Zeilen nach oben, um Block zu überschreiben
+                print(stdout, "\u001b[4A") #move cursor up by 4 lines
             end
             is_first_single_line_update = false
             
@@ -587,12 +687,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
                 eta_str = format_duration(eta_seconds)
             end
 
-            # 4-Zeilen-Block
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Elapsed Time:", format_duration(elapsed_time))
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Estimated Time Left:", eta_str)
             @printf(stdout, "\r%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Triangulatable:", triangulations_found_count)
             @printf(stdout, "\r%-40s \u001b[31m%d\u001b[0m\u001b[K\n", "Non-Triangulatable:", non_triangulatable_count)
-            # 1-Zeilen-Status
             print(stdout, "\r" * result.minimal_log * "\u001b[K")
             flush(stdout)
         end
@@ -602,16 +700,11 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
             flush(log_stream)
         end
     end
-    
-    # --- NEU: Cursor-Steuerung ---
+
     if show_running
-        # Bewegt den Cursor 5 Zeilen nach oben (4-Zeilen-Block + 1 minimal_log Zeile)
-        # und löscht den Bildschirm von dort nach unten, um Platz für die
-        # finale Zusammenfassung zu machen.
-        print(stdout, "\u001b[5A") # 5 Zeilen hoch
-        print(stdout, "\u001b[0J") # Von Cursor bis Ende löschen
+        print(stdout, "\u001b[5A")
+        print(stdout, "\u001b[0J")
     end
-    # Das alte `println()` [source 64] wurde entfernt.
 
     total_time_run = time() - t_start_run
     
@@ -620,7 +713,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
         avg_solutions_str = @sprintf("Average Solutions/Polytope:      %.2f\n", total_solutions_found / length(polytopes))
     end
 
-    # --- Aggregierte Statistik-Tabelle (wird nur erstellt, wenn show_table true ist) ---
     stats_table_str = ""
     if show_table
         stats_table_buf = IOBuffer()
@@ -641,7 +733,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
                 end
             end
 
-            println(stats_table_buf, "\n--- Detailed Step Statistics (Aggregated) ---")
+            println()
             println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
                                             "Step Name", "Total Time", "Avg Time", "Max Memory", "Avg Memory"))
             println(stats_table_buf, "-"^89)
@@ -667,9 +759,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
         end
         stats_table_str = String(take!(stats_table_buf))
     end
-    # --- Ende: Aggregierte Statistik-Tabelle ---
-
-    # --- Finale Zusammenfassung (Kern) ---
     summary_core_str = """
 
     Run finished: $(Dates.format(now(), "HH:MM:SS"))
@@ -684,17 +773,15 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
     ----------------------------------------
     """
 
-    # --- Getrenntes Drucken der finalen Teile ---
     if show_final
         print(stdout, summary_core_str)
     end
     
     if show_table
-        print(stdout, stats_table_str) # Druckt die Tabelle (oder einen leeren String)
-        println(stdout) # Fügt einen Zeilenumbruch nach der Tabelle hinzu
+        print(stdout, stats_table_str)
+        println(stdout)
     end
     
-    # Log-Stream erhält die kombinierte, nicht-farbige Ausgabe
     if !isnothing(log_stream)
         final_log_str = summary_core_str * stats_table_str
         print(log_stream, replace(final_log_str, r"\u001b\[\d+m" => ""))
@@ -703,87 +790,15 @@ function run_processing(polytopes::Vector{Matrix{Int}}, display_dim_str::String,
     return results
 end
 
-# --- Öffentliche API-Funktionen ---
+function _triangulate(polytopes::Vector{Matrix{Int}}, intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
 
-"""
-NEU: Trianguliert ein einzelnes Polyhedron-Objekt.
-GEÄNDERT: terminal_output ist String
-"""
-function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
-    vmatrix = _convert_polyhedron_to_vmatrix(polytope)
-    if isempty(vmatrix)
-        @error("Konnte Polyeder nicht verarbeiten.")
-        return nothing
-    end
-    
-    # "Single Polyhedron Input" als Quellbeschreibung
-    results = _triangulate([vmatrix], "Single Polyhedron Input", intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plotter)
-    
-    # KORREKTUR: [1] statt [0]
-    return isempty(results) ? nothing : results[1] 
-end
-
-"""
-NEU: Trianguliert einen Vektor von Polyhedron-Objekten.
-GEÄNDERT: terminal_output ist String
-"""
-function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
-    vmatrices = Matrix{Int}[]
-    for p in polytopes
-        vmatrix = _convert_polyhedron_to_vmatrix(p)
-        if !isempty(vmatrix)
-            push!(vmatrices, vmatrix)
-        else
-            @warn("Überspringe ein Polyeder, das nicht konvertiert werden konnte.")
-        end
-    end
-    
-    if isempty(vmatrices)
-        @error("Keine Polyeder konnten verarbeitet werden.")
-        return ProcessResult[] # Leere Ergebnisliste
-    end
-
-    # "Polyhedron List Input" als Quellbeschreibung
-    return _triangulate(vmatrices, "Polyhedron List Input", intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plotter)
-end
-
-"""
-Haupt-API-Funktion: Liest Polytope aus einer Datei und startet die Triangulierung.
-GEÄNDERT: Übergibt 'path_to_polytopes' als 'source_description' an _triangulate.
-GEÄNDERT: terminal_output ist String
-"""
-function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
-    local polytopes
-    try
-        polytopes = read_polytopes_from_file(path_to_polytopes)
-        if isempty(polytopes); @error("Error: No polytopes loaded from '$path_to_polytopes'."); return ProcessResult[]; end
-    catch e
-        @error("Error loading polytopes from '$path_to_polytopes': '$e'")
-        return ProcessResult[]
-    end
-    # Übergibt den Pfad als Quellbeschreibung
-    return _triangulate(polytopes, path_to_polytopes, intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plotter)
-end
-
-"""
-Interne Hauptfunktion, die den Lauf steuert.
-GEÄNDERT:
-- Nimmt 'source_description' statt 'source_file'.
-- Entfernt 'source_file' aus der Config-Erstellung.
-- Ermittelt 'display_dim_str' (kann "Mixed" sein) statt 'dim'.
-- Übergibt 'display_dim_str' und 'source_description' an 'run_processing'.
-- GEÄNDERT: terminal_output ist String
-"""
-function _triangulate(polytopes::Vector{Matrix{Int}}, source_description::String, intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
-
-    # GEÄNDERT: Config-Erstellung ohne source_file, terminal_output ist String
     config = Config(terminal_output, only_unimodular, intersection_backend, find_all, validate, plotter)
 
-    # --- Pre-run Checks ---
-    if config.intersection_backend =="gpu"
-        if !CUDA_PACKAGES_LOADED[]; @warn "GPU backend requested, but CUDA not loaded. Falling back to CPU."; config.intersection_backend = "cpu";
-        elseif !CUDA.functional(); @warn "CUDA loaded, but no functional GPU found. Falling back to CPU."; config.intersection_backend = "cpu"; end
-    end
+#     #Pre-run Checks
+#     if config.intersection_backend =="gpu"
+#         if !CUDA_PACKAGES_LOADED[]; @warn "GPU backend requested, but CUDA not loaded. Falling back to CPU."; config.intersection_backend = "cpu";
+#         elseif !CUDA.functional(); @warn "CUDA loaded, but no functional GPU found. Falling back to CPU."; config.intersection_backend = "cpu"; end
+#     end
 
     log_stream = nothing
     results = ProcessResult[] 
@@ -799,20 +814,12 @@ function _triangulate(polytopes::Vector{Matrix{Int}}, source_description::String
             end
         end
 
-        # --- GEÄNDERT: Dimension Detection (erlaubt gemischte Dimensionen) ---
-        local display_dim_str = "N/A"
         if isempty(polytopes)
             @warn("No polytopes provided to _triangulate.")
             return results
-        else
-            first_dim = size(polytopes[1], 2)
-            # Prüfen, ob alle Polytope die gleiche Dimension haben
-            all_same_dim = all(size(p, 2) == first_dim for p in polytopes)
-            display_dim_str = all_same_dim ? string(first_dim) : "Mixed"
         end
         
-        # GEÄNDERT: Übergibt display_dim_str und source_description
-        results = run_processing(polytopes, display_dim_str, source_description, config, log_stream)
+        results = run_processing(polytopes, config, log_stream)
         
     finally
         !isnothing(log_stream) && close(log_stream)
@@ -821,8 +828,48 @@ function _triangulate(polytopes::Vector{Matrix{Int}}, source_description::String
     return results
 end
 
-# if abspath(PROGRAM_FILE) == @__FILE__
-#     main() # TODO: patchwork fix; don't run main when importing
-# end
+# Public
 
-end # Ende Modul Triangulate
+function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
+    vmatrix = _convert_polyhedron_to_vmatrix(polytope)
+    if isempty(vmatrix)
+        @error("Could not process a single polytope")
+        return nothing
+    end
+    results = process_polytope(vmatrix, 1, 1, Config(terminal_output, only_unimodular, intersection_backend, find_all, validate, plotter), false)
+end
+
+function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
+    vmatrices = Matrix{Int}[]
+    for p in polytopes
+        vmatrix = _convert_polyhedron_to_vmatrix(p)
+        if !isempty(vmatrix)
+            push!(vmatrices, vmatrix)
+        else
+            @warn("Scipping a polytopes, because it could not be read properly-.")
+        end
+    end
+
+    if isempty(vmatrices)
+        @error("Could not porcess a single polytope.")
+        return ProcessResult[]
+    end
+
+    return _triangulate(vmatrices, intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plotter)
+end
+
+function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
+    local polytopes
+    try
+        polytopes = read_polytopes_from_file(path_to_polytopes)
+        if isempty(polytopes); @error("Error: No polytopes loaded from '$path_to_polytopes'."); return ProcessResult[]; end
+        catch e
+        @error("Error loading polytopes from '$path_to_polytopes': '$e'")
+        return ProcessResult[]
+    end
+    return _triangulate(polytopes, intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plotter)
+end
+
+
+
+end
