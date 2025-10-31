@@ -2,7 +2,7 @@ module Triangulate
 
 export triangulate
 
-using Oscar: convex_hull, lattice_points
+#using Oscar: convex_hull, lattice_points
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
