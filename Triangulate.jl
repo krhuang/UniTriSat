@@ -12,8 +12,8 @@ using Printf
 using Base.Threads
 using TOML
 using Random
-# using Normaliz 
-# Could use Oscar or Normaliz as the backend to find lattice points?
+using Normaliz
+# Could use Oscar or Normaliz as the backend to find lattice points? 
 # plotting functions
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 # --- Conditional Package Inclusion ---
@@ -145,6 +145,33 @@ end
 
 # --- Presolve functions ---
 
+function lattice_points_via_Normaliz(vertices::Matrix{Int})
+    nverts, d = size(vertices)
+
+    # Lift vertices to d+1 dimension by adding 1
+    lifted = hcat(vertices, ones(Int, nverts))
+
+    nmz_vertices = Normaliz.NmzMatrix{Normaliz.NmzRational}(lifted)
+
+    # Construct the cone
+    cone = Normaliz.LongLongCone(Dict(:cone => nmz_vertices))
+
+    # Get Hilbert basis (generates all integer points in the cone)
+    HB = Normaliz.get_matrix_cone_property(cone, "HilbertBasis")
+
+    # Dehomogenize
+    ncols = size(HB,2) - 1
+    points = []
+    for i in 1:size(HB,1)
+        len = size(HB,2)
+        if HB[i, len] == 1
+            push!(points, [HB[i, j] for j in 1:ncols])
+        end
+    end
+
+    return [BigInt(vec[j]) for vec in points, j in 1:ncols]
+end
+
 function lattice_points_via_Oscar(vertices::Matrix{Int})
     polytope = convex_hull(vertices)
     LP = lattice_points(polytope) 
@@ -230,7 +257,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose(initial_vertices, is_display=true)
 
     log_verbose("Step 1: Finding all lattice points...")
-    timed_result_lp = @timed lattice_points_via_Oscar(initial_vertices)
+    timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices)
     P = timed_result_lp.value
     push!(step_stats, StepStats("Find all lattice points", timed_result_lp.time, timed_result_lp.bytes))
 
