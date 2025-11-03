@@ -2,7 +2,6 @@ module Triangulate
 
 export triangulate
 
-#using Oscar: convex_hull, lattice_points
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
@@ -13,44 +12,13 @@ using Base.Threads
 using TOML
 using Random
 using Normaliz
-# Could use Oscar or Normaliz as the backend to find lattice points? 
-# plotting functions
-include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
-# --- Conditional Package Inclusion ---
-# const CUDA_PACKAGES_LOADED = Ref(false)
-# try
-#     using CUDA, StaticArrays, CUDA.Adapt
-#     CUDA_PACKAGES_LOADED[] = true
-# catch
-# end
-#
-# # ... (Rest der include-Anweisungen für GPU-Backends bleibt unverändert) ...
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d.jl")
-#     include("Intersection_backends/gpu_intersection_3d.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d.jl")
-#     include("Intersection_backends/gpu_intersection_4d.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d.jl")
-#     include("Intersection_backends/gpu_intersection_5d.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d.jl")
-#     include("Intersection_backends/gpu_intersection_6d.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d_floats.jl")
-#     include("Intersection_backends/gpu_intersection_3d_floats.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d_floats.jl")
-#     include("Intersection_backends/gpu_intersection_4d_floats.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d_floats.jl")
-#     include("Intersection_backends/gpu_intersection_5d_floats.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_floats.jl")
-#     include("Intersection_backends/gpu_intersection_6d_floats.jl")
-# end
 
+include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 include("Intersection_backends/cpu_intersection.jl")
+include("helpers.jl")
+using .Helpers
+include("basic_computations.jl")
+using .BasicComputations
 
 struct StepStats
     name::String
@@ -78,163 +46,6 @@ mutable struct Config
     validate::Bool
     plotter::String
 end
-
-function format_duration(total_seconds::Float64)
-    total_seconds_int = floor(Int, total_seconds)
-    h = total_seconds_int ÷ 3600
-    rem_seconds = total_seconds_int % 3600
-    m = rem_seconds ÷ 60
-    s = rem_seconds % 60
-    return @sprintf("%02d:%02d:%02d", h, m, s)
-end
-
-function format_bytes(b::Real)
-    if b > 1024^3
-        return @sprintf("%.2f GiB", b / 1024^3)
-    elseif b > 1024^2
-        return @sprintf("%.2f MiB", b / 1024^2)
-    elseif b > 1024
-        return @sprintf("%.2f KiB", b / 1024)
-    else
-        return @sprintf("%d B", b)
-    end
-end
-
-function read_polytopes_from_file(filepath::String)
-    polytopes = Vector{Matrix{Int}}()
-    current_vertices = Vector{Vector{Int}}()
-    function process_buffered_vertices()
-        if !isempty(current_vertices)
-            push!(polytopes, vcat(current_vertices'...))
-            empty!(current_vertices)
-        end
-    end
-    for line in eachline(filepath)
-        line = strip(line)
-        if isempty(line) || startswith(line, "#"); process_buffered_vertices(); continue; end
-        vertex_pattern = r"\[([^\[\]]+)\]"
-        if startswith(line, "[[")
-            process_buffered_vertices()
-            vertices_new_format = Vector{Vector{Int}}()
-            for m in eachmatch(vertex_pattern, line)
-                push!(vertices_new_format, parse.(Int, split(m.captures[1], ",")))
-            end
-            if !isempty(vertices_new_format); push!(polytopes, vcat(vertices_new_format'...)); end
-        else
-            try; push!(current_vertices, parse.(Int, split(line))); catch e; @warn "Skipping malformed line: $line. Error: $e"; end
-        end
-    end
-    process_buffered_vertices()
-    return polytopes
-end
-
-function _convert_polyhedron_to_vmatrix(p::Polyhedron)
-    try
-        return vcat([Int.(v)' for v in points(p)]...)
-    catch e
-        @error("Error converting Polyhedron object to Matrix{Int}: $e")
-        return Matrix{Int}(undef, 0, 0) # Leere Matrix zurückgeben
-    end
-end
-
-# for logs
-function update_line(message::String)
-    print(stdout, "\r" * message * "\u001b[K");
-    flush(stdout)
-end
-
-# --- Presolve functions ---
-
-function lattice_points_via_Normaliz(vertices::Matrix{Int})
-    nverts, d = size(vertices)
-
-    # Lift vertices to d+1 dimension by adding 1
-    lifted = hcat(vertices, ones(Int, nverts))
-
-    nmz_vertices = Normaliz.NmzMatrix{Normaliz.NmzRational}(lifted)
-
-    # Construct the cone
-    cone = Normaliz.LongLongCone(Dict(:cone => nmz_vertices))
-
-    # Get Hilbert basis (generates all integer points in the cone)
-    HB = Normaliz.get_matrix_cone_property(cone, "HilbertBasis")
-
-    # Dehomogenize
-    ncols = size(HB,2) - 1
-    points = []
-    for i in 1:size(HB,1)
-        len = size(HB,2)
-        if HB[i, len] == 1
-            push!(points, [HB[i, j] for j in 1:ncols])
-        end
-    end
-
-    return [BigInt(vec[j]) for vec in points, j in 1:ncols]
-end
-
-function lattice_points_via_Oscar(vertices::Matrix{Int})
-    polytope = convex_hull(vertices)
-    LP = lattice_points(polytope) 
-    dims = size(LP)
-    nrows = dims[1] 
-    ncols = size(LP[1])[1]
-    julia_matrix_LP = [BigInt(LP[i][j]) for i in 1:nrows, j in 1:ncols]
-    return julia_matrix_LP
-end
-
-function all_simplices(lattice_points::Matrix{BigInt}; only_unimodular::Bool=false)
-    n, d = size(lattice_points)
-    simplex_indices = Vector{NTuple{d+1, Int}}()
-    if n < d + 1
-        return simplex_indices
-    end
-
-    for inds in combinations(1:n, d + 1)
-        p0 = lattice_points[inds[1], :]
-        M = vcat([(lattice_points[inds[i], :] - p0)' for i in 2:(d + 1)]...)
-        det_val = det(M)
-        if det_val != 0 && (!only_unimodular || abs(det_val) == 1)
-            push!(simplex_indices, Tuple(inds))
-        end
-    end
-    return simplex_indices
-end
-
-function internal_faces(vertices::Matrix{BigInt}, dim::Int)
-    n = size(vertices, 1)
-    if n < dim
-        return Set{NTuple{dim, Int}}()
-    end
-
-    poly = Polyhedra.polyhedron(vrep(vertices))
-    hr = hrep(poly)
-    planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, dim))
-    next_idx = Threads.Atomic{Int}(1)
-
-    tasks = [
-        Threads.@spawn begin
-            local_faces = Set{NTuple{dim, Int}}()
-            while true
-                i = Threads.atomic_add!(next_idx, 1)
-                if i > length(potential_faces)
-                    break
-                end
-                face_indices = potential_faces[i]
-                face_points = vertices[collect(face_indices), :]
-                on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
-                if !on_boundary
-                    push!(local_faces, Tuple(sort(collect(face_indices))))
-                end
-            end
-            local_faces
-        end
-        for _ in 1:nthreads()
-    ]
-    return union(fetch.(tasks)...)
-end
-
-# --- Main Processing Functions ---
 
 function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool)
 
