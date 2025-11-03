@@ -67,10 +67,11 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose("Initial vertices provided:")
     log_verbose(initial_vertices, is_display=true)
 
-    log_verbose("Step 1: Finding all lattice points...")
+    log_verbose("Step 1: Computing all lattice points...")
+
     timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices)
     P = timed_result_lp.value
-    push!(step_stats, StepStats("Find all lattice points", timed_result_lp.time, timed_result_lp.bytes))
+    push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
 
     num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
@@ -79,11 +80,11 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
 
     simplex_search_type = config.only_unimodular ? "unimodular" : "non-degenerate"
-    log_verbose("Step 2: Searching for $simplex_search_type $(dim)-simplices...")
+    log_verbose("Step 2: Computing $simplex_search_type $(dim)-simplices...")
 
     timed_result_simplices = @timed all_simplices(P, only_unimodular=config.only_unimodular)
     S_indices = timed_result_simplices.value
-    push!(step_stats, StepStats("Find all $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
+    push!(step_stats, StepStats("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
 
     num_simplices_found = length(S_indices)
     log_verbose("-> Found $num_simplices_found simplices. Step 2 complete.\n")
@@ -110,51 +111,16 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     cnf = Vector{Vector{Int}}()
     push!(cnf, collect(1:num_simplices))
 
-    log_verbose("Step 4a: Generating intersection clauses...")
+    log_verbose("Step 4: Computing intersecting pairs...")
 
     timed_result_intersections = @timed let n_simplices = num_simplices
-        intersect_func = nothing
-         use_gpu = false
-
-#         if config.intersection_backend == "gpu"
-#             if dim == 3 && isdefined(Main, :GPUIntersection3D)
-#                 log_verbose("      Using 3D GPU backend...")
-#                 intersect_func = () -> Main.GPUIntersection3D.get_intersecting_pairs_gpu(P, S_indices)
-#                 use_gpu = true
-#             elseif dim == 4 && isdefined(Main, :GPUIntersection4D)
-#                 log_verbose("      Using 4D GPU backend...")
-#                 intersect_func = () -> Main.GPUIntersection4D.get_intersecting_pairs_gpu_4d(P, S_indices)
-#                 use_gpu = true
-#             elseif dim == 5 && isdefined(Main, :GPUIntersection5D)
-#                 log_verbose("      Using 5D GPU backend...")
-#                 intersect_func = () -> Main.GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
-#                 use_gpu = true
-#             elseif dim == 6 && isdefined(Main, :GPUIntersection6D)
-#                 log_verbose("      Using 6D GPU backend...")
-#                 intersect_func = () -> Main.GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
-#                 use_gpu = true
-#             end
-#         end
-        if use_gpu && !isnothing(intersect_func)
-            intersect_func()
-        else
-            if !(config.intersection_backend in ["cpu", "gpu", nothing])
-                @warn("I do not know config.intersection_backend '$(config.intersection_backend)'. Falling back to CPU.")
-                log_verbose("      WARNING: I do not know config.intersection_backend '$(config.intersection_backend)'. Falling back to CPU.")
-            end
-            if !(dim in [3,4,5,6]) && config.intersection_backend == "gpu"
-                @warn("GPU backend for $(dim)D not available. Falling back to CPU.")
-                log_verbose("      WARNING: GPU backend for $(dim)D not available. Falling back to CPU.")
-            end
-            log_verbose("      Using CPU backend.")
-            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
-        end
+        CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
     end
 
     intersection_clauses = timed_result_intersections.value
-    push!(step_stats, StepStats("Generate intersection clauses", timed_result_intersections.time, timed_result_intersections.bytes))
+    push!(step_stats, StepStats("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
     append!(cnf, intersection_clauses)
-    log_verbose("-> Found $(length(intersection_clauses)) intersection clauses. Step 4a complete.\n")
+    log_verbose("-> Found $(length(intersection_clauses)) intersecting pairs. Step 4a complete.\n")
 
     log_verbose("Step 4b: Generating face-covering clauses...")
     face_dim = dim
@@ -221,7 +187,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
 
     if config.validate && num_solutions > 0
-        log_verbose("\nStep 5a: Validating solution (not yet implemented)...")
+        log_verbose("\nStep 6: Validating solution (not yet implemented)...")
         timed_validation = @timed begin
             validation_status = :passed
             #TODO implement validation or remove validation
@@ -252,7 +218,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
 
     if !isempty(config.plotter)
-        log_verbose("\nStep 6: Plotting results...")
+        log_verbose("\nStep 7: Plotting results...")
         if dim == 3
             temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
@@ -471,7 +437,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         print(stdout, String(take!(term_summary_buf)))
     end
 
-    # --- Log File Summary (unverändert, da nicht Terminal) ---
     if !isnothing(log_stream)
         log_summary_buf = IOBuffer()
         println(log_summary_buf, "Number of threads:                   $(nthreads())")
@@ -574,7 +539,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             println()
             println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
                                             "Step Name", "Total Time", "Avg Time", "Max Memory", "Avg Memory"))
-            println(stats_table_buf, "-"^89)
+            println(stats_table_buf, "-"^93)
 
             for step_name in step_order
                 times = step_times[step_name]
@@ -631,12 +596,6 @@ end
 function _triangulate(polytopes::Vector{Matrix{Int}}, intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
 
     config = Config(terminal_output, only_unimodular, intersection_backend, find_all, validate, plotter)
-
-#     #Pre-run Checks
-#     if config.intersection_backend =="gpu"
-#         if !CUDA_PACKAGES_LOADED[]; @warn "GPU backend requested, but CUDA not loaded. Falling back to CPU."; config.intersection_backend = "cpu";
-#         elseif !CUDA.functional(); @warn "CUDA loaded, but no functional GPU found. Falling back to CPU."; config.intersection_backend = "cpu"; end
-#     end
 
     log_stream = nothing
     results = ProcessResult[] 
