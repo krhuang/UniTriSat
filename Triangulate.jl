@@ -588,6 +588,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     if !isnothing(log_stream)
         final_log_str = summary_core_str * stats_table_str
         print(log_stream, replace(final_log_str, r"\u001b\[\d+m" => ""))
+        flush(log_stream)
     end
 
     return results
