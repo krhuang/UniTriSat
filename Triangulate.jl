@@ -14,7 +14,7 @@ using Random
 using Normaliz
 
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
-include("Intersection_backends/cpu_intersection.jl")
+include("cpu_intersection.jl")
 include("helpers.jl")
 using .Helpers
 include("basic_computations.jl")
