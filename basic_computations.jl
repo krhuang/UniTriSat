@@ -5,6 +5,7 @@ using Combinatorics
 using LinearAlgebra
 using Polyhedra
 using Base.Threads
+using StaticArrays
 
 export lattice_points_via_Normaliz, all_simplices, internal_faces
 
@@ -96,29 +97,43 @@ function internal_faces(vertices::Matrix{BigInt}, dim::Int)
     poly = Polyhedra.polyhedron(vrep(vertices))
     hr = hrep(poly)
     planes = collect(halfspaces(hr))
-    potential_faces = collect(combinations(1:n, dim))
-    next_idx = Threads.Atomic{Int}(1)
 
-    tasks = [
-        Threads.@spawn begin
-            local_faces = Set{NTuple{dim, Int}}()
-            while true
-                i = Threads.atomic_add!(next_idx, 1)
-                if i > length(potential_faces)
+    # Preallocate combination buffer
+    inds = collect(1:dim)
+    faces = Set{NTuple{dim, Int}}()
+    int_plane_a = MVector{dim, Int64}(undef)
+
+    while true
+        on_boundary = false
+        for plane in planes
+            equal = true
+            scale = denominator(plane.β) * foldl(lcm, (denominator(x) for x in plane.a))
+            int_β = scale * plane.β
+            @inbounds for k in 1:dim
+                int_plane_a[k] = Int64(scale * plane.a[k])
+            end
+            @inbounds for j in 1:dim
+                s = 0
+                ind_j = inds[j]
+                for k in 1:dim
+                    s += vertices[ind_j, k] * int_plane_a[k]
+                end
+                if s != int_β
+                    equal = false
                     break
                 end
-                face_indices = potential_faces[i]
-                face_points = vertices[collect(face_indices), :]
-                on_boundary = any(plane -> all(iszero, face_points * plane.a .- plane.β), planes)
-                if !on_boundary
-                    push!(local_faces, Tuple(sort(collect(face_indices))))
-                end
             end
-            local_faces
+            if equal
+                on_boundary = true
+                break
+            end
         end
-        for _ in 1:nthreads()
-    ]
-    return union(fetch.(tasks)...)
+        if !on_boundary
+            push!(faces, Tuple(inds))
+        end
+        next_combination!(inds, n) || break
+    end
+    return faces
 end
 
 end
