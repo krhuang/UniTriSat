@@ -88,6 +88,14 @@ function all_simplices(lattice_points::Matrix{BigInt}; only_unimodular::Bool=fal
     return simplex_indices
 end
 
+function rational_plane_to_integer(plane)
+    denoms = [denominator(x) for x in plane.a]
+    lcm_d = foldl(lcm, denoms)
+    int_a = map(x -> BigInt(x * lcm_d), plane.a)
+    int_β = BigInt(plane.β * lcm_d)
+    return int_a, int_β
+end
+
 function internal_faces(vertices::Matrix{BigInt}, dim::Int)
     n = size(vertices, 1)
     if n < dim
@@ -96,29 +104,31 @@ function internal_faces(vertices::Matrix{BigInt}, dim::Int)
 
     poly = Polyhedra.polyhedron(vrep(vertices))
     hr = hrep(poly)
-    planes = collect(halfspaces(hr))
+    rational_planes = collect(halfspaces(hr))
 
     # Preallocate combination buffer
     inds = collect(1:dim)
     faces = Set{NTuple{dim, Int}}()
-    int_plane_a = MVector{dim, Int64}(undef)
+
+    planes_a = Vector{Vector{BigInt}}(undef, length(rational_planes))
+    planes_β = Vector{BigInt}(undef, length(rational_planes))
+    for i in 1:length(rational_planes)
+        planes_a[i], planes_β[i] = rational_plane_to_integer(rational_planes[i])
+    end
 
     while true
         on_boundary = false
-        for plane in planes
+        for p in 1:length(planes_a)
             equal = true
-            scale = denominator(plane.β) * foldl(lcm, (denominator(x) for x in plane.a))
-            int_β = scale * plane.β
-            @inbounds for k in 1:dim
-                int_plane_a[k] = Int64(scale * plane.a[k])
-            end
+            plane_a = planes_a[p]
+            plane_β = planes_β[p]
             @inbounds for j in 1:dim
                 s = 0
                 ind_j = inds[j]
                 for k in 1:dim
-                    s += vertices[ind_j, k] * int_plane_a[k]
+                    s += vertices[ind_j, k] * plane_a[k]
                 end
-                if s != int_β
+                if s != plane_β
                     equal = false
                     break
                 end
