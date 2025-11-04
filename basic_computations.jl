@@ -46,20 +46,43 @@ function lattice_points_via_Oscar(vertices::Matrix{Int})
     return julia_matrix_LP
 end
 
+function next_combination!(inds::Vector{Int}, n::Int)
+    k = length(inds)
+    for i in k:-1:1
+        if inds[i] < n - (k - i)
+            inds[i] += 1
+            for j in i+1:k
+                inds[j] = inds[j-1] + 1
+            end
+            return true
+        end
+    end
+    return false  # no next combination
+end
+
 function all_simplices(lattice_points::Matrix{BigInt}; only_unimodular::Bool=false)
     n, d = size(lattice_points)
-    simplex_indices = Vector{NTuple{d+1, Int}}()
+    simplex_indices = NTuple{d+1,Int}[]
     if n < d + 1
         return simplex_indices
     end
 
-    for inds in combinations(1:n, d + 1)
-        p0 = lattice_points[inds[1], :]
-        M = vcat([(lattice_points[inds[i], :] - p0)' for i in 2:(d + 1)]...)
-        det_val = det(M)
+    inds = collect(1:(d+1))             # initial combination
+    diffs = Matrix{BigInt}(undef, d, d)
+
+    while true
+        idx_1 = inds[1]
+        for j in 1:d
+            idx_j = inds[j+1]
+            for i in 1:d
+                diffs[j, i] = lattice_points[idx_j, i] - lattice_points[idx_1, i]
+            end
+        end
+        det_val = det(diffs)
         if det_val != 0 && (!only_unimodular || abs(det_val) == 1)
             push!(simplex_indices, Tuple(inds))
         end
+        next_combination!(inds, n) || break
     end
     return simplex_indices
 end
