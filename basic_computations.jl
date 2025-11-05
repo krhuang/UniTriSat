@@ -10,6 +10,45 @@ using StaticArrays
 export lattice_points_via_Normaliz, all_simplices, internal_faces
 
 
+# Computes the lattice points of a lattice polytope, via CDDLib backend of Polyhedra
+# By default CDDLib uses Floats, but you can configure this
+
+# See the documentation at https://juliapolyhedra.github.io/Polyhedra.jl/stable/polyhedron/
+
+#     "CDDLib.Library creates CDDLib.Polyhedron of type either Float64 or Rational{BigInt}. 
+# One can choose the first one using CDDLib.Library(:float) and the second one using 
+# CDDLib.Library(:exact), by default it is :float."
+
+# This implementation is naive, but not the bottleneck so its speed should not be an issue. 
+
+function lattice_points_via_CDDLib(vertices::Matrix{Int})
+    # Convert vertices to exact rationals
+    verts = Rational{BigInt}.(vertices)
+    
+    # Build a V-representation (exact)
+    vrep = vrep(VRep(points = verts))
+    poly = polyhedron(vrep, CDDLib.Library(:exact))
+    
+    # Compute bounding box
+    min_array = [minimum(vertices[:, i]) for i in 1:size(vertices, 2)]
+    max_array = [maximum(vertices[:, i]) for i in 1:size(vertices, 2)]
+    
+    # Enumerate integer lattice points in bounding box
+    ranges = [min_array[i]:max_array[i] for i in 1:length(min_array)]
+    lattice_pts = Iterators.product(ranges...)  # Cartesian product
+    
+    inside_points = []
+    for pt_tuple in lattice_pts
+        pt = Rational{BigInt}.(collect(pt_tuple))
+        if in(pt, poly) # CDDLib function for checking point membership. TODO: does this work better if we assume 
+            push!(inside_points, collect(BigInt.(pt)))  # conversion to BigInt
+        end
+    end
+    
+    return inside_points
+end
+
+# Access the lattice points of a lattice polytope via Normaliz
 function lattice_points_via_Normaliz(vertices::Matrix{Int})
     nverts, d = size(vertices)
 
@@ -37,6 +76,7 @@ function lattice_points_via_Normaliz(vertices::Matrix{Int})
     return [BigInt(vec[j]) for vec in points, j in 1:ncols]
 end
 
+# Oscar function for computing lattice points of a convex hull
 function lattice_points_via_Oscar(vertices::Matrix{Int})
     polytope = convex_hull(vertices)
     LP = lattice_points(polytope)
