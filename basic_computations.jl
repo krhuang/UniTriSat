@@ -1,6 +1,12 @@
 module BasicComputations
 
-#using Normaliz
+
+try 
+    using Normaliz
+catch
+    println("Warning: Normaliz not available. We compute lattice points via CDDLib, a slower implementation")
+    println(" However, this step is not a bottleneck, so it should not result in a significant slowdown")
+end
 using Combinatorics
 using LinearAlgebra
 using Polyhedra

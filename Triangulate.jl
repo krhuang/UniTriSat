@@ -11,7 +11,16 @@ using Printf
 using Base.Threads
 using TOML
 using Random
-#using Normaliz
+
+# mutable flag in module scope
+const Normaliz_available = Ref(true)
+
+try
+    @eval using Normaliz  # top-level import
+catch e
+    @warn "Normaliz not available; using fallback." exception=(e, catch_backtrace())
+    Normaliz_available[] = false
+end
 # Could use Oscar or Normaliz as the backend to find lattice points? 
 # ---Import plotting functions
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
@@ -106,7 +115,11 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose(initial_vertices, is_display=true)
 
     log_verbose("Step 1: Computing all lattice points...")
-
+    if Normaliz_available[]
+        timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points. Source in basic_computations.jl
+    else 
+        timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
+    end
     timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
     P = timed_result_lp.value
     push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
