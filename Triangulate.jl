@@ -129,7 +129,6 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     else 
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
     end
-    timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
     P = timed_result_lp.value
     push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
 
