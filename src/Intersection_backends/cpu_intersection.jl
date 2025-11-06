@@ -156,7 +156,7 @@ struct Simplex{V, D}
     verts::SVector{V, SVector{D, Int64}}         # (num_verts) x d
     facet_normals::SVector{V, SVector{D, Int64}} # list of normals (one per facet)
     edges::Vector{SVector{D, Int64}}         # edge vectors (j>i) stored as Vector{Int64}
-    face_edges::Vector{Vector{Vector{Int64}}} # maps face_dim => list of edge indices per face
+    face_edges::Vector{Vector{SVector{D, Int64}}} # maps face_dim => list of edge indices per face
 end
 
 # Evil macro.
@@ -331,14 +331,14 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
         face_edges[k] = Vector{Vector{Int64}}(undef, binomial(num_verts, k + 1))
         for (i, face_indices) in enumerate(combinations(1:num_verts, k+1))
             # collect exactly k spanning edges for the generalized cross
-            e_idx = Int64[]
+            e_idx = Vector{Int64}(undef, D)
             p0 = face_indices[1]
             for j in 2:(k+1)
                 pj = face_indices[j]
                 key = p0 < pj ? (p0,pj) : (pj,p0)
-                push!(e_idx, edge_index[key])
+                e_idx[j - 1] = edge_index[key]
             end
-            face_edges[k][i] = e_idx
+            face_edges[k][i] = SVector{D, Int64}(e_idx)
         end
     end
 
