@@ -1,0 +1,8 @@
+#!/bin/bash --login
+#SBATCH --job-name=UniTriSat_3d
+#SBATCH --output=runs/3d_$SLURM_ARRAY_TASK_ID.out
+#SBATCH --cpus-per-task=48
+#SBATCH --time=100:00:00
+#SBATCH --mail-type=end
+#SBATCH --mail-user=lauff@math.tu-berlin.de
+julia -t auto by_volume_run.jl 3 $SLURM_ARRAY_TASK_ID
