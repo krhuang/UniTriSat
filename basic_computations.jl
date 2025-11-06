@@ -1,13 +1,14 @@
 module BasicComputations
 
-using Normaliz
+#using Normaliz
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
 using Base.Threads
 using StaticArrays
+using CDDLib
 
-export lattice_points_via_Normaliz, all_simplices, internal_faces
+export lattice_points_via_Normaliz, all_simplices, internal_faces, lattice_points_via_CDDLib
 
 
 # Computes the lattice points of a lattice polytope, via CDDLib backend of Polyhedra
@@ -24,29 +25,33 @@ export lattice_points_via_Normaliz, all_simplices, internal_faces
 function lattice_points_via_CDDLib(vertices::Matrix{Int})
     # Convert vertices to exact rationals
     verts = Rational{BigInt}.(vertices)
-    
-    # Build a V-representation (exact)
-    vrep = vrep(VRep(points = verts))
-    poly = polyhedron(vrep, CDDLib.Library(:exact))
-    
+
+    # Build exact polyhedron from vertices
+    poly = polyhedron(vrep(verts), CDDLib.Library(:exact))
+
     # Compute bounding box
     min_array = [minimum(vertices[:, i]) for i in 1:size(vertices, 2)]
     max_array = [maximum(vertices[:, i]) for i in 1:size(vertices, 2)]
-    
-    # Enumerate integer lattice points in bounding box
     ranges = [min_array[i]:max_array[i] for i in 1:length(min_array)]
-    lattice_pts = Iterators.product(ranges...)  # Cartesian product
-    
-    inside_points = []
-    for pt_tuple in lattice_pts
+
+    # Enumerate and collect integer points
+    points_list = Vector{Vector{Int}}()
+
+    for pt_tuple in Iterators.product(ranges...)
         pt = Rational{BigInt}.(collect(pt_tuple))
-        if in(pt, poly) # CDDLib function for checking point membership. TODO: does this work better if we assume 
-            push!(inside_points, collect(BigInt.(pt)))  # conversion to BigInt
+        if in(pt, poly)
+            push!(points_list, collect(Int.(pt_tuple)))
         end
     end
-    
-    return inside_points
+
+    # Convert to a matrix with one point per row
+    if isempty(points_list)
+        return zeros(Int, 0, size(vertices, 2))
+    else
+        return reduce(vcat, [permutedims(p) for p in points_list])
+    end
 end
+
 
 # Access the lattice points of a lattice polytope via Normaliz
 function lattice_points_via_Normaliz(vertices::Matrix{Int})
