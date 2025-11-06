@@ -9,47 +9,78 @@ using StaticArrays
 
 export get_intersecting_pairs_cpu, simplices_intersect_sat_cpu
 
+macro generate_determinants_up_to(n)
+    n = Int(n)
+
+    # Generate determinant function for dimension k
+    function make_det_func(k)
+        fname = Symbol("det", k, "x", k)
+
+        # collect all matrix argument symbols m11, m12, ..., mkk
+        args = [Symbol(:m, i, j) for i in 1:k, j in 1:k]
+
+        if k == 2
+            return quote
+                @inline function $(esc(fname))($(args...))
+                    return m11*m22 - m12*m21
+                end
+            end
+        end
+
+        # Laplace expansion along the first row
+        subcalls = Expr[]
+        for j in 1:k
+            subcols = filter(!=(j), 1:k)
+            subargs = []
+            for i in 2:k
+                for c in subcols
+                    push!(subargs, Symbol(:m, i, c))
+                end
+            end
+            subcall = Expr(:call, Symbol("det", k-1, "x", k-1), subargs...)
+            sign = (-1)^(1 + j)
+            push!(subcalls, :($(sign) * $(Symbol(:m, 1, j)) * $subcall))
+        end
+
+        quote
+            # Combine the terms: m11*d1 - m12*d2 + ...
+            @inline function $(esc(fname))($(args...))
+                $(foldl((x,y)->:($x + $y), subcalls))
+            end
+        end
+    end
+
+    # Generate all functions det2x2 through det{n}x{n}
+    det_funcs = [make_det_func(k) for k in 2:n]
+
+    quote
+        $(det_funcs...)
+    end
+end
+
+@generate_determinants_up_to 5
+
 macro generate_gcross_unrolled_full(d)
     d_val = Int(d)
     fname = Symbol("gcross", d_val)
 
-    # Compute permutation sign manually at macroexpansion time
-    function perm_sign(p::Vector{Int})
-        n = length(p)
-        invs = 0
-        for i in 1:n, j in (i+1):n
-            invs += p[i] > p[j] ? 1 : 0
-        end
-        return (-1)^invs
-    end
-
     # Generate variable symbols for each matrix entry
     vsym = [Symbol("v", i, "_", j) for i in 1:d_val, j in 1:(d_val-1)]
-
-    # Helper: build determinant term for a given minor using scalar variables
-    function det_expr_scalar(row_indices)
-        cols = 1:(d_val-1)
-        perms = collect(permutations(cols))
-        ex = :(0)
-        for p in perms
-            sgn = perm_sign(p)
-            prod_terms = [vsym[row_indices[r], p[r]] for r in 1:length(row_indices)]
-            prod_expr = Expr(:call, :*, prod_terms...)
-            ex = :($ex + $(sgn) * $prod_expr)
-        end
-        return ex
-    end
-
-    # Build each component of the generalized cross product
     comp_exprs = Expr[]
     rows_full = 1:d_val
+
+    # Generate the generalized cross product using det{d-1}x{d-1}
     for i in 1:d_val
         rows_minor = filter(x -> x != i, rows_full)
-        ex = det_expr_scalar(rows_minor)
-        if isodd(i)
-            ex = :(-($ex))
+        subargs = []
+        for r in rows_minor, c in 1:(d_val-1)
+            push!(subargs, vsym[r, c])
         end
-        push!(comp_exprs, :( $(Symbol("n", i)) = $ex ))
+        call_expr = Expr(:call, Symbol("det", d_val-1, "x", d_val-1), subargs...)
+        if isodd(i)
+            call_expr = :(-$call_expr)
+        end
+        push!(comp_exprs, :( $(Symbol("n", i)) = $call_expr ))
     end
 
     # Build scalar entry function
@@ -57,14 +88,11 @@ macro generate_gcross_unrolled_full(d)
     scalar_func_name = Symbol(fname, "_scalar!")
     scalar_func = quote
         @inline function $(esc(scalar_func_name))($(scalar_args...))
-            # declare local variables
             $( [:( $(Symbol("n", i)) = 0 ) for i in 1:d_val ]... )
-            # fill in the generalized cross product components
             @inbounds begin
                 $(comp_exprs...)
-                return SVector{$d_val, Int64}($((Symbol("n", i) for i in 1:d_val )... ))
+                return SVector{$d_val, Int64}($((Symbol("n", i) for i in 1:d_val)...))
             end
-            #return $(Expr(:vect, [Symbol("n", i) for i in 1:d_val]...))
         end
     end
 
