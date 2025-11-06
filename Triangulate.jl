@@ -18,7 +18,7 @@ const Normaliz_available = Ref(true)
 # Try to import Normaliz. If it's not available it gives a small warning and modifies the flag
 try
     @eval using Normaliz  # top-level import
-    include(Normaliz_backend.jl)
+    include("Normaliz_backend.jl")
     using .Normaliz_backend
 catch e
     Normaliz_available[] = false

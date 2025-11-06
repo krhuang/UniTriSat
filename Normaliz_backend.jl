@@ -31,3 +31,5 @@ function lattice_points_via_Normaliz(vertices::Matrix{Int})
 
     return [vec[j] for vec in points, j in 1:ncols]
 end
+
+end
