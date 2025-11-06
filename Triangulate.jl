@@ -12,7 +12,6 @@ using Base.Threads
 using TOML
 using Random
 using Normaliz
-<<<<<<< HEAD
 # Could use Oscar or Normaliz as the backend to find lattice points? 
 # ---Import plotting functions
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
@@ -50,8 +49,6 @@ include("plotting_utils.jl") # TODO: do this better; as a module rather than as 
 # if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_floats.jl")
 #     include("Intersection_backends/gpu_intersection_6d_floats.jl")
 # end
-=======
->>>>>>> dd21eff5317007ea541bf6bc22d9b0be0825de36
 
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 include("cpu_intersection.jl")
