@@ -14,8 +14,9 @@ using TOML
 using Random
 using Normaliz
 # Could use Oscar or Normaliz as the backend to find lattice points? 
-# plotting functions
+# ---Import plotting functions
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
+
 # --- Conditional Package Inclusion ---
 # const CUDA_PACKAGES_LOADED = Ref(false)
 # try
