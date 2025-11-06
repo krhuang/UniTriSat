@@ -11,7 +11,7 @@ vols = vcat(["$i" for i in 1:33], ["34a", "34b", "35a", "35b", "36a", "36b", "36
 n = vols[parse(Int, ARGS[2])]
 d = ARGS[1]
 
-terminal_output = "final" #initial, running, table, final
+terminal_output = "running, table, final" #initial, running, table, final
 
 println("-")
 println(styled"{bold, blue:Test Dimension $(d), Volume $(n)}")
