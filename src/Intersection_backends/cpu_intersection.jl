@@ -163,33 +163,37 @@ end
 macro generate_cross_axes_case_scalar(d)
     d_val = Int(d)
     stmts = Expr[]
+    scalar_func = Symbol("gcross", d_val, "_scalar!")
 
-    for k in 1:div(d_val - 1, 2)
-        l = d_val - 1 - k
-        scalar_func = Symbol("gcross", d_val, "_scalar!")
-
-        # Construct the argument list to pass scalars
-        # There are (k + l) vectors, each of dimension d
-        args = Expr[]
-        for j in 1:k
-            for i in 1:d_val
-                push!(args, :($(esc(:s1_edges))[f1_edges[$j]][$i]))
-            end
-        end
-        for j in 1:l
-            for i in 1:d_val
-                push!(args, :($(esc(:s2_edges))[f2_edges[$j]][$i]))
-            end
-        end
+    for l in 1:div(d_val - 1, 2)
+        k = d_val - 1 - l
 
         edge_count = binomial(d_val + 1, k + 1)
 
         inner = quote
+            s1_face_edges_k = $(esc(:s1_face_edges))[$k]
+            s2_face_edges_l = $(esc(:s2_face_edges))[$l]
             @inbounds for i in 1:$edge_count
-                f1_edges = $(esc(:s1_face_edges))[$k][i]
+                f1_edges = s1_face_edges_k[i]
+                # Hoist accesses into local variables
+                $( [:( $(Symbol("s1_edge_", j)) = $(esc(:s1_edges))[f1_edges[$j]] )
+                    for j in 1:k ]... )
+                $( [:( $(Symbol("v1_", j, "_", m)) = $(Symbol("s1_edge_", j))[$m] )
+                     for j in 1:k, m in 1:d_val ]... )
                 for j in 1:$edge_count
-                    f2_edges = $(esc(:s2_face_edges))[$l][j]
-                    axis = $scalar_func($(args...))
+                    f2_edges = s2_face_edges_l[j]
+                    # Hoist accesses into local variables
+                    $( [:( $(Symbol("s2_edge_", j)) = $(esc(:s2_edges))[f2_edges[$j]] )
+                        for j in 1:l ]... )
+                    $( [:( $(Symbol("v2_", j, "_", m)) = $(Symbol("s2_edge_", j))[$m] )
+                        for j in 1:l, m in 1:d_val ]... )
+
+                    # call scalar gcross using local variables
+                    axis = $scalar_func(
+                        $( [Symbol("v1_", j, "_", m) for j in 1:k, m in 1:d_val ]... ),
+                        $( [Symbol("v2_", j, "_", m) for j in 1:l, m in 1:d_val ]... )
+                    )
+
                     if any(!iszero, axis) && axis_separates($(esc(:s1_verts)), $(esc(:s2_verts)), axis)
                         return false
                     end
