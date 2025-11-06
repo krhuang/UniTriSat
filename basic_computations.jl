@@ -1,12 +1,5 @@
 module BasicComputations
 
-
-try 
-    using Normaliz
-catch
-    println("Warning: Normaliz not available. We compute lattice points via CDDLib, a slower implementation")
-    println(" However, this step is not a bottleneck, so it should not result in a significant slowdown")
-end
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
@@ -14,7 +7,7 @@ using Base.Threads
 using StaticArrays
 using CDDLib
 
-export lattice_points_via_Normaliz, all_simplices, internal_faces, lattice_points_via_CDDLib
+export all_simplices, internal_faces, lattice_points_via_CDDLib
 
 
 # Computes the lattice points of a lattice polytope, via CDDLib backend of Polyhedra
@@ -58,7 +51,7 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
     end
 end
 
-
+#=
 # Access the lattice points of a lattice polytope via Normaliz
 function lattice_points_via_Normaliz(vertices::Matrix{Int})
     nverts, d = size(vertices)
@@ -86,8 +79,10 @@ function lattice_points_via_Normaliz(vertices::Matrix{Int})
 
     return [vec[j] for vec in points, j in 1:ncols]
 end
+=#
 
 # Oscar function for computing lattice points of a convex hull
+# Only temporary code...
 function lattice_points_via_Oscar(vertices::Matrix{Int})
     polytope = convex_hull(vertices)
     LP = lattice_points(polytope)

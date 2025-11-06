@@ -15,11 +15,20 @@ using Random
 # mutable flag in module scope
 const Normaliz_available = Ref(true)
 
+# Try to import Normaliz. If it's not available it gives a small warning and modifies the flag
 try
     @eval using Normaliz  # top-level import
+    include(Normaliz_backend.jl)
+    using .Normaliz_backend
 catch e
-    @warn "Normaliz not available; using fallback." exception=(e, catch_backtrace())
     Normaliz_available[] = false
+    println("\n===================== WARNING ======================")
+    println("Normaliz not available; using CDDLib lattice point enumeration instead.")
+    println("This is slower, but not the bottleneck, so it should be OK.")
+    println("You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl")
+    println("You may have to downgrade your Julia version for Normaliz to work.")
+    println("There is also the lattice_points_via_Oscar function available in basic_computation.jl")
+    println("====================================================\n")
 end
 # Could use Oscar or Normaliz as the backend to find lattice points? 
 # ---Import plotting functions
@@ -115,8 +124,8 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose(initial_vertices, is_display=true)
 
     log_verbose("Step 1: Computing all lattice points...")
-    if Normaliz_available[]
-        timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points. Source in basic_computations.jl
+    if Normaliz_available[] # global flag for if the Normaliz package has been imported
+        timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points. Source in Normaliz_backend.jl
     else 
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
     end
