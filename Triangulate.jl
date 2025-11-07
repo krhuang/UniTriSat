@@ -18,7 +18,7 @@ const Normaliz_available = Ref(true)
 # Try to import Normaliz. If it's not available it gives a small warning and modifies the flag
 try
     @eval using Normaliz  # top-level import
-    include("Normaliz_backend.jl")
+    include("src/Normaliz_backend.jl")
     using .Normaliz_backend
 catch e
     Normaliz_available[] = false
@@ -30,9 +30,8 @@ catch e
     println("There is also the lattice_points_via_Oscar function available in basic_computation.jl")
     println("====================================================\n")
 end
-# Could use Oscar or Normaliz as the backend to find lattice points? 
 # ---Import plotting functions
-include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
+include("src/plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 
 # --- Conditional Package Inclusion ---
 const CUDA_PACKAGES_LOADED = Ref(false)
@@ -43,16 +42,16 @@ catch
 end
 
 for d in 3:6
-    if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_$d d.jl")
-        include("Intersection_backends/gpu_intersection_$d d.jl")
+    if CUDA_PACKAGES_LOADED[] && isfile("src/Intersection_backends/gpu_intersection_$(d)d.jl")
+        include("src/Intersection_backends/gpu_intersection_$(d)d.jl")
     end
 end
 
-include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
-include("cpu_intersection.jl")
-include("helpers.jl")
+include("src/plotting_utils.jl") # TODO: do this better; as a module rather than as a script
+include("src/Intersection_backends/cpu_intersection.jl")
+include("src/helpers.jl")
 using .Helpers
-include("basic_computations.jl")
+include("src/basic_computations.jl")
 using .BasicComputations
 
 struct StepStats
@@ -153,7 +152,38 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose("Step 4: Computing intersecting pairs...")
 
     timed_result_intersections = @timed let n_simplices = num_simplices
-        CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
+        intersect_func = nothing
+        use_gpu = false
+
+        if config.intersection_backend == "gpu"
+            if dim == 3 && isdefined(@__MODULE__, :GPUIntersection3D)
+                log_verbose("     Using 3D GPU backend...")
+                intersect_func = () -> GPUIntersection3D.get_intersecting_pairs_gpu(P, S_indices)
+                use_gpu = true
+            elseif dim == 4 && isdefined(@__MODULE__, :GPUIntersection4D)
+                log_verbose("     Using 4D GPU backend...")
+                intersect_func = () -> GPUIntersection4D.get_intersecting_pairs_gpu_4d(P, S_indices)
+                use_gpu = true
+            elseif dim == 5 && isdefined(@__MODULE__, :GPUIntersection5D)
+                log_verbose("     Using 5D GPU backend...")
+                intersect_func = () -> GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
+                use_gpu = true
+            elseif dim == 6 && isdefined(@__MODULE__, :GPUIntersection6D)
+                log_verbose("     Using 6D GPU backend...")
+                intersect_func = () -> GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
+                use_gpu = true
+            end
+        end
+
+        if use_gpu && !isnothing(intersect_func)
+            intersect_func() # Execute the selected GPU function
+        else
+            if config.intersection_backend == "gpu"
+                 log_verbose("     WARNING: GPU backend for $(dim)D not available. Falling back to CPU.")
+            end
+            log_verbose("     Using CPU backend.")
+            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
+        end
     end
 
     intersection_clauses = timed_result_intersections.value
