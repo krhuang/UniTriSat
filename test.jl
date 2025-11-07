@@ -3,7 +3,7 @@ using Printf
 
 include("Triangulate.jl")
 using .Triangulate
-include("helpers.jl")
+include("src/helpers.jl")
 using .Helpers
 
 
@@ -12,13 +12,19 @@ terminal_output = "table, final" #initial, running, table, final
 test_results = []
 test_num = 1
 
+if length(ARGS) > 0
+    backend=ARGS[1]
+else
+    backend="cpu"
+end
+
 
 println("-")
 println(styled"{bold, blue:Test $test_num, Vol 6 3D. Expect 43 triangulatable polytopes}")
 println("-")
 results  = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt",
-    terminal_output=terminal_output,
+    terminal_output=terminal_output, intersection_backend=backend
     )
 num_triangulatable = length([1 for result in results if result.num_solutions_found>0])
 expected_number = 43
@@ -56,7 +62,7 @@ println(styled"{bold, blue:Test $test_num, Vol 16 3D. Expect 3288 triangulatable
 println("-")
 results = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v16.txt",
-    terminal_output=terminal_output,
+    terminal_output=terminal_output, intersection_backend=backend
     )
 num_triangulatable = length([1 for result in results if result.num_solutions_found>0])
 expected_number = 3288

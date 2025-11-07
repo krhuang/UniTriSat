@@ -289,7 +289,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     if !isempty(config.plotter)
         log_verbose("\nStep 7: Plotting results...")
         if dim == 3
-            temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+            temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
         elseif dim == 4
 
@@ -323,7 +323,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
                 end
 
-                temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(projected_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+                temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(projected_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
             end
 
@@ -384,7 +384,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
                         unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
 
-                        temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+                        temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
                     end
 
@@ -448,7 +448,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
                     unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
 
-                    temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+                    temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
                 end
 
@@ -606,9 +606,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             end
 
             println()
-            println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
-                                            "Step Name", "Total Time", "Avg Time", "Max Memory", "Avg Memory"))
-            println(stats_table_buf, "-"^93)
+            println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
+                                            "Step Name", "Total Time", "Avg Time", "Max Time", "Max Memory", "Avg Memory"))
+            println(stats_table_buf, "-"^108)
 
             for step_name in step_order
                 times = step_times[step_name]
@@ -617,14 +617,16 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
                 if isempty(times); continue; end 
                 
                 total_time = sum(times)
+                max_time = isempty(times) ? 0 : maximum(times)
                 avg_time = total_time / length(times)
                 max_mem = isempty(bytes) ? 0 : maximum(bytes)
                 avg_mem = isempty(bytes) ? 0.0 : sum(bytes) / length(bytes)
 
-                println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
+                println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
                                                 step_name,
                                                 format_duration(total_time),
                                                 @sprintf("%.3f s", avg_time),
+                                                @sprintf("%.3f s", max_time),
                                                 format_bytes(max_mem),
                                                 format_bytes(avg_mem)))
             end

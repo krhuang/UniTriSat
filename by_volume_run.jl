@@ -10,7 +10,7 @@ vols = vcat(["$i" for i in 1:33], ["34a", "34b", "35a", "35b", "36a", "36b", "36
 
 n = vols[parse(Int, ARGS[2])]
 d = ARGS[1]
-if !isnothing(ARGS[3])
+if length(ARGS) > 2
     backend=ARGS[3]
 else
     backend="cpu"
