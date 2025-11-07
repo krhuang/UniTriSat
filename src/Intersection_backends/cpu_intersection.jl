@@ -60,6 +60,99 @@ end
 
 @generate_determinants_up_to 5
 
+macro generate_determinants_bareiss_up_to(n)
+    n = Int(n)
+
+    function make_det_func(k)
+        fname = Symbol("det", k, "x", k, "_bareiss")
+        args = [Symbol(:m, i, j) for i in 1:k, j in 1:k]
+
+        stmts = Expr[]
+
+        # Initialize all a_ij
+        for i in 1:k, j in 1:k
+            push!(stmts, :($(Symbol(:a_, i, "_", j)) = $(Symbol(:m, i, j))))
+        end
+
+        # Unroll elimination updates.
+        for pivot in 1:k-1
+            app = Symbol(:a_, pivot, "_", pivot)
+
+            # Do row-swapping to avoid division-by-zero.
+            if pivot < k - 1
+                inner = quote
+                    # no non-zero entries found, means the matrix is
+                    # singular
+                    return 0
+                end
+
+                for m in reverse((pivot+1):k)
+                    swap_code = Expr[]
+                    for i in 1:k
+                        ami = Symbol(:a_, m, "_", i)
+                        api = Symbol(:a_, pivot, "_", i)
+                        push!(swap_code, :(tmp = $ami; $ami = $api; $api = tmp))
+                    end
+
+                    amp = Symbol(:a_, m, "_", pivot)
+                    inner = quote
+                        if $amp != 0
+                            sign = -sign
+                            $(swap_code...)
+                        else
+                            $inner
+                        end
+                    end
+                end
+
+                # Check if a row swap is needed
+                push!(stmts,
+                      quote
+                          if $app == 0
+                              $inner
+                          end
+                      end)
+            end
+
+            for i in (pivot+1):k
+                aip = Symbol(:a_, i, "_", pivot)
+                for j in (pivot+1):k
+                    aij = Symbol(:a_, i, "_", j)
+                    apj = Symbol(:a_, pivot, "_", j)
+                    denom = Symbol(:a_, pivot-1, "_", pivot-1)
+                    update = :($aij * $app - $aip * $apj)
+                    update_div = if pivot == 1
+                        update
+                    else
+                        :(Core.Intrinsics.sdiv_int($update, $denom))
+                    end
+                    push!(stmts, :($aij = $update_div))
+                end
+            end
+        end
+
+        push!(stmts,
+              quote
+                  return sign * $(Symbol(:a_, k, "_", k))
+              end)
+
+        quote
+            @inline function $(esc(fname))($(args...))
+                sign = 1
+                $(stmts...)
+            end
+        end
+    end
+
+    det_funcs = [make_det_func(k) for k in 2:n]
+
+    quote
+        $(det_funcs...)
+    end
+end
+
+@generate_determinants_bareiss_up_to 5
+
 macro generate_gcross_unrolled_full(d)
     d_val = Int(d)
     fname = Symbol("gcross", d_val)
@@ -76,7 +169,13 @@ macro generate_gcross_unrolled_full(d)
         for r in rows_minor, c in 1:(d_val-1)
             push!(subargs, vsym[r, c])
         end
-        call_expr = Expr(:call, Symbol("det", d_val-1, "x", d_val-1), subargs...)
+        # Use the Bareiss algorithm for 5x5 determinants.
+        det_name = if d_val >= 6
+            Symbol("det", d_val-1, "x", d_val-1, "_bareiss")
+        else
+            Symbol("det", d_val-1, "x", d_val-1)
+        end
+            call_expr = Expr(:call, det_name, subargs...)
         if isodd(i)
             call_expr = :(-$call_expr)
         end
