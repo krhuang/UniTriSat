@@ -35,38 +35,18 @@ end
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 
 # --- Conditional Package Inclusion ---
-# const CUDA_PACKAGES_LOADED = Ref(false)
-# try
-#     using CUDA, StaticArrays, CUDA.Adapt
-#     CUDA_PACKAGES_LOADED[] = true
-# catch
-# end
-#
-# # ... (Rest der include-Anweisungen für GPU-Backends bleibt unverändert) ...
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d.jl")
-#     include("Intersection_backends/gpu_intersection_3d.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d.jl")
-#     include("Intersection_backends/gpu_intersection_4d.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d.jl")
-#     include("Intersection_backends/gpu_intersection_5d.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d.jl")
-#     include("Intersection_backends/gpu_intersection_6d.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_3d_floats.jl")
-#     include("Intersection_backends/gpu_intersection_3d_floats.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_4d_floats.jl")
-#     include("Intersection_backends/gpu_intersection_4d_floats.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_5d_floats.jl")
-#     include("Intersection_backends/gpu_intersection_5d_floats.jl")
-# end
-# if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_6d_floats.jl")
-#     include("Intersection_backends/gpu_intersection_6d_floats.jl")
-# end
+const CUDA_PACKAGES_LOADED = Ref(false)
+try
+    using CUDA, StaticArrays, CUDA.Adapt
+    CUDA_PACKAGES_LOADED[] = true
+catch
+end
+
+for d in 3:6
+    if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_$d d.jl")
+        include("Intersection_backends/gpu_intersection_$d d.jl")
+    end
+end
 
 include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 include("cpu_intersection.jl")
