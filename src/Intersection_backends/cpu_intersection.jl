@@ -155,8 +155,7 @@ end
 struct Simplex{V, D}
     verts::SVector{V, SVector{D, Int64}}         # (num_verts) x d
     facet_normals::SVector{V, SVector{D, Int64}} # list of normals (one per facet)
-    edges::Vector{SVector{D, Int64}}         # edge vectors (j>i) stored as Vector{Int64}
-    face_edges::Vector{Vector{SVector{D, Int64}}} # maps face_dim => list of edge indices per face
+    face_edges::Vector{Vector{Vector{SVector{D, Int64}}}} # maps face_dim => list of edge vectors (j>i) per face
 end
 
 # Evil macro.
@@ -176,16 +175,16 @@ macro generate_cross_axes_case_scalar(d)
             @inbounds for i in 1:$edge_count
                 f1_edges = s1_face_edges_k[i]
                 # Hoist accesses into local variables
-                $( [:( $(Symbol("s1_edge_", j)) = $(esc(:s1_edges))[f1_edges[$j]] )
+                $( [:( $(Symbol("f1_edge_", j)) = f1_edges[$j] )
                     for j in 1:k ]... )
-                $( [:( $(Symbol("v1_", j, "_", m)) = $(Symbol("s1_edge_", j))[$m] )
+                $( [:( $(Symbol("v1_", j, "_", m)) = $(Symbol("f1_edge_", j))[$m] )
                      for j in 1:k, m in 1:d_val ]... )
                 for j in 1:$edge_count
                     f2_edges = s2_face_edges_l[j]
                     # Hoist accesses into local variables
-                    $( [:( $(Symbol("s2_edge_", j)) = $(esc(:s2_edges))[f2_edges[$j]] )
+                    $( [:( $(Symbol("f2_edge_", j)) = f2_edges[$j] )
                         for j in 1:l ]... )
-                    $( [:( $(Symbol("v2_", j, "_", m)) = $(Symbol("s2_edge_", j))[$m] )
+                    $( [:( $(Symbol("v2_", j, "_", m)) = $(Symbol("f2_edge_", j))[$m] )
                         for j in 1:l, m in 1:d_val ]... )
 
                     # call scalar gcross using local variables
@@ -233,8 +232,6 @@ Returns True if they intersect, Otherwise False.
 function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where {V, D}
     s1_verts = s1.verts
     s2_verts = s2.verts
-    s1_edges = s1.edges
-    s2_edges = s2.edges
     s1_face_edges = s1.face_edges
     s2_face_edges = s2.face_edges
 
@@ -274,12 +271,12 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
                 f1_edges = s1_face_edges_k[i]
                 # combine edges spanning the two faces
                 for j in 1:k
-                    edgeset[j] = s1_edges[f1_edges[j]]
+                    edgeset[j] = f1_edges[j]
                 end
                 for j in 1:edge_count
                     f2_edges = s2_face_edges_l[j]
                     for j in 1:l
-                        edgeset[k+j] = s2_edges[f2_edges[j]]
+                        edgeset[k+j] = f2_edges[j]
                     end
                     axis = _generalized_cross_product(edgeset)
                     if !iszero(axis) && axis_separates(s1_verts, s2_verts, axis)
@@ -302,12 +299,17 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
     facet_normals = Vector{SVector{D, Int64}}()
 
     # Precompute all edges and index map
-    edges = Vector{SVector{D, Int64}}()
-    edge_index = Dict{Tuple{Int,Int}, Int}()
-    for i in 1:(num_verts-1)
-        for j in (i+1):num_verts
-            push!(edges, verts[j] - verts[i])
-            edge_index[(i,j)] = length(edges)
+    num_edges = binomial(num_verts, 2)
+    edges = Vector{SVector{D, Int64}}(undef, num_edges)
+    edge_index = Vector{Vector{Int64}}(undef, num_verts - 1)
+    let edges_idx = 1
+        for i in 1:(num_verts-1)
+            edge_index[i] = Vector{Int64}(undef, num_verts)
+            for j in (i+1):num_verts
+                edges[edges_idx] = verts[j] - verts[i]
+                edge_index[i][j] = edges_idx
+                edges_idx += 1
+            end
         end
     end
 
@@ -330,25 +332,23 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
     end
 
     # --- precompute faces and exactly k spanning vectors per face ---
-    face_edges = Vector{Vector{Vector{Int64}}}(undef, D - 1)
+    face_edges = Vector{Vector{Vector{SVector{D, Int64}}}}(undef, D - 1)
     for k in 1:(D-1)  # face dimension
-        face_edges[k] = Vector{Vector{Int64}}(undef, binomial(num_verts, k + 1))
+        face_edges[k] = Vector{Vector{SVector{D, Int64}}}(undef, binomial(num_verts, k + 1))
         for (i, face_indices) in enumerate(combinations(1:num_verts, k+1))
             # collect exactly k spanning edges for the generalized cross
-            e_idx = Vector{Int64}(undef, D)
+            spanning_edges = Vector{SVector{D, Int64}}(undef, k)
             p0 = face_indices[1]
             for j in 2:(k+1)
                 pj = face_indices[j]
-                key = p0 < pj ? (p0,pj) : (pj,p0)
-                e_idx[j - 1] = edge_index[key]
+                spanning_edges[j - 1] = edges[p0 < pj ? (edge_index[p0][pj]) : edge_index[pj][p0]]
             end
-            face_edges[k][i] = SVector{D, Int64}(e_idx)
+            face_edges[k][i] = spanning_edges
         end
     end
 
     return Simplex{D + 1, D}(verts,
                              SVector{D+1, SVector{D, Int64}}(facet_normals),
-                             edges,
                              face_edges)
 end
 
