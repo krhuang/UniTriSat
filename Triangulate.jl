@@ -182,7 +182,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
                  log_verbose("     WARNING: GPU backend for $(dim)D not available. Falling back to CPU.")
             end
             log_verbose("     Using CPU backend.")
-            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
+            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices, Val(dim))
         end
     end
 

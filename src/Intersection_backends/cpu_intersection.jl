@@ -367,8 +367,7 @@ function prepare_simplices_cpu(P::Matrix{Int}, S_indices::Vector, ::Val{D}) wher
     return simplices
 end
 
-# Essentially specialize the rest of the code on the dimension.
-function get_intersecting_pairs_cpu_aux(P::Matrix{Int}, S_indices::Vector, ::Val{D}) where D
+function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector, ::Val{D}) where D
     simplices::Vector{Simplex{D+1, D}} = prepare_simplices_cpu(P, S_indices, Val(D))
     num_simplices = length(simplices)
     if num_simplices <= 1
@@ -396,13 +395,6 @@ function get_intersecting_pairs_cpu_aux(P::Matrix{Int}, S_indices::Vector, ::Val
     end
 
     return vcat(thread_clauses...)
-end
-
-function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector)
-    first_verts = P[collect(S_indices[1]), :]
-    # compute dimension to make all code specialized on the dimension from here on out
-    d = size(first_verts, 2)
-    return get_intersecting_pairs_cpu_aux(P, S_indices, Val(d))
 end
 
 end # module CPUIntersection
