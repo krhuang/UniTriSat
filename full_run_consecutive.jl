@@ -19,7 +19,9 @@ else
     backend="cpu"
 end
 
-for n in 1:ms[d-2]
+lower = parse(Int, ARGS[3])
+
+for n in lower:ms[d-2]
     println("-")
     println(styled"{bold, blue:Dimension $(d), Volume $(n)}")
     println("-")

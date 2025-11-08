@@ -13,23 +13,23 @@ using TOML
 using Random
 
 # mutable flag in module scope
-const Normaliz_available = Ref(true)
+const Normaliz_available = Ref(false)
 
 # Try to import Normaliz. If it's not available it gives a small warning and modifies the flag
-try
-    @eval using Normaliz  # top-level import
-    include("src/Normaliz_backend.jl")
-    using .Normaliz_backend
-catch e
-    Normaliz_available[] = false
-    println("\n===================== WARNING ======================")
-    println("Normaliz not available; using CDDLib lattice point enumeration instead.")
-    println("This is slower, but not the bottleneck, so it should be OK.")
-    println("You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl")
-    println("You may have to downgrade your Julia version for Normaliz to work.")
-    println("There is also the lattice_points_via_Oscar function available in basic_computation.jl")
-    println("====================================================\n")
-end
+# try
+#     @eval using Normaliz  # top-level import
+#     include("src/Normaliz_backend.jl")
+#     using .Normaliz_backend
+# catch e
+#     Normaliz_available[] = false
+#     println("\n===================== WARNING ======================")
+#     println("Normaliz not available; using CDDLib lattice point enumeration instead.")
+#     println("This is slower, but not the bottleneck, so it should be OK.")
+#     println("You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl")
+#     println("You may have to downgrade your Julia version for Normaliz to work.")
+#     println("There is also the lattice_points_via_Oscar function available in basic_computation.jl")
+#     println("====================================================\n")
+# end
 # ---Import plotting functions
 include("src/plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 
