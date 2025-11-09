@@ -11,13 +11,47 @@ using Printf
 using Base.Threads
 using TOML
 using Random
-using Normaliz
 
-include("plotting_utils.jl") # TODO: do this better; as a module rather than as a script
-include("cpu_intersection.jl")
-include("helpers.jl")
+# mutable flag in module scope
+const Normaliz_available = Ref(true)
+
+# Try to import Normaliz. If it's not available it gives a small warning and modifies the flag
+try
+    @eval using Normaliz  # top-level import
+    include("src/Normaliz_backend.jl")
+    using .Normaliz_backend
+catch e
+    Normaliz_available[] = false
+    println("\n===================== WARNING ======================")
+    println("Normaliz not available; using CDDLib lattice point enumeration instead.")
+    println("This is slower, but not the bottleneck, so it should be OK.")
+    println("You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl")
+    println("You may have to downgrade your Julia version for Normaliz to work.")
+    println("There is also the lattice_points_via_Oscar function available in basic_computation.jl")
+    println("====================================================\n")
+end
+# ---Import plotting functions
+include("src/plotting_utils.jl") # TODO: do this better; as a module rather than as a script
+
+# --- Conditional Package Inclusion ---
+const CUDA_PACKAGES_LOADED = Ref(false)
+try
+    using CUDA, StaticArrays, CUDA.Adapt
+    CUDA_PACKAGES_LOADED[] = true
+catch
+end
+
+for d in 3:6
+    if CUDA_PACKAGES_LOADED[] && isfile("src/Intersection_backends/gpu_intersection_$(d)d.jl")
+        include("src/Intersection_backends/gpu_intersection_$(d)d.jl")
+    end
+end
+
+include("src/plotting_utils.jl") # TODO: do this better; as a module rather than as a script
+include("src/Intersection_backends/cpu_intersection.jl")
+include("src/helpers.jl")
 using .Helpers
-include("basic_computations.jl")
+include("src/basic_computations.jl")
 using .BasicComputations
 
 struct StepStats
@@ -56,6 +90,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     t_start_total = time_ns()
     validation_status = :not_run
 
+    # Printing verbose statements
     function log_verbose(msg...; is_display::Bool=false)
         timestamp = Dates.format(now(), "HH:MM:SS")
         s_msg = if is_display; sprint(show, "text/plain", msg[1]); else; join(msg, " "); end
@@ -68,8 +103,11 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose(initial_vertices, is_display=true)
 
     log_verbose("Step 1: Computing all lattice points...")
-
-    timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices)
+    if Normaliz_available[] # global flag for if the Normaliz package has been imported
+        timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points. Source in Normaliz_backend.jl
+    else 
+        timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
+    end
     P = timed_result_lp.value
     push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
 
@@ -114,7 +152,38 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose("Step 4: Computing intersecting pairs...")
 
     timed_result_intersections = @timed let n_simplices = num_simplices
-        CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices)
+        intersect_func = nothing
+        use_gpu = false
+
+        if config.intersection_backend == "gpu"
+            if dim == 3 && isdefined(@__MODULE__, :GPUIntersection3D)
+                log_verbose("     Using 3D GPU backend...")
+                intersect_func = () -> GPUIntersection3D.get_intersecting_pairs_gpu(P, S_indices)
+                use_gpu = true
+            elseif dim == 4 && isdefined(@__MODULE__, :GPUIntersection4D)
+                log_verbose("     Using 4D GPU backend...")
+                intersect_func = () -> GPUIntersection4D.get_intersecting_pairs_gpu_4d(P, S_indices)
+                use_gpu = true
+            elseif dim == 5 && isdefined(@__MODULE__, :GPUIntersection5D)
+                log_verbose("     Using 5D GPU backend...")
+                intersect_func = () -> GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
+                use_gpu = true
+            elseif dim == 6 && isdefined(@__MODULE__, :GPUIntersection6D)
+                log_verbose("     Using 6D GPU backend...")
+                intersect_func = () -> GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
+                use_gpu = true
+            end
+        end
+
+        if use_gpu && !isnothing(intersect_func)
+            intersect_func() # Execute the selected GPU function
+        else
+            if config.intersection_backend == "gpu"
+                 log_verbose("     WARNING: GPU backend for $(dim)D not available. Falling back to CPU.")
+            end
+            log_verbose("     Using CPU backend.")
+            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices, Val(dim))
+        end
     end
 
     intersection_clauses = timed_result_intersections.value
@@ -220,7 +289,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     if !isempty(config.plotter)
         log_verbose("\nStep 7: Plotting results...")
         if dim == 3
-            temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+            temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
         elseif dim == 4
 
@@ -254,7 +323,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
                 end
 
-                temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(projected_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+                temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(projected_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
             end
 
@@ -315,7 +384,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
                         unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
 
-                        temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+                        temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
                     end
 
@@ -379,7 +448,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
                     unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
 
-                    temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
+                    temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
 
                 end
 
@@ -537,9 +606,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             end
 
             println()
-            println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
-                                            "Step Name", "Total Time", "Avg Time", "Max Memory", "Avg Memory"))
-            println(stats_table_buf, "-"^93)
+            println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
+                                            "Step Name", "Total Time", "Avg Time", "Max Time", "Max Memory", "Avg Memory"))
+            println(stats_table_buf, "-"^108)
 
             for step_name in step_order
                 times = step_times[step_name]
@@ -548,14 +617,16 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
                 if isempty(times); continue; end 
                 
                 total_time = sum(times)
+                max_time = isempty(times) ? 0 : maximum(times)
                 avg_time = total_time / length(times)
                 max_mem = isempty(bytes) ? 0 : maximum(bytes)
                 avg_mem = isempty(bytes) ? 0.0 : sum(bytes) / length(bytes)
 
-                println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s",
+                println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
                                                 step_name,
                                                 format_duration(total_time),
                                                 @sprintf("%.3f s", avg_time),
+                                                @sprintf("%.3f s", max_time),
                                                 format_bytes(max_mem),
                                                 format_bytes(avg_mem)))
             end
@@ -586,8 +657,8 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     end
     
     if !isnothing(log_stream)
-        final_log_str = summary_core_str * stats_table_str
-        print(log_stream, replace(final_log_str, r"\u001b\[\d+m" => ""))
+        print(log_stream, replace(summary_core_str, r"\u001b\[\d+m" => ""))
+        print(log_stream, replace(stats_table_str, r"\u001b\[\d+m" => ""))
         flush(log_stream)
     end
 

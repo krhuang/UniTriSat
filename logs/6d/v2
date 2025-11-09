@@ -1,0 +1,192 @@
+
+
+################################################################################
+# New Run Started at 2025-11-07T12:49:19.720
+################################################################################
+Number of threads:                   16
+Solve mode:                          Find First
+Intersection backend selected:       gpu
+Validation enabled:                  false
+Number of polytopes found:           4
+Restricting to unimodular simplices: true
+
+[12:49:19] Processing 6D Polytope #1
+[12:49:19] Initial vertices provided:
+[12:49:19] 7×6 Matrix{Int64}:
+ 0  0  0  0  0  0
+ 1  0  0  0  0  0
+ 0  1  0  0  0  0
+ 0  0  1  0  0  0
+ 0  0  0  1  0  0
+ 0  0  0  0  1  0
+ 1  1  1  1  1  2
+[12:49:19] Step 1: Computing all lattice points...
+[12:49:19] -> Found 7 lattice points. Step 1 complete.
+
+[12:49:19] Step 2: Computing unimodular 6-simplices...
+[12:49:19] -> Found 0 simplices. Step 2 complete.
+
+
+No simplices available. Cannot proceed.[12:49:19] Processing 6D Polytope #2
+[12:49:19] Initial vertices provided:
+[12:49:19] 7×6 Matrix{Int64}:
+ 0  0  0  0  0  0
+ 1  0  0  0  0  0
+ 0  1  0  0  0  0
+ 0  0  1  0  0  0
+ 0  0  0  1  0  0
+ 0  0  0  0  1  0
+ 0  0  0  0  1  2
+[12:49:19] Step 1: Computing all lattice points...
+[12:49:19] -> Found 8 lattice points. Step 1 complete.
+
+[12:49:19] Step 2: Computing unimodular 6-simplices...
+[12:49:19] -> Found 2 simplices. Step 2 complete.
+
+[12:49:19] Step 3: Computing internal faces...
+[12:49:19] -> Found 1 unique internal faces. Step 3 complete.
+
+[12:49:19] Step 4: Computing intersecting pairs...
+[12:49:19]      Using 6D GPU backend...
+[12:49:28] -> Found 0 intersecting pairs. Step 4a complete.
+
+[12:49:28] Step 4b: Generating face-covering clauses...
+[12:49:28] -> Found 2 face-covering clauses. Step 4b complete.
+
+[12:49:28] Step 5: Handing SAT problem to solver...
+[12:49:28]       Problem details: 2 variables, 3 clauses.
+[12:49:28] -> SAT solver finished. Step 5 complete.
+[12:49:28] 
+1 valid triangulation(s) found.
+[12:49:28] 
+Displaying first valid triangulation:
+[12:49:28] 7×6 Matrix{Int64}:
+ 0  0  0  0  0  0
+ 0  0  0  0  1  0
+ 0  0  0  0  1  1
+ 0  0  0  1  0  0
+ 0  0  1  0  0  0
+ 0  1  0  0  0  0
+ 1  0  0  0  0  0
+[12:49:28] 7×6 Matrix{Int64}:
+ 0  0  0  0  0  0
+ 0  0  0  0  1  1
+ 0  0  0  0  1  2
+ 0  0  0  1  0  0
+ 0  0  1  0  0  0
+ 0  1  0  0  0  0
+ 1  0  0  0  0  0
+[12:49:28] 
+--- Timing & Memory Summary for Polytope #2 ---
+Step                                          | Duration     | Allocations 
+-------------------------------------------------------------------------
+Compute all lattice points                    | 0.0004 s     | 23.95 KiB   
+Compute unimodular simplices                  | 0.0000 s     | 4.31 KiB    
+Compute internal faces                        | 0.0538 s     | 4.46 MiB    
+Compute intersecting pairs                    | 8.6972 s     | 614.78 MiB  
+Generate face-covering clauses                | 0.0418 s     | 2.49 MiB    
+Solve SAT problem                             | 0.0000 s     | 160 B       
+-------------------------------------------------------------------------
+Total execution time                          | 8.7940 s     |             
+Peak memory usage (Max RSS)                  : 1553.40 MiB
+
+[12:49:28] Processing 6D Polytope #3
+[12:49:28] Initial vertices provided:
+[12:49:28] 7×6 Matrix{Int64}:
+ 0  0  0  0  0  0
+ 1  0  0  0  0  0
+ 0  1  0  0  0  0
+ 0  0  1  0  0  0
+ 0  0  0  1  0  0
+ 0  0  0  0  1  0
+ 0  0  1  1  1  2
+[12:49:28] Step 1: Computing all lattice points...
+[12:49:28] -> Found 7 lattice points. Step 1 complete.
+
+[12:49:28] Step 2: Computing unimodular 6-simplices...
+[12:49:28] -> Found 0 simplices. Step 2 complete.
+
+
+No simplices available. Cannot proceed.[12:49:28] Processing 6D Polytope #4
+[12:49:28] Initial vertices provided:
+[12:49:28] 8×6 Matrix{Int64}:
+ 0  0  0   0  0  0
+ 1  0  0   0  0  0
+ 0  1  0   0  0  0
+ 0  0  1   0  0  0
+ 0  0  0   1  0  0
+ 0  0  0   0  1  0
+ 0  0  0   0  0  1
+ 0  0  0  -1  1  1
+[12:49:28] Step 1: Computing all lattice points...
+[12:49:28] -> Found 8 lattice points. Step 1 complete.
+
+[12:49:28] Step 2: Computing unimodular 6-simplices...
+[12:49:28] -> Found 4 simplices. Step 2 complete.
+
+[12:49:28] Step 3: Computing internal faces...
+[12:49:28] -> Found 2 unique internal faces. Step 3 complete.
+
+[12:49:28] Step 4: Computing intersecting pairs...
+[12:49:28]      Using 6D GPU backend...
+[12:49:28] -> Found 4 intersecting pairs. Step 4a complete.
+
+[12:49:28] Step 4b: Generating face-covering clauses...
+[12:49:28] -> Found 4 face-covering clauses. Step 4b complete.
+
+[12:49:28] Step 5: Handing SAT problem to solver...
+[12:49:28]       Problem details: 4 variables, 9 clauses.
+[12:49:28] -> SAT solver finished. Step 5 complete.
+[12:49:28] 
+1 valid triangulation(s) found.
+[12:49:28] 
+Displaying first valid triangulation:
+[12:49:28] 7×6 Matrix{Int64}:
+ 0  0  0  -1  1  1
+ 0  0  0   0  0  0
+ 0  0  0   0  0  1
+ 0  0  0   1  0  0
+ 0  0  1   0  0  0
+ 0  1  0   0  0  0
+ 1  0  0   0  0  0
+[12:49:28] 7×6 Matrix{Int64}:
+ 0  0  0  -1  1  1
+ 0  0  0   0  0  0
+ 0  0  0   0  1  0
+ 0  0  0   1  0  0
+ 0  0  1   0  0  0
+ 0  1  0   0  0  0
+ 1  0  0   0  0  0
+[12:49:28] 
+--- Timing & Memory Summary for Polytope #4 ---
+Step                                          | Duration     | Allocations 
+-------------------------------------------------------------------------
+Compute all lattice points                    | 0.0004 s     | 25.16 KiB   
+Compute unimodular simplices                  | 0.0000 s     | 4.44 KiB    
+Compute internal faces                        | 0.0007 s     | 310.63 KiB  
+Compute intersecting pairs                    | 0.4468 s     | 36.12 MiB   
+Generate face-covering clauses                | 0.0002 s     | 24.42 KiB   
+Solve SAT problem                             | 0.0000 s     | 176 B       
+-------------------------------------------------------------------------
+Total execution time                          | 0.4487 s     |             
+Peak memory usage (Max RSS)                  : 1553.40 MiB
+
+
+Run finished: 12:49:28
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:     4
+Triangulatable:                2
+Non-Triangulatable:            2
+Total Run Time:                00:00:09
+----------------------------------------
+Step Name                           | Total Time   | Avg Time     | Max Time     | Max Memory   | Avg Memory  
+------------------------------------------------------------------------------------------------------------
+Compute all lattice points          | 00:00:00     | 0.000 s      | 0.001 s      | 25.16 KiB    | 23.59 KiB   
+Compute unimodular simplices        | 00:00:00     | 0.000 s      | 0.000 s      | 4.44 KiB     | 2.78 KiB    
+Compute internal faces              | 00:00:00     | 0.027 s      | 0.054 s      | 4.46 MiB     | 2.38 MiB    
+Compute intersecting pairs          | 00:00:09     | 4.572 s      | 8.697 s      | 614.78 MiB   | 325.45 MiB  
+Generate face-covering clauses      | 00:00:00     | 0.021 s      | 0.042 s      | 2.49 MiB     | 1.26 MiB    
+Solve SAT problem                   | 00:00:00     | 0.000 s      | 0.000 s      | 176 B        | 168 B       
