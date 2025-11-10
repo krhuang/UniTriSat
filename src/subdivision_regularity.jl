@@ -15,11 +15,6 @@ function adjacent_simplices(triangulation::Vector{Vector{Int}}, face::Set{Int})
     [s for s in triangulation if issubset(face, s)]
 end
 
-function simplex_orientation(points::Matrix{Rational{BigInt}}, simplex::Vector{Int})
-    A = hcat(points[simplex, :], ones(Rational{BigInt}, length(simplex)))
-    return det(A)
-end
-
 # This is a mess. TODO: Fix it when you get a chance
 function is_regular(points::Matrix{Rational{BigInt}}, triangulation::Vector{Vector{Int}})
     n, dimension = size(points)
@@ -68,6 +63,7 @@ function is_regular(points::Matrix{Rational{BigInt}}, triangulation::Vector{Vect
     return dim(P) == n
 end
 
+#=
 points2D = Rational{BigInt}.([
     0 0;
     1 0;
@@ -120,3 +116,4 @@ triangulation_nonreg = [
 ]
 
 println("The mother of all examples is regular?", is_regular(points_nonreg, triangulation_nonreg))
+=#
