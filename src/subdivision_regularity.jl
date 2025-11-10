@@ -21,7 +21,7 @@ function simplex_orientation(points::Matrix{Rational{BigInt}}, simplex::Vector{I
 end
 
 # This is a mess. TODO: Fix it when you get a chance
-function is_regular_exact(points::Matrix{Rational{BigInt}}, triangulation::Vector{Vector{Int}})
+function is_regular(points::Matrix{Rational{BigInt}}, triangulation::Vector{Vector{Int}})
     n, dimension = size(points)
     internal = internal_faces(triangulation, dimension)
     println(size(internal))
@@ -37,21 +37,7 @@ function is_regular_exact(points::Matrix{Rational{BigInt}}, triangulation::Vecto
 
             # Constructing the folding form
             # See Definition 5.2.4 "Folding Form" of De Loera, Rambau, Santos - Triangulations: Structures for Algorithms and Applications
-            #=
-            # Sign fixing
             
-            o1 = simplex_orientation(points, vcat(collect(face), p)) 
-            o2 = simplex_orientation(points, vcat(collect(face), q))
-            sgn = sign(o1 * o2)
-            if sgn == 0
-                continue
-            end
-
-            row = zeros(Rational{BigInt}, n)
-            row[p] = sgn
-            row[q] = -sgn
-            push!(A, row)
-            =#
             submatrix = points[s1, :]
             # sign/orientation computation for the simplex
             aug = hcat(submatrix, ones(Rational{BigInt}, size(submatrix,1)))  # hcat adds a column
@@ -77,7 +63,6 @@ function is_regular_exact(points::Matrix{Rational{BigInt}}, triangulation::Vecto
     # Build exact polyhedron
    	
 	P = polyhedron(hrep(folding_forms_matrix, b), CDDLib.Library(:exact))
-	println(P)
 
     # Check full dimensionality (open feasibility)
     return dim(P) == n
@@ -93,45 +78,45 @@ triangulation2D = [
     [1,2,3],
     [2,4,3]
 ]
-println("Regular? ", is_regular_exact(points2D, triangulation2D))
+println("Regular? ", is_regular(points2D, triangulation2D))
 
 # Mother of all examples
 
 points_nonreg = Rational{BigInt}.([
 	0 0; #1
 	1 0; #2
-	0 1; #3
-	2 0; #4
-	1 1; #5
-	0 2; #6 
-	3 0; #7
+	2 0; #3
+	3 0; #4
+	4 0; #5
+	0 1; #6
+	1 1; #7
 	2 1; #8
-	1 2; #9
-	0 3; #10
-	4 0; #11
-	3 1; #12
-	2 2; #13
+	3 1; #9
+	0 2; #10
+	1 2; #11
+	2 2; #12
+	0 3; #13
 	1 3; #14
-	0 4  #15
+	0 4 #15
 ])
 
 triangulation_nonreg = [
-	[1, 5, 8],
-	[5, 8, 9],
-	[11, 8, 9],
-	[15, 5, 9],
-	[1, 3, 5],
-	[3, 5, 6],
-	[5, 6, 10],
-	[6, 10, 15],
+	[1, 6, 7],
+	[1, 7, 8],
 	[1, 2, 8],
-	[2, 8, 6],
-	[8, 6, 7],
-	[8, 7, 11],
-	[9, 15, 14],
-	[9, 14, 13],
-	[9, 13, 12],
-	[9, 12, 11]
+	[2, 3, 8],
+	[3, 4, 8],
+	[4, 5, 8],
+	[5, 8, 11],
+	[5, 9, 11],
+	[6, 7, 10],
+	[7, 10, 13],
+	[7, 13, 15],
+	[7, 11, 15],
+	[7, 8, 11],
+	[9, 11, 12],
+	[11, 12, 14],
+	[11, 14, 15]
 ]
 
-println("The mother of all examples is regular?", is_regular_exact(points_nonreg, triangulation_nonreg))
+println("The mother of all examples is regular?", is_regular(points_nonreg, triangulation_nonreg))
