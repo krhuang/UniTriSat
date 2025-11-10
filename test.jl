@@ -7,10 +7,12 @@ include("src/helpers.jl")
 using .Helpers
 
 
-terminal_output = "table, final" #initial, running, table, final
+terminal_output = "running, table, final" #initial, running, table, final
 
 test_results = []
 test_num = 1
+
+test_names = []
 
 if length(ARGS) > 0
     backend=ARGS[1]
@@ -18,9 +20,18 @@ else
     backend="cpu"
 end
 
-
 println("-")
-println(styled"{bold, blue:Test $test_num, Vol 6 3D. Expect 43 triangulatable polytopes}")
+println(styled"{bold, blue:Test plotting}")
+println("-")
+results  = triangulate(
+    "Polytopes/Big3D",
+    terminal_output=terminal_output, intersection_backend=backend, plot=true
+    )
+
+test_name = "Vol 6 3D"
+push!(test_names, test_name)
+println("-")
+println(styled"{bold, blue:Test $test_num, $test_name. Expect 43 triangulatable polytopes}")
 println("-")
 results  = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt",
@@ -38,8 +49,11 @@ else
 end
 test_num += 1
 
+
+test_name = "Vol 12 3D"
+push!(test_names, test_name)
 println("-")
-println(styled"{bold, blue:Test $test_num, Vol 12 3D. Expect 745 triangulatable polytopes}")
+println(styled"{bold, blue:Test $test_num, $test_name. Expect 745 triangulatable polytopes}")
 println("-")
 results = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v12.txt",
@@ -57,8 +71,10 @@ else
 end
 test_num += 1
 
+test_name = "Vol 16 3D"
+push!(test_names, test_name)
 println("-")
-println(styled"{bold, blue:Test $test_num, Vol 16 3D. Expect 3288 triangulatable polytopes}")
+println(styled"{bold, blue:Test $test_num, $test_name. Expect 3288 triangulatable polytopes}")
 println("-")
 results = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v16.txt",
@@ -76,8 +92,10 @@ else
 end
 test_num += 1
 
+test_name = "Vol 10 4D"
+push!(test_names, test_name)
 println("-")
-println(styled"{bold, blue:Test $test_num, Vol 10 4D. Expect 618 triangulatable polytopes}")
+println(styled"{bold, blue:Test $test_num, $test_name. Expect 618 triangulatable polytopes}")
 println("-")
 results = triangulate(
     "Polytopes/small-lattice-polytopes/data/4-polytopes/v10.txt",
@@ -95,8 +113,10 @@ else
 end
 test_num += 1
 
+test_name = "Vol 10 5D"
+push!(test_names, test_name)
 println("-")
-println(styled"{bold, blue:Test $test_num, Vol 10 5D. Expect 841 triangulatable polytopes}")
+println(styled"{bold, blue:Test $test_num, $test_name. Expect 841 triangulatable polytopes}")
 println("-")
 results = triangulate(
     "Polytopes/small-lattice-polytopes/data/5-polytopes/v10.txt",
@@ -114,8 +134,10 @@ else
 end
 test_num += 1
 
+test_name = "Vol 10 6D"
+push!(test_names, test_name)
 println("-")
-println(styled"{bold, blue:Test $test_num, Vol 10 6D. Expect 959 triangulatable polytopes}")
+println(styled"{bold, blue:Test $test_num, $test_name. Expect 959 triangulatable polytopes}")
 println("-")
 results = triangulate(
     "Polytopes/small-lattice-polytopes/data/6-polytopes/v10.txt",
@@ -190,8 +212,8 @@ test_num += 1
 # Final summary
 for (i, res) in enumerate(test_results)
     if !startswith(res, "failed")
-        println(styled"Test $i: {bold, green: passed} in $res")
+        println(styled"Test $(test_names[i]): {bold, green: passed} in $res")
     else
-        println(styled"Test $i: {bold, red:$res}")
+        println(styled"Test $(test_names[i]): {bold, red:$res}")
     end
 end

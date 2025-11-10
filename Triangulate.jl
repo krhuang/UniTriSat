@@ -30,8 +30,6 @@ catch e
     println("There is also the lattice_points_via_Oscar function available in basic_computation.jl")
     println("====================================================\n")
 end
-# ---Import plotting functions
-include("src/plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 
 # --- Conditional Package Inclusion ---
 const CUDA_PACKAGES_LOADED = Ref(false)
@@ -47,12 +45,13 @@ for d in 3:6
     end
 end
 
-include("src/plotting_utils.jl") # TODO: do this better; as a module rather than as a script
 include("src/Intersection_backends/cpu_intersection.jl")
 include("src/helpers.jl")
 using .Helpers
 include("src/basic_computations.jl")
 using .BasicComputations
+include("src/plot.jl")
+using .Plot
 
 struct StepStats
     name::String
@@ -78,7 +77,7 @@ mutable struct Config
     intersection_backend::String
     find_all::Bool
     validate::Bool
-    plotter::String
+    plot::Bool
 end
 
 function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool)
@@ -286,178 +285,10 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         end
     end
 
-    if !isempty(config.plotter)
+    if config.plot
         log_verbose("\nStep 7: Plotting results...")
-        if dim == 3
-            temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(first_solution_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
-
-        elseif dim == 4
-
-            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices)); boundary_planes = collect(halfspaces(hrep(initial_poly)))
-
-            solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
-
-            for (plane_idx, plane) in enumerate(boundary_planes)
-
-                facet_triangulation_4D = [s for s in solution_simplices_rational if count(v -> iszero(dot(plane.a, v) - plane.β), eachrow(s)) == 4]
-
-                if isempty(facet_triangulation_4D); continue; end
-
-                log_verbose("     Plotting induced 3D triangulation for facet #$plane_idx...")
-
-                origin_4d = facet_triangulation_4D[1][1,:]; basis_3d = get_orthonormal_basis(plane.a)
-
-                projected_simplices = Vector{Matrix{Int}}()
-
-                for s in facet_triangulation_4D
-
-                    face_vertices_on_plane = filter(v -> iszero(dot(plane.a, v) - plane.β), eachrow(s))
-
-                    if length(face_vertices_on_plane) == 4
-
-                        projected_verts_3d = [round.(Int, [dot(v - origin_4d, b) for b in basis_3d]) for v in face_vertices_on_plane]
-
-                        push!(projected_simplices, vcat(projected_verts_3d'...))
-
-                    end
-
-                end
-
-                temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(projected_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
-
-            end
-
-        elseif dim == 5
-
-            log_verbose("     Plotting induced 3D triangulations for 3-faces...")
-
-            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices))
-
-            boundary_planes = collect(halfspaces(hrep(initial_poly)))
-
-            solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
-
-
-            for i in 1:length(boundary_planes)
-
-                for j in (i + 1):length(boundary_planes)
-
-                    plane1 = boundary_planes[i]
-
-                    plane2 = boundary_planes[j]
-
-
-                    face_simplices_5D = [s for s in solution_simplices_rational if count(v -> iszero(dot(plane1.a, v) - plane1.β) && iszero(dot(plane2.a, v) - plane2.β), eachrow(s)) >= 4]
-
-                    if isempty(face_simplices_5D); continue; end
-
-
-                    log_verbose("     Plotting 3-face defined by facets #$i and #$j...")
-
-                    
-
-                    origin_5d = first(filter(v -> iszero(dot(plane1.a, v) - plane1.β) && iszero(dot(plane2.a, v) - plane2.β), eachrow(face_simplices_5D[1])))
-
-                    basis_3d = get_orthonormal_basis_for_subspace_3d(plane1.a, plane2.a)
-
-                    
-
-                    projected_simplices = Vector{Matrix{Int}}()
-
-                    for s in face_simplices_5D
-
-                        verts_on_face = filter(v -> iszero(dot(plane1.a, v) - plane1.β) && iszero(dot(plane2.a, v) - plane2.β), eachrow(s))
-
-                        for tetra_verts in combinations(verts_on_face, 4)
-
-                            projected_verts_3d = [round.(Int, [dot(v - origin_5d, b) for b in basis_3d]) for v in tetra_verts]
-
-                            push!(projected_simplices, vcat(projected_verts_3d'...))
-
-                        end
-
-                    end
-
-                    
-
-                    if !isempty(projected_simplices)
-
-                        unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
-
-                        temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
-
-                    end
-
-                end
-
-            end
-
-        elseif dim == 6
-
-            log_verbose("     Plotting induced 3D triangulations for 3-faces...")
-
-            initial_poly = Polyhedra.polyhedron(vrep(initial_vertices))
-
-            boundary_planes = collect(halfspaces(hrep(initial_poly)))
-
-            solution_simplices_rational = [P[collect(S_indices[i]), :] for i in findall(l -> l > 0, first(solutions))]
-
-
-            # Iterate over all triples of facets to find 3-dimensional faces
-
-            for i in 1:length(boundary_planes), j in (i+1):length(boundary_planes), k in (j+1):length(boundary_planes)
-
-                p1, p2, p3 = boundary_planes[i], boundary_planes[j], boundary_planes[k]
-
-                
-
-                face_simplices_6D = [s for s in solution_simplices_rational if count(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(s)) >= 4]
-
-                if isempty(face_simplices_6D); continue; end
-
-
-                log_verbose("     Plotting 3-face defined by facets #$i, #$j, and #$k...")
-
-                
-
-                origin_6d = first(filter(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(face_simplices_6D[1])))
-
-                basis_3d = get_orthonormal_basis_for_subspace_3d_from_6d(p1.a, p2.a, p3.a)
-
-
-
-                projected_simplices = Vector{Matrix{Int}}()
-
-                for s in face_simplices_6D
-
-                    verts_on_face = filter(v -> iszero(dot(p1.a, v) - p1.β) && iszero(dot(p2.a, v) - p2.β) && iszero(dot(p3.a, v) - p3.β), eachrow(s))
-
-                    for tetra_verts in combinations(verts_on_face, 4)
-
-                        projected_verts_3d = [round.(Int, [dot(v - origin_6d, b) for b in basis_3d]) for v in tetra_verts]
-
-                        push!(projected_simplices, vcat(projected_verts_3d'...))
-
-                    end
-
-                end
-
-
-
-                if !isempty(projected_simplices)
-
-                    unique_simplices = unique(s -> Tuple(sortslices(s, dims=1)), projected_simplices)
-
-                    temp_path, temp_io = mktemp(); try write(temp_io, format_simplices_for_plotter(unique_simplices)); close(temp_io); run(`python src/plot_triangulation.py $(temp_path)`); finally rm(temp_path, force=true); end
-
-                end
-
-            end
-
-        end
-
+        plot(initial_vertices, dim, first_solution_simplices)
         log_verbose("-> Plotting complete. Step 6 complete.")
-
     end 
 
     summary_buf = IOBuffer()
@@ -665,9 +496,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     return results
 end
 
-function _triangulate(polytopes::Vector{Matrix{Int}}, intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
+function _triangulate(polytopes::Vector{Matrix{Int}}, intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
 
-    config = Config(terminal_output, only_unimodular, intersection_backend, find_all, validate, plotter)
+    config = Config(terminal_output, only_unimodular, intersection_backend, find_all, validate, plot)
 
     log_stream = nothing
     results = ProcessResult[] 
@@ -699,16 +530,16 @@ end
 
 # Public
 
-function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
+function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
     vmatrix = _convert_polyhedron_to_vmatrix(polytope)
     if isempty(vmatrix)
         @error("Could not process a single polytope")
         return nothing
     end
-    results = process_polytope(vmatrix, 1, 1, Config(terminal_output, only_unimodular, intersection_backend, find_all, validate, plotter), false)
+    results = process_polytope(vmatrix, 1, 1, Config(terminal_output, only_unimodular, intersection_backend, find_all, validate, plot), false)
 end
 
-function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
+function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
     vmatrices = Matrix{Int}[]
     for p in polytopes
         vmatrix = _convert_polyhedron_to_vmatrix(p)
@@ -724,10 +555,10 @@ function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String
         return ProcessResult[]
     end
 
-    return _triangulate(vmatrices, intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plotter)
+    return _triangulate(vmatrices, intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plot)
 end
 
-function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plotter::String="")
+function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", only_unimodular::Bool=true, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
     local polytopes
     try
         polytopes = read_polytopes_from_file(path_to_polytopes)
@@ -736,7 +567,7 @@ function triangulate(path_to_polytopes::String; intersection_backend::String="cp
         @error("Error loading polytopes from '$path_to_polytopes': '$e'")
         return ProcessResult[]
     end
-    return _triangulate(polytopes, intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plotter)
+    return _triangulate(polytopes, intersection_backend, only_unimodular, find_all, log_file, terminal_output, validate, plot)
 end
 
 

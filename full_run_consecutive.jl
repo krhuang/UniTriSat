@@ -25,7 +25,7 @@ for n in lower:ms[d-2]
     println("-")
     println(styled"{bold, blue:Dimension $(d), Volume $(n)}")
     println("-")
-    results  = triangulate(
+    triangulate(
         "Polytopes/small-lattice-polytopes/data/$(d)-polytopes/v$(n).txt",
         terminal_output=terminal_output,
         log_file="logs/$(d)d/v$(n)",
