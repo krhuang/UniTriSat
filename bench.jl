@@ -44,7 +44,7 @@ for backend in backends
     end
 end
 
-for i in 1:length(n)
+for i in 1:n
     for (j,backend) in enumerate(backends)
         time = format_duration(bench_results[(j-1)*n+i])
         println("Benchmark $i: $(bench_names[i]), ran on $backend: $time")
