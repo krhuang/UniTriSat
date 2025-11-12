@@ -142,10 +142,10 @@ mutable struct Config
     find_all::Bool
     validate::Bool
     plot::Bool
+    use_normaliz::Bool
 end
 
 function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool)
-
     dim = size(initial_vertices, 2)
 
     buf = IOBuffer()
@@ -166,7 +166,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose(initial_vertices, is_display=true)
 
     log_verbose("Step 1: Computing all lattice points...")
-    if Normaliz_available[] # global flag for if the Normaliz package has been imported
+    if Normaliz_available[] && config.use_normaliz # global flag for if the Normaliz package has been imported
         timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points. Source in Normaliz_backend.jl
     else 
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
@@ -418,6 +418,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         println(term_summary_buf, "Number of polytopes found:           $(length(polytopes))")
         println(term_summary_buf, "Restricting to unimodular simplices: $(config.unimodular)")
         println(term_summary_buf, "Looking for regular triangulations:  $(config.regular)")
+        println(term_summary_buf, "Using Normaliz:                      $(config.use_normaliz)")
         println(term_summary_buf, "")
         print(stdout, String(take!(term_summary_buf)))
     end
@@ -431,6 +432,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         println(log_summary_buf, "Number of polytopes found:           $(length(polytopes))")
         println(log_summary_buf, "Restricting to unimodular simplices: $(config.unimodular)")
         println(log_summary_buf, "Looking for regular triangulations:  $(config.regular)")
+        println(log_summary_buf, "Using Normaliz:                      $(config.use_normaliz)")
         println(log_summary_buf, "")
         print(log_stream, String(take!(log_summary_buf)))
         flush(log_stream)
@@ -592,9 +594,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     return results
 end
 
-function _triangulate(polytopes::Vector{Matrix{Int}}, intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
+function _triangulate(polytopes::Vector{Matrix{Int}}, intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false)
 
-    config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot)
+    config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz)
 
     log_stream = nothing
     results = ProcessResult[] 
@@ -626,24 +628,24 @@ end
 
 # Public
 
-function triangulate(polytope::Matrix{Int}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
-    results = process_polytope(polytope, 1, 1, Config(terminal_output, unimodular, intersection_backend, find_all, validate, plot), false)
+function triangulate(polytope::Matrix{Int}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false)
+    results = process_polytope(polytope, 1, 1, Config(terminal_output, unimodular, intersection_backend, find_all, validate, plot, use_normaliz), false)
 end
 
-function triangulate(polytopes::Vector{Matrix{Int}}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
-    return _triangulate(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot)
+function triangulate(polytopes::Vector{Matrix{Int}}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false)
+    return _triangulate(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz)
 end
 
-function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
+function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false)
     vmatrix = _convert_polyhedron_to_vmatrix(polytope)
     if isempty(vmatrix)
         @error("Could not process a single polytope")
         return nothing
     end
-    results = process_polytope(vmatrix, 1, 1, Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot), false)
+    results = process_polytope(vmatrix, 1, 1, Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz), false)
 end
 
-function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
+function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false)
     vmatrices = Matrix{Int}[]
     for p in polytopes
         vmatrix = _convert_polyhedron_to_vmatrix(p)
@@ -659,10 +661,10 @@ function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String
         return ProcessResult[]
     end
 
-    return _triangulate(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot)
+    return _triangulate(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz)
 end
 
-function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false)
+function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false)
     local polytopes
     try
         polytopes = read_polytopes_from_file(path_to_polytopes)
@@ -671,7 +673,7 @@ function triangulate(path_to_polytopes::String; intersection_backend::String="cp
         @error("Error loading polytopes from '$path_to_polytopes': '$e'")
         return ProcessResult[]
     end
-    return _triangulate(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot)
+    return _triangulate(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz)
 end
 
 

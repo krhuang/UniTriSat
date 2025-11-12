@@ -29,5 +29,7 @@ for n in lower:ms[d-2]
         "Polytopes/small-lattice-polytopes/data/$(d)-polytopes/v$(n).txt",
         terminal_output=terminal_output,
         log_file="logs/$(d)d/v$(n)",
-        intersection_backend=backend)
+        intersection_backend=backend,
+        use_normaliz=true
+        )
 end
