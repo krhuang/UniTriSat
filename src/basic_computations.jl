@@ -107,7 +107,7 @@ function next_combination!(inds::Vector{Int}, n::Int)
     return false  # no next combination
 end
 
-function all_simplices(lattice_points::Matrix{Int}; only_unimodular::Bool=false)
+function all_simplices(lattice_points::Matrix{Int}; unimodular::Bool=true)
     n, d = size(lattice_points)
     simplex_indices = NTuple{d+1,Int}[]
     if n < d + 1
@@ -126,7 +126,7 @@ function all_simplices(lattice_points::Matrix{Int}; only_unimodular::Bool=false)
             end
         end
         det_val = LinearAlgebra.det_bareiss(diffs) # use exact integer determinant
-        if det_val != 0 && (!only_unimodular || abs(det_val) == 1)
+        if det_val != 0 && (!unimodular || abs(det_val) == 1)
             push!(simplex_indices, Tuple(inds))
         end
         next_combination!(inds, n) || break

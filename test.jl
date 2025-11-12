@@ -5,6 +5,8 @@ include("Triangulate.jl")
 using .Triangulate
 include("src/helpers.jl")
 using .Helpers
+include("src/subdivision_regularity.jl")
+using .SubdivisionRegularity
 
 
 terminal_output = "running, table, final" #initial, running, table, final
@@ -20,13 +22,13 @@ else
     backend="cpu"
 end
 
-println("-")
-println(styled"{bold, blue:Test plotting}")
-println("-")
-results  = triangulate(
-    "Polytopes/Big3D",
-    terminal_output=terminal_output, intersection_backend=backend, plot=true
-    )
+# println("-")
+# println(styled"{bold, blue:Test plotting}")
+# println("-")
+# results  = triangulate(
+#     "Polytopes/Big3D",
+#     terminal_output=terminal_output, intersection_backend=backend, plot=true
+#     )
 
 test_name = "Vol 6 3D"
 push!(test_names, test_name)
@@ -155,8 +157,10 @@ else
 end
 test_num += 1
 
+test_name = "Regularity of the \"Mother of all Examples\"}"
+push!(test_names, test_name)
 println("-")
-println(styled"{bold, blue:Test $test_num, Regularity of the \"Mother of all Examples\"}. Expect non-regular.")
+println(styled"{bold, blue:Test $test_num, $test_name. Expect non-regular}")
 println("-")
 
 points_nonreg = Rational{BigInt}.([

@@ -25,6 +25,7 @@ results  = triangulate(
     "Polytopes/small-lattice-polytopes/data/$(d)-polytopes/v$(n).txt",
     terminal_output=terminal_output,
 #    log_file="logs/$(d)d/v$(n)_$(backend)",
-    intersection_backend=backend
+    intersection_backend=backend,
+    regular=true
     )
 
