@@ -28,7 +28,8 @@ module SubdivisionRegularity
 	# This is a mess. TODO: Fix it when you get a chance
 	function is_regular(triangulation::Vector{Matrix{Int}})
 	    dimension = size(first(triangulation), 2)
-	    points = unique(vcat(triangulation...; dims=1))
+	    #points = unique(vcat(triangulation...; dims=1))
+	    points = [x for x in Set(point for simplex in triangulation for point in eachrow(simplex))]
 	    n = size(points, 1)
 	    internal = internal_faces(triangulation, dimension)
 	    println("Number of internal faces: ", length(internal))

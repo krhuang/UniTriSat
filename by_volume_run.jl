@@ -27,7 +27,7 @@ results  = triangulate(
     terminal_output=terminal_output,
 #    log_file="logs/$(d)d/v$(n)_$(backend)",
     intersection_backend=backend,
-    regular=true
+    regular=true,
     use_normaliz=false
     )
 
