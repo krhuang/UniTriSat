@@ -255,7 +255,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         if config.regular
             sol_indices = findall(l -> l > 0, solution)
             solution_simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
-            if is_regular(solution_simplices)
+            if is_regular(solution_simplices, dim)
                 num_regular_solutions += 1
                 push!(regular_solutions, solution)
                 if !config.find_all; break; end # if we wanted a regular solution, but not all solutions, we can stop here
@@ -506,6 +506,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     Run Summary
     ----------------------------------------
     Total Polytopes Processed:     $(length(polytopes))
+    Regularly Triangulatable:      \u001b[32m$regular_triangulations_found_count\u001b[0m
     Triangulatable:                \u001b[32m$triangulations_found_count\u001b[0m
     Non-Triangulatable:            \u001b[31m$non_triangulatable_count\u001b[0m
     $(avg_solutions_str)Total Run Time:                $(format_duration(total_time_run))

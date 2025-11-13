@@ -26,13 +26,14 @@ module SubdivisionRegularity
 	end
 
 	# This is a mess. TODO: Fix it when you get a chance
-	function is_regular(triangulation::Vector{Matrix{Int}})
+	function is_regular(triangulation::Vector{Matrix{Int}}, dim::Int)
+		if length(triangulation) == 1; return true; end
 	    dimension = size(first(triangulation), 2)
-	    #points = unique(vcat(triangulation...; dims=1))
+	    #points = unique(vcat(triangulation...))
 	    points = [x for x in Set(point for simplex in triangulation for point in eachrow(simplex))]
-	    n = size(points, 1)
+	    n = length(points)
 	    internal = internal_faces(triangulation, dimension)
-	    println("Number of internal faces: ", length(internal))
+	    # println("Number of internal faces: ", length(internal))
 
 	    A = Vector{Vector{Int}}()  # list of rows
 
@@ -60,7 +61,7 @@ module SubdivisionRegularity
 					augmented = hcat(submatrix, ones(Int, size(submatrix, 1)))  # add column of ones
 					val = (-1)^i * round(Int, det(augmented))
 					pt = circuit[row_idx, :]
-					idx = findfirst(r -> all(r .== pt), eachrow(points))
+					idx = findfirst(r -> all(r .== pt), points)
 					folding_form[idx] = val
 				end
 				push!(A, sign_det * folding_form) # sign_det should actually be sign
@@ -76,6 +77,6 @@ module SubdivisionRegularity
 	   	solution_space_closure = polyhedron(hrep(folding_forms_matrix, b), CDDLib.Library(:exact)) 
 
 	    # Check full dimensionality (open feasibility)
-	    return dim(P) == n
+	    return dim == n
 	end
 end
