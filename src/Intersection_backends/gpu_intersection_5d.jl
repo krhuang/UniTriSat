@@ -1,27 +1,21 @@
-# Intersection_backends/gpu_intersection_5d_floats.jl
-
 module GPUIntersection5D
     using ..LinearAlgebra, ..Printf
     using ..CUDA, ..StaticArrays, ..CUDA.Adapt
 
-    # --- Datenvorbereitung ---
     function prepare_simplices_for_gpu(P::Matrix{Int}, S_indices::Vector{NTuple{6, Int}})
         num_simplices = length(S_indices)
         simplices_data = Vector{SMatrix{6, 5, Int64, 30}}(undef, num_simplices)
         for i in 1:num_simplices
-            cpu_matrix_f64 = Int64.(P[collect(S_indices[i]), :])
-            simplices_data[i] = SMatrix{6, 5, Int64, 30}(cpu_matrix_f64)
+            cpu_matrix_Int64 = Int64.(P[collect(S_indices[i]), :])
+            simplices_data[i] = SMatrix{6, 5, Int64, 30}(cpu_matrix_Int64)
         end
         return CuArray(simplices_data)
     end
 
-    # --- 5D-Vektoroperationen (Int64) ---
     @inline dot_gpu(v1, v2) = (v1[1]*v2[1]) + (v1[2]*v2[2]) + (v1[3]*v2[3]) + (v1[4]*v2[4]) + (v1[5]*v2[5])
-    
     @inline function det3x3_gpu(m11, m12, m13, m21, m22, m23, m31, m32, m33)
         return m11 * (m22 * m33 - m23 * m32) - m12 * (m21 * m33 - m23 * m31) + m13 * (m21 * m32 - m22 * m31)
     end
-
     @inline function det4x4_gpu(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44)
         d1 = det3x3_gpu(m22, m23, m24, m32, m33, m34, m42, m43, m44)
         d2 = det3x3_gpu(m21, m23, m24, m31, m33, m34, m41, m43, m44)
@@ -29,7 +23,6 @@ module GPUIntersection5D
         d4 = det3x3_gpu(m21, m22, m23, m31, m32, m33, m41, m42, m43)
         return m11 * d1 - m12 * d2 + m13 * d3 - m14 * d4
     end
-    
     @inline function normal_vector_5d(v1, v2, v3, v4)
         M = SMatrix{4, 5, Int64, 20}(
             v1[1], v2[1], v3[1], v4[1], v1[2], v2[2], v3[2], v4[2], v1[3], v2[3], v3[3], v4[3],
@@ -43,7 +36,6 @@ module GPUIntersection5D
         return SVector{5, Int64}(c1, c2, c3, c4, c5)
     end
 
-    # --- Kernlogik: 5D Separating Axis Theorem ---
     function simplices_intersect_gpu(s1, s2)
         face_map = SMatrix{6, 6, Int, 36}(
             1,2,3,4,5,6,
@@ -113,10 +105,9 @@ module GPUIntersection5D
             if !test_axis(axis, s1, s2); return false; end
         end
 
-        return true
+        return true #no separating axis, they intersect
     end
 
-    # --- GPU Kernel und Host-Funktion ---
     function intersection_kernel(simplices, num_simplices_arg, results_buffer, counter)
         num_simplices = Int64(num_simplices_arg)
         idx = Int64((blockIdx().x - 1) * blockDim().x + threadIdx().x)

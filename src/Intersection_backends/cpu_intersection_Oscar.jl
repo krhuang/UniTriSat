@@ -27,4 +27,5 @@ function get_intersecting_pairs_via_Oscar(P::Matrix, S_indices::Vector)
     return clauses
 end
 
-end #end of module
+end
+

@@ -4,6 +4,8 @@ Pkg.activate(".")
 using StyledStrings
 using Printf
 using UniTriSat
+using Polyhedra
+
 include("src/helpers.jl")
 using .Helpers
 
@@ -14,18 +16,6 @@ end
 
 d = parse(Int, ARGS[1])
 n = parse(Int, ARGS[2])
-
-
-filename = "Polytopes/Cyclic/cyclic_$(d)d_$n"
-
-if !isfile(filename)
-    open(filename, "w") do io
-        for v in cyclic_polytope_vertices(d, n)
-            println(io, join(string.(v), " "))
-        end
-    end
-end
-
 
 if length(ARGS) > 2
     backend=ARGS[3]
@@ -38,8 +28,8 @@ terminal_output = "initial, running, table, final" #initial, running, table, fin
 println("-")
 println(styled"{bold, blue:Cyclic Polytope Dimension $(d), $(n) Vertices}")
 println("-")
-results  = triangulate(
-    filename,
+triangulate(
+    polyhedron(vrep(cyclic_polytope_vertices(d, n))),
     terminal_output=terminal_output,
 #    log_file="logs/$(d)d/v$(n)_$(backend)",
     intersection_backend=backend,

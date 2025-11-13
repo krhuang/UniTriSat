@@ -8,9 +8,8 @@ module GPUIntersection3D
         # Each 3D simplex has 4 vertices, each with 3 coordinates -> 12 Int64 values
         simplices_data = Vector{SMatrix{4, 3, Int64, 12}}(undef, num_simplices)
         for i in 1:num_simplices
-            # Convert the BigInt rational matrix slice to a Int64 matrix
-            cpu_matrix_f64 = Int64.(P[collect(S_indices[i]), :])
-            simplices_data[i] = SMatrix{4, 3, Int64, 12}(cpu_matrix_f64)
+            cpu_matrix_Int64 = Int64.(P[collect(S_indices[i]), :])
+            simplices_data[i] = SMatrix{4, 3, Int64, 12}(cpu_matrix_Int64)
         end
         return CuArray(simplices_data)
     end

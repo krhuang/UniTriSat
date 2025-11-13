@@ -218,16 +218,10 @@ end
 @generate_gcross_unrolled_full 5
 @generate_gcross_unrolled_full 6
 
-"""
-    _generalized_cross_product(vectors::Vector{Vector{T}}) where T
-
-Berechnet das verallgemeinerte Kreuzprodukt für d-1 Vektoren im d-dimensionalen Raum.
-Das Ergebnis ist ein Vektor, der orthogonal zu allen Eingabevektoren ist.
-"""
 function _generalized_cross_product(vectors::MVector{N, SVector{D, Int64}}) where {N, D}
     n = N
     d = D
-    @assert N == D - 1 "Das verallgemeinerte Kreuzprodukt benötigt d-1 Vektoren im d-dimensionalen Raum."
+    @assert N == D - 1
     normal = zeros(MVector{D, Int64})
     tmp = Matrix{Int64}(undef, n, n)
     sign = 1
@@ -305,14 +299,6 @@ macro generate_cross_axes_case_scalar(d)
     return Expr(:block, stmts...)
 end
 
-"""
-    axis_separates(s1_verts, s2_verts, axis) -> Bool
-
-Projiziert die Ecken eines Polytops auf eine gegebene Achse und gibt
-das minimale und maximale Skalarprodukt zurück. Twice to check if the
-given axis separates the two polytopes.
-"""
-
 @inline function axis_separates(s1_verts::SVector{V, SVector{D, Int64}},
                                 s2_verts::SVector{V, SVector{D, Int64}},
                                 axis) where {V, D}
@@ -321,20 +307,13 @@ given axis separates the two polytopes.
     return maximum(projs1) <= minimum(projs2) || maximum(projs2) <= minimum(projs1)
 end
 
-"""
-    simplices_intersect_sat_cpu(s1_verts::Matrix{T}, s2_verts::Matrix{T}) where T -> Bool
-
-Checks if two d-dimensional simplices (given by their vertex matrices) intersect (on their interior), using the Separating Axis Theorem (SAT).
-
-Returns True if they intersect, Otherwise False.
-"""
 function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where {V, D}
     s1_verts = s1.verts
     s2_verts = s2.verts
     s1_face_edges = s1.face_edges
     s2_face_edges = s2.face_edges
 
-    # --- Fall 1 & 2: Achsen, die senkrecht zu den Facetten von s1 und s2 stehen ---
+    # facets
     for simplex in (s1, s2)
         facet_normals = simplex.facet_normals
         for i in 1:V
@@ -345,12 +324,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         end
     end
 
-    # --- Fall 3: Achsen, die aus Seitenflächen beider Simplizes
-    # gebildet werden --- Eine Achse wird gebildet, indem man das
-    # verallgemeinerte Kreuzprodukt von k Vektoren von einer k-Fläche
-    # von s1 und l Vektoren von einer l-Fläche von s2 berechnet, wobei
-    # k+l = d-1. Due to the anti-symmetric property of the cross
-    # product, we only need to check (k, l) pairs for k <= l.
+    # cross case
     if D == 3
         @generate_cross_axes_case_scalar 3
     elseif D == 4
@@ -496,5 +470,5 @@ function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector, :
     return vcat(thread_clauses...)
 end
 
-end # module CPUIntersection
+end
 

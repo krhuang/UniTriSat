@@ -8,7 +8,7 @@ using UniTriSat
 include("src/helpers.jl")
 using .Helpers
 
-terminal_output = "running, table, final" #initial, running, table, final
+terminal_output = "initial, running, table, final" #initial, running, table, final
 
 if length(ARGS) > 0
     backend=ARGS[1]
@@ -22,7 +22,8 @@ println("-")
 results  = triangulate(
     "Polytopes/smooth3polytopes_50processed",
     terminal_output=terminal_output,
-    log_file="logs/3d/big_set_3d",
-    intersection_backend=backend
+    log_file="logs/3d/smooth_3d",
+    intersection_backend=backend,
+    use_normaliz=true
     )
 

@@ -8,8 +8,8 @@ module GPUIntersection4D
         # 4D simplex: 5 vertices, 4 coordinates -> 20 Int64 values
         simplices_data = Vector{SMatrix{5, 4, Int64, 20}}(undef, num_simplices)
         for i in 1:num_simplices
-            cpu_matrix_f64 = Int64.(P[collect(S_indices[i]), :])
-            simplices_data[i] = SMatrix{5, 4, Int64, 20}(cpu_matrix_f64)
+            cpu_matrix_Int64 = Int64.(P[collect(S_indices[i]), :])
+            simplices_data[i] = SMatrix{5, 4, Int64, 20}(cpu_matrix_Int64)
         end
         return CuArray(simplices_data)
     end
@@ -113,7 +113,7 @@ module GPUIntersection4D
         return true
     end
 
-    # GPU kernel (identical logic to rational version, just calls the float function)
+    # GPU kernel
     function intersection_kernel(simplices, num_simplices_arg, results_buffer, counter)
         num_simplices = Int64(num_simplices_arg)
         idx = Int64((blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -142,7 +142,7 @@ module GPUIntersection4D
         return
     end
     
-    # Host function (identical logic to rational version)
+    # Host function
     function get_intersecting_pairs_gpu_4d(P::Matrix{Int}, S_indices::Vector{NTuple{5, Int}})
         num_simplices = length(S_indices)
         if num_simplices < 2; return Vector{Vector{Int}}(); end
