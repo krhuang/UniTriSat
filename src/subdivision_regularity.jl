@@ -71,7 +71,8 @@ module SubdivisionRegularity
 	    b = zeros(Int, size(folding_forms_matrix, 1))
 
 	    # Build exact polyhedron
-	   	P = polyhedron(hrep(folding_forms_matrix, b), CDDLib.Library(:exact))
+	   	# This represents the space we're interested in, with weak inequalities instead of sharp ones
+	   	solution_space_closure = polyhedron(hrep(folding_forms_matrix, b), CDDLib.Library(:exact)) 
 
 	    # Check full dimensionality (open feasibility)
 	    return dim(P) == n
