@@ -10,6 +10,10 @@ using .Helpers
 include("src/subdivision_regularity.jl")
 using .SubdivisionRegularity
 
+if !isdir("Polytopes/small-lattice-polytopes")
+    using Git
+    run(`$(git()) clone https://github.com/gabrieleballetti/small-lattice-polytopes Polytopes/small-lattice-polytopes`)
+end
 
 terminal_output = "running, table, final" #initial, running, table, final
 
