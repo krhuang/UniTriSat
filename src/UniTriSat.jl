@@ -1,4 +1,4 @@
-module Triangulate
+module UniTriSat
 
 export triangulate
 
@@ -78,7 +78,7 @@ const Normaliz_available = Ref(true)
 #Try to import Normaliz. If it's not available it gives a small warning and modifies the flag
 try
     @eval using Normaliz  # top-level import
-    include("src/Normaliz_backend.jl")
+    include("Normaliz_backend.jl")
     using .Normaliz_backend
 catch e
     Normaliz_available[] = false
@@ -100,19 +100,19 @@ catch
 end
 
 for d in 3:6
-    if CUDA_PACKAGES_LOADED[] && isfile("src/Intersection_backends/gpu_intersection_$(d)d.jl")
-        include("src/Intersection_backends/gpu_intersection_$(d)d.jl")
+    if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_$(d)d.jl")
+        include("Intersection_backends/gpu_intersection_$(d)d.jl")
     end
 end
 
-include("src/Intersection_backends/cpu_intersection.jl")
-include("src/helpers.jl")
+include("Intersection_backends/cpu_intersection.jl")
+include("helpers.jl")
 using .Helpers
-include("src/basic_computations.jl")
+include("basic_computations.jl")
 using .BasicComputations
-include("src/plot.jl")
+include("plot.jl")
 using .Plot
-include("src/subdivision_regularity.jl")
+include("subdivision_regularity.jl")
 using .SubdivisionRegularity
 
 struct StepStats

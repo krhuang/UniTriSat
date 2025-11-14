@@ -1,8 +1,9 @@
+import Pkg
+Pkg.activate(".")
+
 using StyledStrings
 using Printf
-
-include("Triangulate.jl")
-using .Triangulate
+using UniTriSat
 include("src/helpers.jl")
 using .Helpers
 

@@ -1,8 +1,10 @@
+import Pkg
+Pkg.activate(".")
+
 using StyledStrings
 using Printf
+using UniTriSat
 
-include("Triangulate.jl")
-using .Triangulate
 include("src/helpers.jl")
 using .Helpers
 include("src/subdivision_regularity.jl")
