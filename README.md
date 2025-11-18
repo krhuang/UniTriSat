@@ -15,12 +15,12 @@ Quick Start Guide
 
 ```
 P = [ 1 0  0 0 0; -1 0 0 0 0; 0 1 0  0 0; 0 -1 0 0 0; 0 0 1 0  0;
-       0 0 -1 0 0;  0 0 0 1 0; 0 0 0 -1 0; 0  0 0 0 1; 0 0 0 0 -1]
+      0 0 -1 0 0;  0 0 0 1 0; 0 0 0 -1 0; 0  0 0 0 1; 0 0 0 0 -1]
 
 triangulate(P, terminal_output="running,table,final")`
 ```
 
-You can also add Polytope data to the directory Polytopes, e.g.
+You can also add Balletti's database of lattice polytopes to the directory `Polytopes`, e.g.
 
 `cd Polytopes; git clone https://github.com/gabrieleballetti/small-lattice-polytopes`
 
@@ -35,5 +35,10 @@ triangulate(
 
 See the function `triangulate` in `UniTriSat.jl` to see what options the function takes.
 
-You can also run a set of correctness tests by doing `julia test.jl`.
+Tests
+=============
+
+You can run a set tests by doing `julia test.jl`.
+
+We are in need of non-regular unimodular triangulations for our unit testing. If you know of any, other than the "mother of all examples" please write us. 
 
