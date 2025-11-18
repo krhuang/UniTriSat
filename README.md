@@ -22,7 +22,7 @@ triangulate(P, terminal_output="running,table,final")`
 
 You can also add Balletti's database of lattice polytopes to the directory `Polytopes`, e.g.
 
-`cd Polytopes; git clone https://github.com/gabrieleballetti/small-lattice-polytopes`
+`git clone https://github.com/gabrieleballetti/small-lattice-polytopes /Polytopes`
 
 Once this is done, you can run the code via the `triangulate` entry point function like so:
 
