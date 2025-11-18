@@ -1,11 +1,26 @@
-Getting started
-===============
+Finding unimodular triangulations and regular unimodular triangulations of lattice polytopes, via conversion to a SAT equation. `UniTriSat` can handle larger examples than were previously possible--it finds a unimodular triangulation of a 3-polytope with 50 lattice points in about 2 seconds. 
 
-This package can be added as follows:
+
+
+Quick Start Guide
+=================
+
+**1)** Install Julia (e.g. via juliaup)
+
+**2)** Add the package via Julia's package manager: 
 
 `import Pkg; Pkg.add(url="https://github.com/krhuang/UniTriSat/")`
 
-You can add Polytope data to the directory Polytopes, e.g.
+**3)** Run on your favorite lattice polytope
+
+```
+P = [ 1 0  0 0 0; -1 0 0 0 0; 0 1 0  0 0; 0 -1 0 0 0; 0 0 1 0  0;
+       0 0 -1 0 0;  0 0 0 1 0; 0 0 0 -1 0; 0  0 0 0 1; 0 0 0 0 -1]
+
+triangulate(P, terminal_output="running,table,final")`
+```
+
+You can also add Polytope data to the directory Polytopes, e.g.
 
 `cd Polytopes; git clone https://github.com/gabrieleballetti/small-lattice-polytopes`
 
