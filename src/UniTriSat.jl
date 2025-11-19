@@ -262,7 +262,8 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     # (and possible changing how the solver api is called)
 
     timed_solve_result = @timed for solution in solver_func.itersolve(cnf)
-        simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in findall(l -> l > 0, solution)]
+        sol_indices = findall(l -> l > 0, solution)
+        simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
         number_of_triangulations_found += 1
         if isempty(first_solution_simplices)
             push!(first_solution_simplices, simplices)
@@ -273,7 +274,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
             end
             if !config.find_all; break; end #we found a solution, we do not want a regular one and we dont want all of them : We can stop here
         end
-        if config.regular
+        if config.regular && is_regular(simplices, dim)
             if isempty(first_regular_solution_simplices)
                 push!(first_regular_solution_simplices, simplices)
             end

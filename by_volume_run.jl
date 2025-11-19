@@ -23,7 +23,8 @@ else
     regular = false
 end
 
-terminal_output = "running, table, final" #initial, running, table, final
+terminal_output = "initial, running, table, final" #initial, running, table, final
+
 
 println("-")
 println(styled"{bold, blue:Test Dimension $(d), Volume $(n) on $(backend)}")
