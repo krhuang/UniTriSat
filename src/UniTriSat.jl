@@ -129,7 +129,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
     end
     P = timed_result_lp.value # P is now the set of all lattice points in the polytope
-    push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
+    #push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
 
     num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
@@ -142,7 +142,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     timed_result_simplices = @timed all_simplices(P, unimodular=config.unimodular) # find all (unimodular) simplices spanned by P
     S_indices = timed_result_simplices.value
-    push!(step_stats, StepStats("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
+    #push!(step_stats, StepStats("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
 
     num_simplices = length(S_indices)
     cnf = Vector{Vector{Int}}()
@@ -165,7 +165,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     timed_result_faces = @timed internal_faces(P, dim)
     internal_faces_set = timed_result_faces.value
-    push!(step_stats, StepStats("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
+    #push!(step_stats, StepStats("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
     log_verbose("-> Found $(length(internal_faces_set)) unique internal faces. Step 3 complete.\n")
 
     log_verbose("Step 4: Computing intersecting pairs...")
@@ -207,7 +207,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
 
     intersection_clauses = timed_result_intersections.value
-    push!(step_stats, StepStats("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
+    #push!(step_stats, StepStats("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
     append!(cnf, intersection_clauses)
     #add the clauses to the formula. If s1 and s2 intersect, then (not s1) or (not s2) is added, ensuring that not both can be in a triangulation at the same time
     log_verbose("-> Found $(length(intersection_clauses)) intersecting pairs. Step 4a complete.\n")
@@ -244,7 +244,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
     face_clauses = timed_result_face_clauses.value
     append!(cnf, face_clauses)
-    push!(step_stats, StepStats("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
+    #push!(step_stats, StepStats("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
     log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4b complete.\n")
 
     log_verbose("Step 5: Handing SAT problem to solver...");
@@ -288,7 +288,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     num_solutions = config.regular ? number_of_regular_triangulations_found : number_of_triangulations_found
 
-    push!(step_stats, StepStats("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
+    #push!(step_stats, StepStats("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
 
     # validation is not yet implemented. We plan to have very robust and trusted code (using exact Rational{BigInt}) test everything again
@@ -298,7 +298,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 #             validation_status = :passed
 #             #TODO implement validation or remove validation
 #         end
-#         push!(step_stats, StepStats("Validation", timed_validation.time, timed_validation.bytes))
+#         #push!(step_stats, StepStats("Validation", timed_validation.time, timed_validation.bytes))
 #         if validation_status == :passed
 #             log_verbose("  VALIDATION SUCCESSFUL: No intersections found among solution simplices.")
 #         else
@@ -361,7 +361,6 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     return ProcessResult(run_idx, number_of_triangulations_found, number_of_regular_triangulations_found, total_time, solution_simplices, step_stats, minimal_log)
 end
 
-# the main function calling process_polytope on each of the polytopes from a given list
 function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stream)
     number_of_polytopes = length(polytopes)
     components_str = lowercase(replace(config.terminal_output, " " => ""))
@@ -414,8 +413,22 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     for (i, P) in enumerate(polytopes)
         result = process_polytope(P, i, length(polytopes), config, show_running)
-        push!(results, result)
-        
+        if !isnothing(log_stream)
+            empty_simplices = Vector{Vector{Matrix{Int}}}()
+
+            result_light = ProcessResult(
+                result.id,
+                result.number_of_triangulations_found,
+                result.number_of_regular_triangulations_found,
+                result.total_time,
+                empty_simplices,
+                result.step_stats,
+                result.minimal_log
+            )
+            push!(results, result_light)
+        else
+            push!(results, result)
+        end
         if result.number_of_triangulations_found > 0
             triangulatable += 1
         end
@@ -428,8 +441,8 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         push!(recent_times, result.total_time)
         if show_running
             if !is_first_single_line_update
-                print(stdout, "\u001b[4A") #move cursor up by 4 lines
-                if config.regular; print(stdout, "\u001b[1A"); end #one more line up
+                print(stdout, "\u001b[4A")
+                if config.regular; print(stdout, "\u001b[1A"); end
             end
             is_first_single_line_update = false
             elapsed_time = time() - t_start_run
@@ -445,14 +458,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Estimated Time Left:", eta_str)
             if config.regular; @printf(stdout, "\r%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Regularly Triangulatable:", regularly_triangulatable); end
             @printf(stdout, "\r%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Triangulatable:", triangulatable)
-            @printf(stdout, "\r%-40s \u001b[31m%d\u001b[0m\u001b[K\n", "Non-Triangulatable:", number_of_polytopes - triangulatable)
+            @printf(stdout, "\r%-40s \u001b[31m%d\u001b[0m\u001b[K\n", "Non-Triangulatable:", i - triangulatable)
             print(stdout, "\r" * result.minimal_log * "\u001b[K")
             flush(stdout)
-        end
-
-        if !isnothing(log_stream)
-            print(log_stream, result.verbose_log)
-            flush(log_stream)
         end
     end
 
@@ -463,7 +471,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     end
 
     total_time_run = time() - t_start_run
-    
+
     avg_solutions_str = ""
     if config.find_all
         num_sol = config.regular ? total_number_of_regular_triangulations_found : total_number_of_triangulations_found
@@ -494,7 +502,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             for step_name in step_order
                 times = step_times[step_name]
                 bytes = step_bytes[step_name]
-                if isempty(times); continue; end 
+                if isempty(times); continue; end
                 total_time = sum(times)
                 max_time = isempty(times) ? 0 : maximum(times)
                 avg_time = total_time / length(times)

@@ -1,6 +1,5 @@
 #!/bin/bash --login
 #SBATCH --job-name=3d_small_UniTriSat
-SBATCH --output=runs/3d/v%a.out
-#SBATCH --time=4:00:00
+#SBATCH --output=runs/3d/v%a.out
 
 julia -t auto by_volume_run.jl 3 $SLURM_ARRAY_TASK_ID cpu regular
