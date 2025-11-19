@@ -26,7 +26,7 @@ module SubdivisionRegularity
 	end
 
 	# This is a mess. TODO: Fix it when you get a chance
-	function is_regular(triangulation::Vector{Matrix{Int}}, dim::Int)
+	function is_regular(triangulation::Vector{Matrix{Int}})
 		if length(triangulation) == 1; return true; end
 	    dimension = size(first(triangulation), 2)
 	    #points = unique(vcat(triangulation...))
@@ -77,6 +77,6 @@ module SubdivisionRegularity
 	   	solution_space_closure = polyhedron(hrep(folding_forms_matrix, b), CDDLib.Library(:exact)) 
 
 	    # Check full dimensionality (open feasibility)
-	    return dim == n
+	    return n == dim(solution_space_closure)
 	end
 end

@@ -274,7 +274,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
             end
             if !config.find_all; break; end #we found a solution, we do not want a regular one and we dont want all of them : We can stop here
         end
-        if config.regular && is_regular(simplices, dim)
+        if config.regular && is_regular(simplices)
             if isempty(first_regular_solution_simplices)
                 push!(first_regular_solution_simplices, simplices)
             end
