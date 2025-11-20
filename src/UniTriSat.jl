@@ -118,18 +118,6 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose("Step 1: Computing all lattice points...")
     if Normaliz_available[] && config.use_normaliz # global flag for if the Normaliz package has been imported
         timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points. Source in Normaliz_backend.jl
-    elseif !Normaliz_available[] && config.use_normaliz
-        @warn(
-            """
-            ====================================== WARNING ======================================
-            Normaliz not available; using CDDLib lattice point enumeration instead.
-            This is slower, but not the bottleneck, so it should be OK.
-            You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl
-            You may have to downgrade your Julia version for Normaliz to work.
-            There is also the lattice_points_via_Oscar function available in basic_computation.jl
-            =====================================================================================\n
-            """)
-        timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
     else
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices)
     end
@@ -403,6 +391,19 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         println(log_summary_buf, "")
         print(log_stream, String(take!(log_summary_buf)))
         flush(log_stream)
+    end
+
+    if config.use_normaliz && !Normaliz_available
+        @warn(
+            """
+            ====================================== WARNING ======================================
+            Normaliz not available; using CDDLib lattice point enumeration instead.
+            This is slower, but not the bottleneck, so it should be OK.
+            You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl
+            You may have to downgrade your Julia version for Normaliz to work.
+                There is also the lattice_points_via_Oscar function available in basic_computation.jl
+                    =====================================================================================\n
+                    """)
     end
 
     t_start_run = time()
