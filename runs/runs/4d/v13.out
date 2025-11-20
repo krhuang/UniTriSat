@@ -1,0 +1,45 @@
+
+===================== WARNING ======================
+Normaliz not available; using CDDLib lattice point enumeration instead.
+This is slower, but not the bottleneck, so it should be OK.
+You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl
+You may have to downgrade your Julia version for Normaliz to work.
+There is also the lattice_points_via_Oscar function available in basic_computation.jl
+====================================================
+
+  Activating project at `~/Code/UniTriSat`
+-
+Test Dimension 4, Volume 13 on cpu
+-
+Run started at:                      14:32:25
+Number of threads:                   1
+Solve mode:                          Find First
+Intersection backend selected:       cpu
+Validation enabled:                  false
+Number of polytopes found:           3123
+Restricting to unimodular simplices: true
+Looking for regular triangulations:  true
+Using Normaliz:                      false
+
+
+
+Run finished: 14:34:16
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:     3123
+Regularly Triangulatable:      [32m1760[0m
+Triangulatable:                [32m1760[0m
+Non-Triangulatable:            [31m1363[0m
+Total Run Time:                00:01:50
+----------------------------------------
+Step Name                           | Total Time   | Avg Time     | Max Time     | Max Memory   | Avg Memory  
+------------------------------------------------------------------------------------------------------------
+Compute all lattice points          | 00:00:24     | 0.008 s      | 2.181 s      | 182.30 MiB   | 2.39 MiB    
+Compute unimodular simplices        | 00:00:00     | 0.000 s      | 0.008 s      | 1.28 MiB     | 75.79 KiB   
+Compute internal faces              | 00:00:06     | 0.002 s      | 2.792 s      | 24.59 MiB    | 329.45 KiB  
+Compute intersecting pairs          | 00:00:32     | 0.011 s      | 1.269 s      | 45.88 MiB    | 872.34 KiB  
+Generate face-covering clauses      | 00:00:02     | 0.001 s      | 0.424 s      | 45.19 MiB    | 248.68 KiB  
+Solve SAT problem                   | 00:00:12     | 0.004 s      | 1.941 s      | 132.81 MiB   | 797.85 KiB  
+

@@ -1,0 +1,36 @@
+  Activating project at `~/Code/UniTriSat`
+-
+Test Dimension 3, Volume 5 on cpu
+-
+Run started at:                      14:27:54
+Number of threads:                   1
+Solve mode:                          Find First
+Intersection backend selected:       cpu
+Validation enabled:                  false
+Number of polytopes found:           19
+Restricting to unimodular simplices: true
+Looking for regular triangulations:  true
+Using Normaliz:                      false
+
+
+
+Run finished: 14:28:03
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:     19
+Regularly Triangulatable:      [32m15[0m
+Triangulatable:                [32m15[0m
+Non-Triangulatable:            [31m4[0m
+Total Run Time:                00:00:09
+----------------------------------------
+Step Name                           | Total Time   | Avg Time     | Max Time     | Max Memory   | Avg Memory  
+------------------------------------------------------------------------------------------------------------
+Compute all lattice points          | 00:00:02     | 0.110 s      | 2.070 s      | 179.58 MiB   | 9.71 MiB    
+Compute unimodular simplices        | 00:00:00     | 0.000 s      | 0.007 s      | 12.75 KiB    | 6.15 KiB    
+Compute internal faces              | 00:00:02     | 0.155 s      | 2.633 s      | 23.86 MiB    | 1.54 MiB    
+Compute intersecting pairs          | 00:00:00     | 0.046 s      | 0.776 s      | 38.69 MiB    | 2.33 MiB    
+Generate face-covering clauses      | 00:00:00     | 0.023 s      | 0.392 s      | 45.03 MiB    | 2.68 MiB    
+Solve SAT problem                   | 00:00:01     | 0.110 s      | 1.819 s      | 130.79 MiB   | 7.87 MiB    
+

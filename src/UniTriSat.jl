@@ -22,13 +22,6 @@ try
     using .Normaliz_backend
 catch e
     Normaliz_available[] = false
-    println("\n===================== WARNING ======================")
-    println("Normaliz not available; using CDDLib lattice point enumeration instead.")
-    println("This is slower, but not the bottleneck, so it should be OK.")
-    println("You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl")
-    println("You may have to downgrade your Julia version for Normaliz to work.")
-    println("There is also the lattice_points_via_Oscar function available in basic_computation.jl")
-    println("====================================================\n")
 end
 
 # mutable flag in module scope
@@ -125,11 +118,23 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     log_verbose("Step 1: Computing all lattice points...")
     if Normaliz_available[] && config.use_normaliz # global flag for if the Normaliz package has been imported
         timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points. Source in Normaliz_backend.jl
-    else 
+    elseif !Normaliz_available[] && config.use_normaliz
+        @warn(
+            """
+            ====================================== WARNING ======================================
+            Normaliz not available; using CDDLib lattice point enumeration instead.
+            This is slower, but not the bottleneck, so it should be OK.
+            You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl
+            You may have to downgrade your Julia version for Normaliz to work.
+            There is also the lattice_points_via_Oscar function available in basic_computation.jl
+            =====================================================================================\n
+            """)
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices) # Find the lattice points. Source in basic_computations.jl
+    else
+        timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices)
     end
     P = timed_result_lp.value # P is now the set of all lattice points in the polytope
-    #push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
+    push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
 
     num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
@@ -142,7 +147,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     timed_result_simplices = @timed all_simplices(P, unimodular=config.unimodular) # find all (unimodular) simplices spanned by P
     S_indices = timed_result_simplices.value
-    #push!(step_stats, StepStats("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
+    push!(step_stats, StepStats("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
 
     num_simplices = length(S_indices)
     cnf = Vector{Vector{Int}}()
@@ -165,7 +170,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     timed_result_faces = @timed internal_faces(P, dim)
     internal_faces_set = timed_result_faces.value
-    #push!(step_stats, StepStats("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
+    push!(step_stats, StepStats("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
     log_verbose("-> Found $(length(internal_faces_set)) unique internal faces. Step 3 complete.\n")
 
     log_verbose("Step 4: Computing intersecting pairs...")
@@ -207,7 +212,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
 
     intersection_clauses = timed_result_intersections.value
-    #push!(step_stats, StepStats("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
+    push!(step_stats, StepStats("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
     append!(cnf, intersection_clauses)
     #add the clauses to the formula. If s1 and s2 intersect, then (not s1) or (not s2) is added, ensuring that not both can be in a triangulation at the same time
     log_verbose("-> Found $(length(intersection_clauses)) intersecting pairs. Step 4a complete.\n")
@@ -244,7 +249,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
     face_clauses = timed_result_face_clauses.value
     append!(cnf, face_clauses)
-    #push!(step_stats, StepStats("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
+    push!(step_stats, StepStats("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
     log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4b complete.\n")
 
     log_verbose("Step 5: Handing SAT problem to solver...");
@@ -288,7 +293,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     num_solutions = config.regular ? number_of_regular_triangulations_found : number_of_triangulations_found
 
-    #push!(step_stats, StepStats("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
+    push!(step_stats, StepStats("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
 
     # validation is not yet implemented. We plan to have very robust and trusted code (using exact Rational{BigInt}) test everything again
@@ -298,7 +303,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 #             validation_status = :passed
 #             #TODO implement validation or remove validation
 #         end
-#         #push!(step_stats, StepStats("Validation", timed_validation.time, timed_validation.bytes))
+#         push!(step_stats, StepStats("Validation", timed_validation.time, timed_validation.bytes))
 #         if validation_status == :passed
 #             log_verbose("  VALIDATION SUCCESSFUL: No intersections found among solution simplices.")
 #         else
