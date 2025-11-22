@@ -56,16 +56,16 @@ struct StepStats
     alloc_bytes::Int64
 end
 
-# the result returned
-struct ProcessResult
-    id::Int
-    number_of_triangulations_found::Int
-    number_of_regular_triangulations_found::Int
+# a struct to aggregate statistics on the fly, avoiding the storage of every single step result
+mutable struct StatAggregator
     total_time::Float64
-    solution_simplices::Vector{Vector{Matrix{Int}}}
-    step_stats::Vector{StepStats}
-    minimal_log::String
+    max_time::Float64
+    total_alloc::Int64
+    max_alloc::Int64
+    count::Int
 end
+# Initializer for the aggregator
+StatAggregator() = StatAggregator(0.0, 0.0, 0, 0, 0)
 
 # contains the run details
 # terminal_output (default "") is a subset of "initial, running, table, final". Depending on which are present, the following is printed to the terminal:
@@ -80,9 +80,11 @@ end
 # validate (default false): NOT YET IMPLEMENTED
 # plot (default false): if true, the first triangulations found is being plotted. If the dimension is not 3, then we plot the 3-faces
 # use_normaliz (default false): if true, we use the much faster, but unstable normaliz backend to find all lattice points in a given polytope
-# return_triangulations (default "first"): Select between "", "first" and "all". The field solution_simplices of ProcessResult will be empty, contain the first set of
-#simplices of a solution, or contain all solutions, respectively. On long runs the set of solutions can clog up the memory if set to "all" (with find_all set to true)
-#and on really long runs even "first" is not recommended. Note that the first found solution can also be recovered from the log file.
+# return_triangulations (default "first"): Select between "", "first" and "all". The returned vector will be empty, contain the first set of
+#simplices of a solution, or contain all solutions, respectively.
+# On long runs the set of solutions can clog up the memory if set to "all" (with find_all set to true)
+#and on really long runs even "first" is not recommended.
+# Note that the first found solution can also be recovered from the log file.
 mutable struct Config
     terminal_output::String
     unimodular::Bool
@@ -96,6 +98,7 @@ mutable struct Config
 end
 
 # the main function processing a single polytope, here all the computations happen
+# Modified to return a Tuple instead of ProcessResult to reduce memory overhead
 function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool)
     dim = size(initial_vertices, 2)
     buf = IOBuffer()
@@ -148,7 +151,8 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     if isempty(S_indices) # handle the case that there are no simplices
         total_time = (time_ns() - t_start_total) / 1e9
         minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> No simplices found", run_idx, total_in_run, num_lattice_points, num_simplices)
-        return ProcessResult(run_idx, 0, 0, total_time, [], step_stats, minimal_log)
+        # return tuple: (solutions, step_stats, num_found, num_regular, min_log, total_time)
+        return (Vector{Vector{Matrix{Int}}}[], step_stats, 0, 0, minimal_log, total_time)
     end
 
     log_verbose("Step 3: Computing internal faces...")
@@ -192,7 +196,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
             intersect_func() # Execute the selected GPU function
         else
             if config.intersection_backend == "gpu"
-                 log_verbose("     WARNING: GPU backend for $(dim)D not available. Falling back to CPU.")
+                log_verbose("     WARNING: GPU backend for $(dim)D not available. Falling back to CPU.")
             end
             log_verbose("     Using CPU backend.")
             CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices, Val(dim))
@@ -246,7 +250,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices solving...")
     end
 
-    solution_simplices = []
+    solution_simplices = Vector{Vector{Matrix{Int}}}()
     number_of_triangulations_found = 0
     number_of_regular_triangulations_found = 0
     first_solution_simplices = []
@@ -279,6 +283,12 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         end
     end
 
+    if number_of_triangulations_found > 0 && number_of_regular_triangulations_found == 0
+        # This logic seems to be a debug break from the original code, kept as requested.
+        # println(initial_vertices)
+        # exit()
+    end
+
     num_solutions = config.regular ? number_of_regular_triangulations_found : number_of_triangulations_found
 
     push!(step_stats, StepStats("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
@@ -291,6 +301,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 #             validation_status = :passed
 #             #TODO implement validation or remove validation
 #         end
+#
 #         push!(step_stats, StepStats("Validation", timed_validation.time, timed_validation.bytes))
 #         if validation_status == :passed
 #             log_verbose("  VALIDATION SUCCESSFUL: No intersections found among solution simplices.")
@@ -306,14 +317,12 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
 
     if !isempty(first_solution_simplices) && number_of_regular_triangulations_found > 0
-        log_verbose("\nDisplaying first valid triangulation:");
-        for s in first_solution_simplices
+        log_verbose("\nDisplaying first valid triangulation:"); for s in first_solution_simplices
             log_verbose(s, is_display=true)
         end
     end
     if !isempty(first_regular_solution_simplices)
-        log_verbose("\nDisplaying first valid regular triangulation:");
-        for s in first_regular_solution_simplices
+        log_verbose("\nDisplaying first valid regular triangulation:"); for s in first_regular_solution_simplices
             log_verbose(s, is_display=true)
         end
     end
@@ -324,7 +333,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         log_verbose("\nStep 6: Plotting result..")
         plot(initial_vertices, dim, first_solution_simplices)
         log_verbose("-> Plotting complete. Step 6 complete.")
-    end 
+    end
 
     total_time = (time_ns() - t_start_total) / 1e9
 
@@ -351,7 +360,8 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices, result_str)
 
-    return ProcessResult(run_idx, number_of_triangulations_found, number_of_regular_triangulations_found, total_time, solution_simplices, step_stats, minimal_log)
+    # Return tuple: (solutions, step_stats, num_found, num_regular, min_log, total_time)
+    return (solution_simplices, step_stats, number_of_triangulations_found, number_of_regular_triangulations_found, minimal_log, total_time)
 end
 
 function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stream)
@@ -401,9 +411,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             This is slower, but not the bottleneck, so it should be OK.
             You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl
             You may have to downgrade your Julia version for Normaliz to work.
-                There is also the lattice_points_via_Oscar function available in basic_computation.jl
-                    =====================================================================================\n
-                    """)
+            There is also the lattice_points_via_Oscar function available in basic_computation.jl
+            =====================================================================================\n
+            """)
     end
 
     t_start_run = time()
@@ -415,36 +425,53 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     recent_times = Float64[]
     is_first_single_line_update = true
-    results = ProcessResult[]
+    all_solutions = Vector{Vector{Vector{Matrix{Int}}}}()
+    if config.return_triangulations != ""
+        sizehint!(all_solutions, number_of_polytopes)
+    end
+
+    global_step_stats = Dict{String, StatAggregator}()
+    step_order = String[] # To preserve the order of steps for the final table
 
     for (i, P) in enumerate(polytopes)
-        result = process_polytope(P, i, length(polytopes), config, show_running)
-        if !isnothing(log_stream)
-            empty_simplices = Vector{Vector{Matrix{Int}}}()
 
-            result_light = ProcessResult(
-                result.id,
-                result.number_of_triangulations_found,
-                result.number_of_regular_triangulations_found,
-                result.total_time,
-                empty_simplices,
-                result.step_stats,
-                result.minimal_log
-            )
-            push!(results, result_light)
-        else
-            push!(results, result)
+        (solutions, step_stats, n_found, n_reg, minimal_log, p_total_time) = process_polytope(P, i, length(polytopes), config, show_running)
+
+        # Write to log if needed
+        if !isnothing(log_stream)
+             flush(log_stream)
         end
-        if result.number_of_triangulations_found > 0
+
+        if n_found > 0
             triangulatable += 1
         end
-        if result.number_of_regular_triangulations_found > 0
+        if n_reg > 0
             regularly_triangulatable += 1
         end
-        total_number_of_triangulations_found += result.number_of_triangulations_found
-        total_number_of_regular_triangulations_found += result.number_of_regular_triangulations_found
+        total_number_of_triangulations_found += n_found
+        total_number_of_regular_triangulations_found += n_reg
 
-        push!(recent_times, result.total_time)
+        push!(recent_times, p_total_time)
+
+        # Online aggregation of statistics
+        for stat in step_stats
+            if !haskey(global_step_stats, stat.name)
+                global_step_stats[stat.name] = StatAggregator()
+                push!(step_order, stat.name)
+            end
+            agg = global_step_stats[stat.name]
+            agg.total_time += stat.duration_s
+            agg.max_time = max(agg.max_time, stat.duration_s)
+            agg.total_alloc += stat.alloc_bytes
+            agg.max_alloc = max(agg.max_alloc, stat.alloc_bytes)
+            agg.count += 1
+        end
+
+        # Store solutions only if requested
+        if config.return_triangulations != ""
+            push!(all_solutions, solutions)
+        end
+
         if show_running
             if !is_first_single_line_update
                 print(stdout, "\u001b[4A")
@@ -465,9 +492,13 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             if config.regular; @printf(stdout, "\r%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Regularly Triangulatable:", regularly_triangulatable); end
             @printf(stdout, "\r%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Triangulatable:", triangulatable)
             @printf(stdout, "\r%-40s \u001b[31m%d\u001b[0m\u001b[K\n", "Non-Triangulatable:", i - triangulatable)
-            print(stdout, "\r" * result.minimal_log * "\u001b[K")
+            print(stdout, "\r" * minimal_log * "\u001b[K")
             flush(stdout)
         end
+
+        # Explicitly clear temporary variables to help GC
+        solutions = nothing
+        step_stats = nothing
     end
 
     if show_running
@@ -486,41 +517,29 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     stats_table_str = ""
     if show_table
         stats_table_buf = IOBuffer()
-        if !isempty(results)
-            step_times = Dict{String, Vector{Float64}}()
-            step_bytes = Dict{String, Vector{Int64}}()
-            step_order = String[]
-            for res in results
-                for stat in res.step_stats
-                    if !haskey(step_times, stat.name)
-                        step_times[stat.name] = Float64[]
-                        step_bytes[stat.name] = Int64[]
-                        push!(step_order, stat.name)
-                    end
-                    push!(step_times[stat.name], stat.duration_s)
-                    push!(step_bytes[stat.name], stat.alloc_bytes)
-                end
-            end
+        if !isempty(global_step_stats)
             println()
             println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
-                                            "Step Name", "Total Time", "Avg Time", "Max Time", "Max Memory", "Avg Memory"))
+                                            "Step Name", "Total Time", "Avg Time", "Max Time", "Avg Memory", "Max Memory"))
             println(stats_table_buf, "-"^108)
+
+            # Iterate over the preserved order of steps
             for step_name in step_order
-                times = step_times[step_name]
-                bytes = step_bytes[step_name]
-                if isempty(times); continue; end
-                total_time = sum(times)
-                max_time = isempty(times) ? 0 : maximum(times)
-                avg_time = total_time / length(times)
-                max_mem = isempty(bytes) ? 0 : maximum(bytes)
-                avg_mem = isempty(bytes) ? 0.0 : sum(bytes) / length(bytes)
+                if !haskey(global_step_stats, step_name); continue; end
+                stat = global_step_stats[step_name]
+
+                total_time = stat.total_time
+                max_time = stat.max_time
+                avg_time = total_time / stat.count
+                avg_mem = stat.total_alloc / stat.count
+
                 println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
                                                 step_name,
                                                 format_duration(total_time),
                                                 @sprintf("%.3f s", avg_time),
                                                 @sprintf("%.3f s", max_time),
-                                                format_bytes(max_mem),
-                                                format_bytes(avg_mem)))
+                                                format_bytes(avg_mem),
+                                                format_bytes(stat.max_alloc)))
             end
         end
         stats_table_str = String(take!(stats_table_buf))
@@ -537,7 +556,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     Total Polytopes Processed:     $(length(polytopes))$(reg_str)
     Triangulatable:                \u001b[32m$triangulatable\u001b[0m
     Non-Triangulatable:            \u001b[31m$(number_of_polytopes - triangulatable)\u001b[0m
-    $(avg_solutions_str)Total Run Time:                $(format_duration(total_time_run))
+    $(avg_solutions_str)Total Run Time:                 $(format_duration(total_time_run))
     ----------------------------------------
     """
     if show_final
@@ -552,7 +571,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         print(log_stream, replace(stats_table_str, r"\u001b\[\d+m" => ""))
         flush(log_stream)
     end
-    return results
+    return all_solutions
 end
 
 # the entry point of the internal code of the modul. It sets up the config struct, opens the log file etc.
@@ -560,10 +579,11 @@ function setup_run(polytopes::Vector{Matrix{Int}}, intersection_backend::String=
 
     config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz, return_triangulations)
     log_stream = nothing
-    results = ProcessResult[] 
-    try 
+    # Initialize with empty vector instead of typed empty array for type stability
+    results = Vector{Vector{Vector{Matrix{Int}}}}()
+    try
         if !isempty(log_file)
-            try 
+            try
                 log_stream = open(log_file, "a")
                 println(log_stream, "\n\n" * "#"^80, "\n# New Run Started at $(now())\n" * "#"^80)
             catch e
@@ -571,6 +591,7 @@ function setup_run(polytopes::Vector{Matrix{Int}}, intersection_backend::String=
                 log_stream = nothing
             end
         end
+
         if isempty(polytopes)
             @warn("No polytopes provided to setup_run.")
             return results
@@ -593,6 +614,7 @@ function triangulate(vmatrix::Matrix{Int}; intersection_backend::String="cpu", u
 end
 
 function triangulate(vmatrices::Vector{Matrix{Int}}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false, return_triangulations::String="first")
+
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
@@ -603,6 +625,7 @@ function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", u
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
+
     vmatrix = _convert_polyhedron_to_vmatrix(polytope)
     if isempty(vmatrix)
         @error("Could not process a single polytope")
@@ -627,7 +650,7 @@ function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String
 
     if isempty(vmatrices)
         @error("Could not porcess a single polytope.")
-        return ProcessResult[]
+        return Vector{Vector{Matrix{Int}}}[]
     end
     return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
@@ -639,10 +662,10 @@ function triangulate(path_to_polytopes::String; intersection_backend::String="cp
     local polytopes
     try
         polytopes = read_polytopes_from_file(path_to_polytopes)
-        if isempty(polytopes); @error("Error: No polytopes loaded from '$path_to_polytopes'."); return ProcessResult[]; end
+        if isempty(polytopes); @error("Error: No polytopes loaded from '$path_to_polytopes'."); return Vector{Vector{Matrix{Int}}}[]; end
         catch e
         @error("Error loading polytopes from '$path_to_polytopes': '$e'")
-        return ProcessResult[]
+        return Vector{Vector{Matrix{Int}}}[]
     end
     return setup_run(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end

@@ -1,0 +1,40 @@
+  Activating project at `~/Code/UniTriSat`
+Precompiling packages...
+    UniTriSat Being precompiled by another machine (hostname: node814, pid: 15937, pidfile: /homes/numerik/lauff/.julia/compiled/v1.10/UniTriSat/jJmbR_KLCVs.ji.pidfile)
+ 120784.7 ms  ✓ UniTriSat
+  1 dependency successfully precompiled in 122 seconds. 50 already precompiled.
+-
+Test Dimension 4, Volume 18 on cpu
+-
+Run started at:                      14:33:12
+Number of threads:                   1
+Solve mode:                          Find First
+Intersection backend selected:       cpu
+Validation enabled:                  false
+Number of polytopes found:           38061
+Restricting to unimodular simplices: true
+Looking for regular triangulations:  true
+Using Normaliz:                      false
+
+
+
+Run finished: 15:05:37
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:     38061
+Regularly Triangulatable:      [32m20114[0m
+Triangulatable:                [32m20115[0m
+Non-Triangulatable:            [31m17946[0m
+Total Run Time:                00:32:24
+----------------------------------------
+Step Name                           | Total Time   | Avg Time     | Max Time     | Max Memory   | Avg Memory  
+------------------------------------------------------------------------------------------------------------
+Compute all lattice points          | 00:04:48     | 0.008 s      | 2.030 s      | 214.12 MiB   | 2.88 MiB    
+Compute unimodular simplices        | 00:00:10     | 0.000 s      | 0.358 s      | 5.22 MiB     | 134.21 KiB  
+Compute internal faces              | 00:00:42     | 0.001 s      | 2.496 s      | 24.61 MiB    | 377.18 KiB  
+Compute intersecting pairs          | 00:15:32     | 0.025 s      | 11.406 s     | 361.92 MiB   | 1.73 MiB    
+Generate face-covering clauses      | 00:00:45     | 0.001 s      | 0.498 s      | 45.20 MiB    | 428.85 KiB  
+Solve SAT problem                   | 00:03:35     | 0.006 s      | 1.726 s      | 133.30 MiB   | 1.23 MiB    
+

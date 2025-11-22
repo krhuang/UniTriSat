@@ -1,0 +1,2 @@
+/var/spool/slurmd/job30051/slurm_script: line 6: 16201 Killed                  julia -t auto by_volume_run.jl 3 $SLURM_ARRAY_TASK_ID cpu regular
+slurmstepd: error: Detected 1 oom_kill event in StepId=30051.batch. Some of the step tasks have been OOM Killed.

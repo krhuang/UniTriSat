@@ -1,0 +1,40 @@
+  Activating project at `~/Code/UniTriSat`
+Precompiling packages...
+    UniTriSat Being precompiled by another process (pid: 17870, pidfile: /homes/numerik/lauff/.julia/compiled/v1.10/UniTriSat/jJmbR_KLCVs.ji.pidfile)
+ 130994.7 ms  ✓ UniTriSat
+  1 dependency successfully precompiled in 132 seconds. 50 already precompiled.
+-
+Test Dimension 4, Volume 23 on cpu
+-
+Run started at:                      14:33:05
+Number of threads:                   1
+Solve mode:                          Find First
+Intersection backend selected:       cpu
+Validation enabled:                  false
+Number of polytopes found:           184646
+Restricting to unimodular simplices: true
+Looking for regular triangulations:  true
+Using Normaliz:                      false
+
+
+
+Run finished: 20:10:46
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:     184646
+Regularly Triangulatable:      [32m92362[0m
+Triangulatable:                [32m92371[0m
+Non-Triangulatable:            [31m92275[0m
+Total Run Time:                05:37:41
+----------------------------------------
+Step Name                           | Total Time   | Avg Time     | Max Time     | Max Memory   | Avg Memory  
+------------------------------------------------------------------------------------------------------------
+Compute all lattice points          | 00:28:09     | 0.009 s      | 2.098 s      | 245.97 MiB   | 3.45 MiB    
+Compute unimodular simplices        | 00:01:18     | 0.000 s      | 0.618 s      | 15.70 MiB    | 245.91 KiB  
+Compute internal faces              | 00:03:56     | 0.001 s      | 2.505 s      | 24.59 MiB    | 450.89 KiB  
+Compute intersecting pairs          | 03:45:57     | 0.074 s      | 73.643 s     | 1.96 GiB     | 3.92 MiB    
+Generate face-covering clauses      | 00:07:49     | 0.003 s      | 0.638 s      | 45.87 MiB    | 783.77 KiB  
+Solve SAT problem                   | 00:31:16     | 0.010 s      | 16.833 s     | 1010.71 MiB  | 1.74 MiB    
+

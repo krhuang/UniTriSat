@@ -1,0 +1,49 @@
+  Activating project at `~/Code/UniTriSat`
+Precompiling packages...
+   3778.3 ms  ✓ UniTriSat
+  1 dependency successfully precompiled in 5 seconds. 50 already precompiled.
+  1 dependency had output during precompilation:
+┌ UniTriSat
+│  ===================== WARNING ======================
+│  Normaliz not available; using CDDLib lattice point enumeration instead.
+│  This is slower, but not the bottleneck, so it should be OK.
+│  You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl
+│  You may have to downgrade your Julia version for Normaliz to work.
+│  There is also the lattice_points_via_Oscar function available in basic_computation.jl
+│  ====================================================
+└  
+-
+Test Dimension 5, Volume 18 on cpu
+-
+Run started at:                      14:32:20
+Number of threads:                   1
+Solve mode:                          Find First
+Intersection backend selected:       cpu
+Validation enabled:                  false
+Number of polytopes found:           77727
+Restricting to unimodular simplices: true
+Looking for regular triangulations:  true
+Using Normaliz:                      false
+
+
+
+Run finished: 03:02:46
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:     77727
+Regularly Triangulatable:      [32m32149[0m
+Triangulatable:                [32m32149[0m
+Non-Triangulatable:            [31m45578[0m
+Total Run Time:                12:30:25
+----------------------------------------
+Step Name                           | Total Time   | Avg Time     | Max Time     | Max Memory   | Avg Memory  
+------------------------------------------------------------------------------------------------------------
+Compute all lattice points          | 00:52:08     | 0.040 s      | 4.768 s      | 1.82 GiB     | 15.22 MiB   
+Compute unimodular simplices        | 00:00:40     | 0.001 s      | 0.788 s      | 25.83 MiB    | 271.57 KiB  
+Compute internal faces              | 00:01:44     | 0.001 s      | 2.491 s      | 24.97 MiB    | 481.95 KiB  
+Compute intersecting pairs          | 11:13:47     | 0.572 s      | 1037.506 s   | 2.57 GiB     | 3.43 MiB    
+Generate face-covering clauses      | 00:01:50     | 0.002 s      | 0.930 s      | 45.36 MiB    | 464.35 KiB  
+Solve SAT problem                   | 00:07:42     | 0.007 s      | 2.650 s      | 133.87 MiB   | 1.31 MiB    
+
