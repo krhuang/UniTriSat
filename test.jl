@@ -1,5 +1,6 @@
 import Pkg
 Pkg.activate(".")
+Pkg.instantiate()
 
 using StyledStrings
 using Printf
@@ -28,13 +29,13 @@ else
     backend="cpu"
 end
 
-# println("-")
-# println(styled"{bold, blue:Test plotting}")
-# println("-")
-# results  = triangulate(
-#     "Polytopes/Big3D",
-#     terminal_output=terminal_output, intersection_backend=backend, plot=true
-#     )
+println("-")
+println(styled"{bold, blue:Test plotting}")
+println("-")
+results  = triangulate(
+    "Polytopes/Big3D",
+    terminal_output=terminal_output, intersection_backend=backend, plot=true
+    )
 
 test_name = "Vol 6 3D"
 push!(test_names, test_name)
@@ -45,9 +46,9 @@ results  = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt",
     terminal_output=terminal_output, intersection_backend=backend
     )
-num_triangulatable = length([1 for result in results if result.num_solutions_found>0])
+num_triangulatable = results[2]
 expected_number = 43
-total_time = sum([result.total_time for result in results])
+total_time = results[6]
 if  num_triangulatable == expected_number
     println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -67,9 +68,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v12.txt",
     terminal_output=terminal_output
     )
-num_triangulatable = length([1 for result in results if result.num_solutions_found>0])
+num_triangulatable = results[2]
 expected_number = 745
-total_time = sum([result.total_time for result in results])
+total_time = results[6]
     if  num_triangulatable == expected_number
         println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -88,9 +89,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v16.txt",
     terminal_output=terminal_output, intersection_backend=backend
     )
-num_triangulatable = length([1 for result in results if result.num_solutions_found>0])
+num_triangulatable = results[2]
 expected_number = 3288
-total_time = sum([result.total_time for result in results])
+total_time = results[6]
     if  num_triangulatable == expected_number
         println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -109,9 +110,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/4-polytopes/v10.txt",
     terminal_output=terminal_output
     )
-num_triangulatable = length([1 for result in results if result.num_solutions_found>0])
+num_triangulatable = results[2]
 expected_number = 618
-total_time = sum([result.total_time for result in results])
+total_time = results[6]
 if  num_triangulatable == expected_number
     println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -130,9 +131,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/5-polytopes/v10.txt",
     terminal_output=terminal_output
     )
-num_triangulatable = length([1 for result in results if result.num_solutions_found>0])
+num_triangulatable = results[2]
 expected_number = 841
-total_time = sum([result.total_time for result in results])
+total_time = results[6]
 if  num_triangulatable == expected_number
     println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -151,9 +152,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/6-polytopes/v10.txt",
     terminal_output=terminal_output
     )
-num_triangulatable = length([1 for result in results if result.num_solutions_found>0])
+num_triangulatable = results[2]
 expected_number = 959
-total_time = sum([result.total_time for result in results])
+total_time = results[6]
 if  num_triangulatable == expected_number
     println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")

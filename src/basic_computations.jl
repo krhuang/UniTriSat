@@ -54,99 +54,58 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
     float_threshold = 1e-10
 
-    # 1. Exaktes Polytop mit BigInt-Rationalen erstellen
-    # Dies ist notwendig für die exakte Fallback-Prüfung
     verts = Rational{BigInt}.(vertices)
     poly = polyhedron(vrep(verts), CDD_LIB_EXACT)
-
-    # --- NEUER TEIL: H-Repräsentation extrahieren und in Float64 konvertieren ---
-
-    # Holen der H-Repräsentation (Ax <= b) aus dem Polytop
-    # Dies geschieht nur einmal und ist der teuerste Teil der Vorbereitung.
     hrep_poly = hrep(poly)
     all_halfspaces = halfspaces(hrep_poly)
     num_hyperplanes = length(all_halfspaces)
 
     if num_hyperplanes == 0
-        # Dieser Fall sollte bei einem V-Polyeder nicht eintreten, aber zur Sicherheit
         @warn "Polytop hat keine Hyperebenen-Repräsentation."
-        # Fallback auf die alte (langsame) Methode, nur um sicherzugehen
         return lattice_points_via_CDDLib(vertices)
     end
 
-    # Extrahieren von A (Matrix) und b (Vektor) als exakte Rationale
     A_rational = reduce(vcat, [h.a' for h in all_halfspaces])
     b_rational = [h.β for h in all_halfspaces]
 
-    # Konvertieren von A und b in Float64 für schnelle Berechnungen
     A_float = Float64.(A_rational)
     b_float = Float64.(b_rational)
 
-    # 2. Bounding Box berechnen (wie zuvor)
     min_array = [minimum(vertices[:, i]) for i in 1:size(vertices, 2)]
     max_array = [maximum(vertices[:, i]) for i in 1:size(vertices, 2)]
     ranges = [min_array[i]:max_array[i] for i in 1:length(min_array)]
 
-    # 3. Gitterpunkte sammeln
     points_list = Vector{Vector{Int}}()
 
-    # --- NEUER TEIL: Schwellenwert für den Float-Vergleich ---
-
-    # Dein Vorschlag: 2 * eps(Float64).
-    # Dies ist die Maschinengenauigkeit für Zahlen um 1.0.
-    # ACHTUNG: Dies ist ein *sehr* kleiner Schwellenwert!
-    # Es kann sein, dass wir ihn auf z.B. 1e-12 erhöhen müssen,
-    # falls zu viele Punkte fälschlicherweise als "zu nah" eingestuft werden.
-
-    # 4. Optimierte Schleife über alle Punkte in der Bounding Box
     for pt_tuple in Iterators.product(ranges...)
         pt_int_vec = collect(Int.(pt_tuple))
-        pt_float = Float64.(pt_int_vec) # Punkt für Float-Berechnung
+        pt_float = Float64.(pt_int_vec)
 
-        use_exact_check = false # Flag für "zu nah"
-        is_outside_float = false  # Flag für "sicher außerhalb"
+        use_exact_check = false
+        is_outside_float = false
 
-        # Schleife über alle Hyperebenen (A[i,:]*x <= b[i])
         for i in 1:num_hyperplanes
-            # Berechne die "Distanz": dist = b[i] - A[i,:] * pt
-            # @view ist effizienter, da es keine neue Matrix erstellt
             dot_prod = dot(@view(A_float[i, :]), pt_float)
             dist = b_float[i] - dot_prod
 
-            # abs(dist) <= threshold : Punkt ist zu nah an der Ebene.
-            # Wir können keine sichere Float-Aussage treffen.
             if abs(dist) <= float_threshold
                 use_exact_check = true
-                break # Beende Hyperebenen-Schleife, gehe zur exakten Prüfung
-
-            # dist < 0.0 (und nicht "zu nah"): Punkt ist sicher außerhalb.
+                break
             elseif dist < 0.0
                 is_outside_float = true
-                break # Beende Hyperebenen-Schleife, Punkt wird verworfen
             end
-
-            # Fall dist > float_threshold:
-            # Der Punkt ist sicher innerhalb *dieser* Hyperebene.
-            # Die Schleife läuft weiter zur nächsten Hyperebene.
         end
 
-        # 5. Entscheidung basierend auf den Flags
         if use_exact_check
-            # Fallback: Der Punkt war zu nah, wir müssen exakt rechnen
             pt_rational = Rational{BigInt}.(pt_int_vec)
             if in(pt_rational, poly)
                 push!(points_list, pt_int_vec)
             end
         elseif !is_outside_float
-            # Sicherer Fall: Der Punkt war nie "zu nah" (use_exact_check=false)
-            # und er war nie "sicher außerhalb" (is_outside_float=false).
-            # Das bedeutet, er war für *alle* Hyperebenen "sicher innerhalb".
             push!(points_list, pt_int_vec)
         end
-        # Der 3. Fall (is_outside_float = true) wird einfach ignoriert.
     end
 
-    # 6. Ergebnisse formatieren (wie zuvor)
     if isempty(points_list)
         return zeros(Int, 0, size(vertices, 2))
     else

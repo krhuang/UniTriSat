@@ -101,7 +101,6 @@ end
 # Modified to return a Tuple instead of ProcessResult to reduce memory overhead
 function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool, log_stream::Union{IO, Nothing})
     dim = size(initial_vertices, 2)
-    buf = IOBuffer()
     step_stats = Vector{StepStats}()
     t_start_total = time_ns()
     validation_status = :not_run
@@ -258,10 +257,10 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
 
     solution_simplices = Vector{Vector{Matrix{Int}}}()
+    first_solution_simplices = Vector{Matrix{Int}}()
+    first_regular_solution_simplices = Vector{Matrix{Int}}()
     number_of_triangulations_found = 0
     number_of_regular_triangulations_found = 0
-    first_solution_simplices = []
-    first_regular_solution_simplices = []
     solver_func = PicoSAT # we only support PicoSAT atm, but other solvers could be easily used by replacing this solver function
     # (and possible changing how the solver api is called)
 
@@ -270,7 +269,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
         number_of_triangulations_found += 1
         if isempty(first_solution_simplices)
-            push!(first_solution_simplices, simplices)
+            first_solution_simplices = simplices
         end
         if !config.regular
             if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
@@ -280,7 +279,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         end
         if config.regular && is_regular(simplices)
             if isempty(first_regular_solution_simplices)
-                push!(first_regular_solution_simplices, simplices)
+                first_regular_solution_simplices = simplices
             end
             number_of_regular_triangulations_found += 1
             if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
@@ -338,7 +337,19 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     # we plot the intersection of the triangulation from the first solution with every facet of the polytope if it is not 3d
     if config.plot
         log_verbose("\nStep 6: Plotting result..")
-        plot(initial_vertices, dim, first_solution_simplices)
+        if config.regular
+            if isempty(first_regular_solution_simplices)
+                @error("Cannot plot, no regular triangulation found")
+            else
+                plot(initial_vertices, dim, first_regular_solution_simplices)
+            end
+        else
+            if isempty(first_solution_simplices)
+                @error("Cannot plot, no triangulation found")
+            else
+                plot(initial_vertices, dim, first_solution_simplices)
+            end
+        end
         log_verbose("-> Plotting complete. Step 6 complete.")
     end
 
@@ -413,10 +424,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         flush(log_stream)
     end
 
-    if config.use_normaliz && !Normaliz_available
+    if config.use_normaliz && !Normaliz_available[]
         @warn(
             """
-            ====================================== WARNING ======================================
+            \n====================================== WARNING ======================================
             Normaliz not available; using CDDLib lattice point enumeration instead.
             This is slower, but not the bottleneck, so it should be OK.
             You can find Normaliz.jl at https://github.com/Normaliz/Normaliz.jl
@@ -581,7 +592,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         print(log_stream, replace(stats_table_str, r"\u001b\[\d+m" => ""))
         flush(log_stream)
     end
-    return all_solutions
+    return [all_solutions, triangulatable, regularly_triangulatable, total_number_of_triangulations_found, total_number_of_regular_triangulations_found, time()-t_start_run]
 end
 
 # the entry point of the internal code of the modul. It sets up the config struct, opens the log file etc.

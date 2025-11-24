@@ -1,6 +1,8 @@
 import Pkg
+Pkg.develop(url="https://github.com/Normaliz/Normaliz.jl")
 Pkg.activate(".")
-Pkg.instantiate()
+#Pkg.instantiate()
+Pkg.resolve()
 
 using StyledStrings
 using Printf
@@ -35,7 +37,7 @@ triangulate(
 #    log_file="logs/$(d)d/v$(n)_$(backend)",
     intersection_backend=backend,
     regular=regular,
-    use_normaliz=false,
+    use_normaliz=true,
     return_triangulations = ""
     )
 
