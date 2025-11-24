@@ -2,6 +2,8 @@ module SubdivisionRegularity
 	export is_regular
 	using Polyhedra, CDDLib, Combinatorics, LinearAlgebra
 
+	const CDD_LIB_EXACT = CDDLib.Library(:exact)
+
 	# Helper to treat the rows of a matrix as coordinate tuples
 	pointset(mat::Matrix{Int}) = Set(Tuple.(eachrow(mat)))
 
@@ -74,7 +76,7 @@ module SubdivisionRegularity
 
 	    # Build exact polyhedron
 	   	# This represents the space we're interested in, with weak inequalities instead of sharp ones
-	   	solution_space_closure = polyhedron(hrep(folding_forms_matrix, b), CDDLib.Library(:exact)) 
+	   	solution_space_closure = polyhedron(hrep(folding_forms_matrix, b), CDD_LIB_EXACT)
 
 	    # Check full dimensionality (open feasibility)
 	    return n == dim(solution_space_closure)

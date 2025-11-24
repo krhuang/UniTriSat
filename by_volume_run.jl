@@ -16,7 +16,7 @@ backend = ARGS[3]
 if length(ARGS)>3
     regular = true
     if ARGS[4] != "regular"
-        @warn("You have passed the unknown option $regular. If you want to search for regular triangulations, please pass 'regular'. Leave empty otherwise.")
+        @warn("You have passed the unknown option $(ARGS[4]). If you want to search for regular triangulations, please pass 'regular'. Leave empty otherwise.")
         regular = false
     end
 else

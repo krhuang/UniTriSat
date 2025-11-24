@@ -9,6 +9,7 @@ using CDDLib
 
 export all_simplices, internal_faces, lattice_points_via_CDDLib
 
+const CDD_LIB_EXACT = CDDLib.Library(:exact)
 
 # Computes the lattice points of a lattice polytope, via CDDLib backend of Polyhedra
 # By default CDDLib uses Floats, but you can configure this
@@ -56,7 +57,7 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
     # 1. Exaktes Polytop mit BigInt-Rationalen erstellen
     # Dies ist notwendig für die exakte Fallback-Prüfung
     verts = Rational{BigInt}.(vertices)
-    poly = polyhedron(vrep(verts), CDDLib.Library(:exact))
+    poly = polyhedron(vrep(verts), CDD_LIB_EXACT)
 
     # --- NEUER TEIL: H-Repräsentation extrahieren und in Float64 konvertieren ---
 
@@ -250,7 +251,7 @@ function internal_faces(vertices::Matrix{Int}, dim::Int)
         return Set{NTuple{dim, Int}}()
     end
 
-    poly = Polyhedra.polyhedron(vrep(vertices))
+    poly = Polyhedra.polyhedron(vrep(vertices), CDD_LIB_EXACT)
     hr = hrep(poly)
     rational_planes = collect(halfspaces(hr))
 

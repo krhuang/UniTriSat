@@ -99,7 +99,7 @@ end
 
 # the main function processing a single polytope, here all the computations happen
 # Modified to return a Tuple instead of ProcessResult to reduce memory overhead
-function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool)
+function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool, log_stream::Union{IO, Nothing})
     dim = size(initial_vertices, 2)
     buf = IOBuffer()
     step_stats = Vector{StepStats}()
@@ -108,10 +108,17 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     # Printing verbose statements
     function log_verbose(msg...; is_display::Bool=false)
+        if isnothing(log_stream)
+            return
+        end
         timestamp = Dates.format(now(), "HH:MM:SS")
-        s_msg = if is_display; sprint(show, "text/plain", msg[1]); else; join(msg, " "); end
+        s_msg = if is_display
+            sprint(show, "text/plain", msg[1])
+        else
+            join(msg, " ")
+        end
         full_msg = "[$timestamp] " * s_msg
-        println(buf, full_msg)
+        println(log_stream, full_msg)
     end
 
     log_verbose("Processing $(dim)D Polytope #$run_idx")
@@ -360,6 +367,9 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices, result_str)
 
+    empty!(cnf)
+    cnf = Vector{Vector{Int}}() # Reassign to empty to allow GC to eat the old one immediately
+
     # Return tuple: (solutions, step_stats, num_found, num_regular, min_log, total_time)
     return (solution_simplices, step_stats, number_of_triangulations_found, number_of_regular_triangulations_found, minimal_log, total_time)
 end
@@ -423,7 +433,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     total_number_of_triangulations_found = 0
     total_number_of_regular_triangulations_found = 0
 
-    recent_times = Float64[]
     is_first_single_line_update = true
     all_solutions = Vector{Vector{Vector{Matrix{Int}}}}()
     if config.return_triangulations != ""
@@ -435,7 +444,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     for (i, P) in enumerate(polytopes)
 
-        (solutions, step_stats, n_found, n_reg, minimal_log, p_total_time) = process_polytope(P, i, length(polytopes), config, show_running)
+        (solutions, step_stats, n_found, n_reg, minimal_log, p_total_time) = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
 
         # Write to log if needed
         if !isnothing(log_stream)
@@ -450,8 +459,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         end
         total_number_of_triangulations_found += n_found
         total_number_of_regular_triangulations_found += n_reg
-
-        push!(recent_times, p_total_time)
 
         # Online aggregation of statistics
         for stat in step_stats
@@ -480,12 +487,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             is_first_single_line_update = false
             elapsed_time = time() - t_start_run
             eta_str = ""
-            if !isempty(recent_times)
-                avg_time = sum(recent_times) / length(recent_times)
-                remaining = length(polytopes) - i
-                eta_seconds = avg_time * remaining
-                eta_str = format_duration(eta_seconds)
-            end
+            avg_time = (time() - t_start_run) / i
+            remaining = number_of_polytopes - i
+            eta_seconds = avg_time * remaining
+            eta_str = format_duration(eta_seconds)
 
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Elapsed Time:", format_duration(elapsed_time))
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Estimated Time Left:", eta_str)
@@ -499,6 +504,11 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         # Explicitly clear temporary variables to help GC
         solutions = nothing
         step_stats = nothing
+
+        if i%1000 == 0
+            GC.gc()
+            ccall(:malloc_trim, Cvoid, (Cint,), 0)
+        end
     end
 
     if show_running
