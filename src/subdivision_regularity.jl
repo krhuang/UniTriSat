@@ -1,84 +1,157 @@
 module SubdivisionRegularity
-	export is_regular
-	using Polyhedra, CDDLib, Combinatorics, LinearAlgebra
+    export is_regular
 
-	const CDD_LIB_EXACT = CDDLib.Library(:exact)
+    using Combinatorics
+    using LinearAlgebra
+    using JuMP
+    using GLPK
 
-	# Helper to treat the rows of a matrix as coordinate tuples
-	pointset(mat::Matrix{Int}) = Set(Tuple.(eachrow(mat)))
+    # Helper: Convert raw triangulation to specific point-index format
+    function standardize_input(triangulation::Vector{Matrix{Int}})
+        # Map unique points (vectors) to integer IDs
+        pt_map = Dict{Vector{Int}, Int}()
+        unique_points = Vector{Vector{Int}}()
 
-	# Compute all internal faces shared by exactly two simplices
-	function internal_faces(triangulation::Vector{Matrix{Int}}, dimension::Int)
-	    counts = Dict{Set{NTuple{N,Int}} where N, Int}()
-	    for simplex in triangulation
-			for face_rows in combinations(1:size(simplex,1), dimension)
-				face = simplex[collect(face_rows), :]
-				s = pointset(face)
-				counts[s] = get(counts, s, 0) + 1
-			end
-	    end
-	    # Faces that occur exactly twice are internal
-	    return [reduce(vcat, [collect(x)' for x in f]) for (f, c) in counts if c == 2]
-	end
+        simplices_idx = Vector{Vector{Int}}(undef, length(triangulation))
 
-	# Find the two simplices adjacent along a given face
-	function adjacent_simplices(triangulation::Vector{Matrix{Int}}, face::Matrix{Int})
-	    fset = pointset(face)
-	    [s for s in triangulation if issubset(fset, pointset(s))]
-	end
+        for (i, simplex_mat) in enumerate(triangulation)
+            s_indices = Int[]
+            for r in 1:size(simplex_mat, 1)
+                pt = simplex_mat[r, :]
+                if !haskey(pt_map, pt)
+                    push!(unique_points, pt)
+                    pt_map[pt] = length(unique_points)
+                end
+                push!(s_indices, pt_map[pt])
+            end
+            simplices_idx[i] = sort!(s_indices)
+        end
 
-	# This is a mess. TODO: Fix it when you get a chance
-	function is_regular(triangulation::Vector{Matrix{Int}})
-		if length(triangulation) == 1; return true; end
-	    dimension = size(first(triangulation), 2)
-	    #points = unique(vcat(triangulation...))
-	    points = [x for x in Set(point for simplex in triangulation for point in eachrow(simplex))]
-	    n = length(points)
-	    internal = internal_faces(triangulation, dimension)
-	    # println("Number of internal faces: ", length(internal))
+        # Create a Matrix where columns are points (d x n)
+        # We use Float64 for the matrix to ensure det() works,
+        # but we round to Int later for the coefficients.
+        pts_matrix = hcat(unique_points...)
 
-	    A = Vector{Vector{Int}}()  # list of rows
+        return pts_matrix, simplices_idx
+    end
 
-	    for face in internal
-			adj = adjacent_simplices(triangulation, face) # TODO: this should just compute a circuit with the first and last points being special
-			if length(adj) == 2
-				s1, s2 = adj
-				p = only(setdiff(pointset(s1), pointset(face)))
-				q = only(setdiff(pointset(s2), pointset(face)))
-				p_vec = collect(p)'
-				q_vec = collect(q)'
-				circuit = vcat(s1, q_vec)
+    function is_regular(triangulation::Vector{Matrix{Int}})
+        if length(triangulation) <= 1; return true; end
 
-				# Constructing the folding form
-				# See Definition 5.2.4 "Folding Form" of De Loera, Rambau, Santos - Triangulations: Structures for Algorithms and Applications
+        # Preprocessing
+        pts, simplices = standardize_input(triangulation)
+        dim = size(pts, 1)
+        n_points = size(pts, 2)
 
-				submatrix = hcat(s1, ones(Int, size(s1, 1)))  # hcat adds a column
-				sign_det = round(Int, det(submatrix))
-				# @assert sign_det = 1 || sign_det = -1 # Input is assumed to be unimodular
+        # Build Adjacency Graph
+        # Map: Sorted Face Indices -> [Simplex IDs]
+        face_map = Dict{Vector{Int}, Vector{Int}}()
 
-				folding_form = zeros(Int, n)
-				# Constructing one folding form
-				for (i, row_idx) in enumerate(1:size(circuit, 1))
-					submatrix = circuit[setdiff(1:size(circuit, 1), [row_idx]), :]  # select rows
-					augmented = hcat(submatrix, ones(Int, size(submatrix, 1)))  # add column of ones
-					val = (-1)^i * round(Int, det(augmented))
-					pt = circuit[row_idx, :]
-					idx = findfirst(r -> all(r .== pt), points)
-					folding_form[idx] = val
-				end
-				push!(A, sign_det * folding_form) # sign_det should actually be sign
-			end
-	    end
+        # We only care about faces of size `dim`
+        for (s_id, s_indices) in enumerate(simplices)
+            for face in combinations(s_indices, dim)
+                # Face is already sorted from s_indices
+                if !haskey(face_map, face)
+                    face_map[face] = [s_id]
+                else
+                    push!(face_map[face], s_id)
+                end
+            end
+        end
 
-	    # Convert list of rows to matrix
-	    folding_forms_matrix = reduce(vcat, permutedims.(A))
-	    b = zeros(Int, size(folding_forms_matrix, 1))
+        # Setup Linear Program
+        # Logic: We look for weights w such that local convexity holds everywhere.
+        model = Model(GLPK.Optimizer)
+        set_silent(model)
 
-	    # Build exact polyhedron
-	   	# This represents the space we're interested in, with weak inequalities instead of sharp ones
-	   	solution_space_closure = polyhedron(hrep(folding_forms_matrix, b), CDD_LIB_EXACT)
+        @variable(model, w[1:n_points])
+        @variable(model, eps)
 
-	    # Check full dimensionality (open feasibility)
-	    return n == dim(solution_space_closure)
-	end
+        constraints_count = 0
+
+        # Buffers to reduce allocation inside loop
+        # S1 matrix: (d+1) x (d+1) (points + row of ones)
+        mat_s1 = zeros(Float64, dim+1, dim+1)
+        mat_s1[dim+1, :] .= 1.0
+
+        # Augmented matrix for folding form: (d+1) x (d+1)
+        mat_aug = zeros(Float64, dim+1, dim+1)
+        mat_aug[dim+1, :] .= 1.0
+
+        # Iterate Internal Faces
+        for (face, neighbors) in face_map
+            if length(neighbors) == 2
+                s1_idx, s2_idx = neighbors
+
+                s1_indices = simplices[s1_idx]
+                s2_indices = simplices[s2_idx]
+
+                # Identify q: The point in S2 that is NOT in the face
+                q_candidates = setdiff(s2_indices, face)
+                if isempty(q_candidates); continue; end # Should not happen in valid triangulation
+                q_idx = q_candidates[1]
+
+                for c in 1:(dim+1)
+                    col_pt_idx = s1_indices[c]
+                    mat_s1[1:dim, c] = pts[:, col_pt_idx]
+                end
+
+                sign_det = sign(round(Int, det(mat_s1)))
+
+                if sign_det == 0; continue; end # Degenerate simplex
+
+                # Construct Circuit List: [S1 points; q]
+                circuit_indices = [s1_indices; q_idx]
+
+                # Calculate Folding Form coefficients
+                # folding_form[k] corresponds to point circuit_indices[k]
+
+                # We build the expression: sum( coeff * w[point_idx] )
+                # aff_expr starts at 0
+                aff_expr = AffExpr(0.0)
+
+                for i in 1:length(circuit_indices)
+                    # Construct matrix excluding row i of the circuit
+
+                    # We select all points in circuit_indices except the i-th one
+                    current_subset = circuit_indices[1:end .!= i]
+
+                    # Fill Augmented Matrix
+                    for c in 1:(dim+1)
+                        pt_idx = current_subset[c]
+                        mat_aug[1:dim, c] = pts[:, pt_idx]
+                    end
+
+                    term_det = round(Int, det(mat_aug))
+
+                    # (-1)^i * det
+                    val = (i % 2 == 1 ? -1 : 1) * term_det
+
+                    # Add to expression
+                    add_to_expression!(aff_expr, val, w[circuit_indices[i]])
+                end
+
+                # Add Constraint
+                # sign_det * folding_form * w >= epsilon
+                @constraint(model, sign_det * aff_expr >= eps)
+                constraints_count += 1
+
+            end
+        end
+
+        if constraints_count == 0; return true; end
+
+        # Solve
+        @objective(model, Max, eps)
+        @constraint(model, eps <= 1.0) # Boundedness
+
+        optimize!(model)
+
+        if termination_status(model) == MOI.OPTIMAL
+            # We require strictly positive slack for strict convexity
+            return value(eps) > 1e-6
+        else
+            return false
+        end
+    end
 end

@@ -16,13 +16,14 @@ end
 
 for d in 4:6
     println("-")
-    println(styled"{bold, blue:Dimension $(d), Smooth}")
+    println(styled"{bold, blue:Dimension $(d), Smooth, regular}")
     println("-")
     triangulate(
         "Polytopes/small-lattice-polytopes/data/smooth/$(d)_polytopes.txt",
         terminal_output=terminal_output,
         log_file="logs/$(d)d/smooth_$(d)d",
         intersection_backend=backend,
-        use_normaliz=true
+        use_normaliz=false,
+        regular=true
         )
 end

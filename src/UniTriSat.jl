@@ -302,15 +302,21 @@ function process_polytope(  initial_vertices::Matrix{Int},
             end
             if !config.find_all; break; end #we found a solution, we do not want a regular one and we dont want all of them : We can stop here
         end
-        if config.regular && is_regular(simplices)
-            if isempty(first_regular_solution_simplices)
-                first_regular_solution_simplices = simplices
+        reg = is_regular(simplices)
+        if config.regular
+            if reg
+                if isempty(first_regular_solution_simplices)
+                    first_regular_solution_simplices = simplices
+                end
+                number_of_regular_triangulations_found += 1
+                if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                    push!(solution_simplices, simplices)
+                end
+                if !config.find_all; break; end #we found a regular solution and we dont want all of them : We can stop here
+            else
+                s = " ($number_of_triangulations_found non-regular triangulations found)"
+                print(s*"\b"^(length(s)))
             end
-            number_of_regular_triangulations_found += 1
-            if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                push!(solution_simplices, simplices)
-            end
-            if !config.find_all; break; end #we found a regular solution and we dont want all of them : We can stop here
         end
     end
 
