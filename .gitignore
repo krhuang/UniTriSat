@@ -1,6 +1,8 @@
 Polytopes/small-lattice-polytopes
 *.job
+jobs/
 logs/
 profile*
-runs/
+outs/
 .vscode/
+Other/

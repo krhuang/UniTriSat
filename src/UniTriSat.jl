@@ -49,6 +49,10 @@ using .Plot
 include("subdivision_regularity.jl")
 using .SubdivisionRegularity
 
+# Utility: remove ANSI SGR sequences (colors/formatting) from a string.
+# Matches ESC '[' followed by digits and semicolons and ending in 'm', e.g. "\x1b[1;31m".
+strip_ansi(s::AbstractString) = replace(s, r"\x1b\[[0-9;]*m" => "")
+
 # a struct to keep track of the timings of the separate operations
 struct StepStat
     name::String
@@ -617,9 +621,12 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         print(stdout, stats_table_str)
         println(stdout)
     end
+    # Strip ANSI SGR color/formatting sequences from log output before writing to file.
+    # Existing regex used "\\u001b\[\d+m" which misses multi-parameter sequences like "\x1b[1;34m".
+    # Use a more general pattern that matches the ESC (hex 1b) followed by '[' and any digits/semicolon params ending in 'm'.
     if !isnothing(log_stream)
-        print(log_stream, replace(summary_core_str, r"\u001b\[\d+m" => ""))
-        print(log_stream, replace(stats_table_str, r"\u001b\[\d+m" => ""))
+        print(log_stream, strip_ansi(summary_core_str))
+        print(log_stream, strip_ansi(stats_table_str))
         flush(log_stream)
     end
 

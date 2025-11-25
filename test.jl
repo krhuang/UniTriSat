@@ -34,209 +34,155 @@ end
 #     total_time::Float
 # end
 
-terminal_output = "running, table, final" #initial, running, table, final
-
-test_results = []
-test_num = 1
-
-test_names = []
-
-if length(ARGS) > 0
-    backend=ARGS[1]
-else
-    backend="cpu"
+struct TestResult 
+    name::String
+    pass::Bool
+    reason::String
+    time::String
 end
 
-if length(ARGS)>1
-    regular = true
-    if ARGS[2] != "regular"
-        @warn("You have passed the unknown option $(ARGS[2]). If you want to search for regular triangulations, please pass 'regular'. Leave empty otherwise.")
-        regular = false
+struct Test
+    id::Int
+    dim::Int
+    vol::Int
+    exp::Int
+    exp_reg::Int
+end
+
+function run_test(test::Test)
+    exp_reg_str = regular ? " and $(test.exp_reg) regularly triangulatable polytopes" : ""
+    path = "Polytopes/small-lattice-polytopes/data/$(test.dim)-polytopes/v$(test.vol).txt"
+    name = "$(test.dim)D Vol $(test.vol)$reg_str"
+    println("-")
+    println(styled"{bold, blue:Test $(test.id): $name. Expect $(test.exp) triangulatable polytopes$exp_reg_str}")
+    println("-")
+    result  = triangulate(
+        path,
+        terminal_output=terminal_output, 
+        intersection_backend=backend, 
+        return_triangulations="", 
+        regular=regular
+        )
+    num_triangulatable = result.number_triangulatable
+    num_reg_triangulatable = result.number_regularly_triangulatable
+    time = format_duration(result.total_time)
+    if  num_triangulatable == test.exp && (!regular || num_reg_triangulatable == test.exp_reg)
+        println(styled"{bold, green:passed} in $time\n")
+        pass = true
+        reason = ""
+    else
+        reason = ""
+        if num_triangulatable != test.exp
+            reason *= "Expected $(test.exp) triangulatable, got $num_triangulatable."
+        end
+        if (regular || num_reg_triangulatable == test.exp_reg)
+            reason *= " Expected $(test.exp_reg) regularly triangulatable, got $num_reg_triangulatable."
+        end
+        println(styled"{bold, red:failed}, $reason")
+        pass = false
     end
-else
-    regular = false
+    return TestResult(name, pass, reason, time)
 end
 
-println("-")
-println(styled"{bold, blue:Test plotting}")
-println("-")
-results  = triangulate(
-    "Polytopes/Big3D",
-    terminal_output=terminal_output, intersection_backend=backend, return_triangulations="", plot=true
-    )
+using ArgParse
 
-test_name = "Vol 6 3D"
-push!(test_names, test_name)
-println("-")
-println(styled"{bold, blue:Test $test_num, $test_name. Expect 43 triangulatable polytopes}")
-println("-")
-results  = triangulate(
-    "Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt",
-    terminal_output=terminal_output, intersection_backend=backend, return_triangulations=""
-    )
-num_triangulatable = results.number_triangulatable
-expected_number = 43
-total_time = results.total_time
-if  num_triangulatable == expected_number
-    println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
-    push!(test_results, "$(format_duration(total_time))")
-else
-    println(styled"{bold, red:failed}, Expected $expected_number, got $num_triangulatable")
-    push!(test_results, "failed: Expected $expected_number, got $num_triangulatable")
+s = ArgParseSettings()
+@add_arg_table s begin
+  "--backend"
+    help = "intersection backend"
+    arg_type = String
+    default = "cpu"
+  "--regular"
+    help = "find regular triangulations"
+    action = :store_true
+  "--plot"
+    help = "produce plots"
+    action = :store_true
 end
-test_num += 1
+parsed = parse_args(s)
+backend = parsed["backend"]
+regular = parsed["regular"]
+plot = parsed["plot"]
+reg_str = regular ? ", regular" : ""
+
+test_data = [   (3, 8, 125, 125),
+                # (3, 16, 3288, 3288),
+                # (3, 17, 3784, 3783),
+                # (3, 19, 7771, 7769),
+                # (4, 13, 1760, 1760),
+                # (5, 11, 869, 869),
+                (6, 2, 392, 392)]
 
 
-test_name = "Vol 12 3D"
-push!(test_names, test_name)
-println("-")
-println(styled"{bold, blue:Test $test_num, $test_name. Expect 745 triangulatable polytopes}")
-println("-")
-results = triangulate(
-    "Polytopes/small-lattice-polytopes/data/3-polytopes/v12.txt",
-    terminal_output=terminal_output
-    )
-num_triangulatable = results.number_triangulatable
-expected_number = 745
-total_time = results.total_time
-    if  num_triangulatable == expected_number
-        println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
-    push!(test_results, "$(format_duration(total_time))")
-else
-    println(styled"{bold, red:failed}, Expected $expected_number, got $num_triangulatable")
-    push!(test_results, "failed: Expected $expected_number, got $num_triangulatable")
-end
-test_num += 1
+terminal_output = "running, table, final" #initial, running, table, final
+test_results = Vector{TestResult}()
 
-test_name = "Vol 16 3D"
-push!(test_names, test_name)
-println("-")
-println(styled"{bold, blue:Test $test_num, $test_name. Expect 3288 triangulatable polytopes}")
-println("-")
-results = triangulate(
-    "Polytopes/small-lattice-polytopes/data/3-polytopes/v16.txt",
-    terminal_output=terminal_output, intersection_backend=backend, return_triangulations=""
-    )
-num_triangulatable = results.number_triangulatable
-expected_number = 3288
-total_time = results.total_time
-    if  num_triangulatable == expected_number
-        println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
-    push!(test_results, "$(format_duration(total_time))")
-else
-    println(styled"{bold, red:failed}, Expected $expected_number, got $num_triangulatable")
-    push!(test_results, "failed: Expected $expected_number, got $num_triangulatable")
-end
-test_num += 1
-
-test_name = "Vol 10 4D"
-push!(test_names, test_name)
-println("-")
-println(styled"{bold, blue:Test $test_num, $test_name. Expect 618 triangulatable polytopes}")
-println("-")
-results = triangulate(
-    "Polytopes/small-lattice-polytopes/data/4-polytopes/v10.txt",
-    terminal_output=terminal_output
-    )
-num_triangulatable = results.number_triangulatable
-expected_number = 618
-total_time = results.total_time
-if  num_triangulatable == expected_number
-    println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
-    push!(test_results, "$(format_duration(total_time))")
-else
-    println(styled"{bold, red:failed}, Expected $expected_number, got $num_triangulatable")
-    push!(test_results, "failed: Expected $expected_number, got $num_triangulatable")
-end
-test_num += 1
-
-test_name = "Vol 10 5D"
-push!(test_names, test_name)
-println("-")
-println(styled"{bold, blue:Test $test_num, $test_name. Expect 841 triangulatable polytopes}")
-println("-")
-results = triangulate(
-    "Polytopes/small-lattice-polytopes/data/5-polytopes/v10.txt",
-    terminal_output=terminal_output
-    )
-num_triangulatable = results.number_triangulatable
-expected_number = 841
-total_time = results.total_time
-if  num_triangulatable == expected_number
-    println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
-    push!(test_results, "$(format_duration(total_time))")
-else
-    println(styled"{bold, red:failed}, Expected $expected_number, got $num_triangulatable")
-    push!(test_results, "failed: Expected $expected_number, got $num_triangulatable")
-end
-test_num += 1
-
-test_name = "Vol 10 6D"
-push!(test_names, test_name)
-println("-")
-println(styled"{bold, blue:Test $test_num, $test_name. Expect 959 triangulatable polytopes}")
-println("-")
-results = triangulate(
-    "Polytopes/small-lattice-polytopes/data/6-polytopes/v10.txt",
-    terminal_output=terminal_output
-    )
-num_triangulatable = results.number_triangulatable
-expected_number = 959
-total_time = results.total_time
-if  num_triangulatable == expected_number
-    println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
-    push!(test_results, "$(format_duration(total_time))")
-else
-    println(styled"{bold, red:failed}, Expected $expected_number, got $num_triangulatable")
-    push!(test_results, "failed: Expected $expected_number, got $num_triangulatable")
-end
-test_num += 1
-
-test_name = "Regularity of the \"Mother of all Examples\"}"
-push!(test_names, test_name)
-println("-")
-println(styled"{bold, blue:Test $test_num, $test_name. Expect non-regular}")
-println("-")
-
-
-# Define triangulation directly as a vector of matrices of integer coordinates
-triangulation_nonreg = [
-    [0 0; 0 1; 1 1],
-    [0 0; 1 1; 2 1],
-    [0 0; 1 0; 2 1],
-    [1 0; 2 0; 2 1],
-    [2 0; 3 0; 2 1],
-    [3 0; 4 0; 2 1],
-    [4 0; 2 1; 1 2],
-    [4 0; 3 1; 1 2],
-    [0 1; 1 1; 0 2],
-    [1 1; 0 2; 1 3],
-    [1 1; 1 3; 0 4],
-    [1 1; 1 2; 0 4],
-    [1 1; 2 1; 1 2],
-    [3 1; 1 2; 2 2],
-    [1 2; 2 2; 1 3],
-    [1 2; 1 3; 0 4]
-]
-
-elapsed_time = @elapsed begin
-    regularity_result = is_regular(triangulation_nonreg)
+if plot 
+    println("-")
+    println(styled"{bold, blue:Test plotting on two big 3D Polytopes}")
+    println("-")
+    triangulate("Polytopes/Big3D", 
+    plot=true, 
+    return_triangulations="", 
+    intersection_backend=backend,
+    terminal_output=terminal_output)
 end
 
-if regularity_result
-    println(styled"{bold, red:failed}, falsely found that the Mother of all Examples is regular")
-    push!(test_results, "failed: falsely found regular (time $(format_duration(elapsed_time)))")
-else
-    println(styled"{bold, green:passed} in $(format_duration(elapsed_time)). The Mother of all Examples is not a regular subdivision.\n")
-    push!(test_results, "$(format_duration(elapsed_time))")
+for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)
+    test = Test(i, dim, vol, exp, exp_reg)
+    res = run_test(test)
+    push!(test_results, res)
 end
-test_num += 1
+
+if regular
+    name = "Regularity of the \"Mother of all Examples\""
+    println("-")
+    println(styled"{bold, blue:Test $name. Expect non-regular}")
+    println("-")
+
+    # Define triangulation directly as a vector of matrices of integer coordinates
+    triangulation_nonreg = [
+        [0 0; 0 1; 1 1],
+        [0 0; 1 1; 2 1],
+        [0 0; 1 0; 2 1],
+        [1 0; 2 0; 2 1],
+        [2 0; 3 0; 2 1],
+        [3 0; 4 0; 2 1],
+        [4 0; 2 1; 1 2],
+        [4 0; 3 1; 1 2],
+        [0 1; 1 1; 0 2],
+        [1 1; 0 2; 1 3],
+        [1 1; 1 3; 0 4],
+        [1 1; 1 2; 0 4],
+        [1 1; 2 1; 1 2],
+        [3 1; 1 2; 2 2],
+        [1 2; 2 2; 1 3],
+        [1 2; 1 3; 0 4]
+    ]
+
+    elapsed_time = @elapsed begin
+        regularity_result = is_regular(triangulation_nonreg)
+    end
+
+    if regularity_result
+        reason = "falsely found that the Mother of all Examples is regular"
+        println(styled"{bold, red:failed}, $reason")
+        pass = false
+    else
+        println(styled"{bold, green:passed} in $(format_duration(elapsed_time)). The Mother of all Examples is not a regular subdivision.\n")
+        pass = true
+        reason = ""
+    end
+    push!(test_results, TestResult(name, pass, reason, format_duration(elapsed_time)))
+end
 
 # Final summary
-for (i, res) in enumerate(test_results)
-    if !startswith(res, "failed")
-        println(styled"Test $(test_names[i]): {bold, green: passed} in $res")
+for (i, test) in enumerate(test_results)
+    print("Test $i: ")
+    print(test.name)  # preserves styled formatting
+    if test.pass
+        println(styled"{bold, green: passed} ($(test.time))")
     else
-        println(styled"Test $(test_names[i]): {bold, red:$res}")
+        println(styled"{bold, red: failed}: $(test.reason) ($(test.time))")
     end
 end

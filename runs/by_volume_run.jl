@@ -1,8 +1,6 @@
 import Pkg
-Pkg.develop(url="https://github.com/Normaliz/Normaliz.jl")
 Pkg.activate(".")
-#Pkg.instantiate()
-Pkg.resolve()
+Pkg.instantiate()
 
 using StyledStrings
 using Printf
