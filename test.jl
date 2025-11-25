@@ -16,6 +16,24 @@ if !isdir("Polytopes/small-lattice-polytopes")
     run(`$(git()) clone https://github.com/gabrieleballetti/small-lattice-polytopes Polytopes/small-lattice-polytopes`)
 end
 
+# mutable struct TriangulationResult
+#     solution_simplices::Vector{Vector{Matrix{Int}}}
+#     number_of_triangulations_found::Int
+#     number_of_regular_triangulations_found::Int
+#     minimal_log::String
+#     total_time::Float
+#     step_stats::Vector{StepStat}
+# end
+
+# mutable struct RunResult
+#     triangulation_results::Vector{TriangulationResult}
+#     number_triangulatable::Int
+#     number_regularly_triangulatable::Int
+#     total_number_of_triangulations_found::Int
+#     total_number_of_regular_triangulations_found::Int
+#     total_time::Float
+# end
+
 terminal_output = "running, table, final" #initial, running, table, final
 
 test_results = []
@@ -29,12 +47,22 @@ else
     backend="cpu"
 end
 
+if length(ARGS)>1
+    regular = true
+    if ARGS[2] != "regular"
+        @warn("You have passed the unknown option $(ARGS[2]). If you want to search for regular triangulations, please pass 'regular'. Leave empty otherwise.")
+        regular = false
+    end
+else
+    regular = false
+end
+
 println("-")
 println(styled"{bold, blue:Test plotting}")
 println("-")
 results  = triangulate(
     "Polytopes/Big3D",
-    terminal_output=terminal_output, intersection_backend=backend, plot=true
+    terminal_output=terminal_output, intersection_backend=backend, return_triangulations="", plot=true
     )
 
 test_name = "Vol 6 3D"
@@ -44,11 +72,11 @@ println(styled"{bold, blue:Test $test_num, $test_name. Expect 43 triangulatable 
 println("-")
 results  = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt",
-    terminal_output=terminal_output, intersection_backend=backend
+    terminal_output=terminal_output, intersection_backend=backend, return_triangulations=""
     )
-num_triangulatable = results[2]
+num_triangulatable = results.number_triangulatable
 expected_number = 43
-total_time = results[6]
+total_time = results.total_time
 if  num_triangulatable == expected_number
     println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -68,9 +96,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v12.txt",
     terminal_output=terminal_output
     )
-num_triangulatable = results[2]
+num_triangulatable = results.number_triangulatable
 expected_number = 745
-total_time = results[6]
+total_time = results.total_time
     if  num_triangulatable == expected_number
         println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -87,11 +115,11 @@ println(styled"{bold, blue:Test $test_num, $test_name. Expect 3288 triangulatabl
 println("-")
 results = triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v16.txt",
-    terminal_output=terminal_output, intersection_backend=backend
+    terminal_output=terminal_output, intersection_backend=backend, return_triangulations=""
     )
-num_triangulatable = results[2]
+num_triangulatable = results.number_triangulatable
 expected_number = 3288
-total_time = results[6]
+total_time = results.total_time
     if  num_triangulatable == expected_number
         println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -110,9 +138,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/4-polytopes/v10.txt",
     terminal_output=terminal_output
     )
-num_triangulatable = results[2]
+num_triangulatable = results.number_triangulatable
 expected_number = 618
-total_time = results[6]
+total_time = results.total_time
 if  num_triangulatable == expected_number
     println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -131,9 +159,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/5-polytopes/v10.txt",
     terminal_output=terminal_output
     )
-num_triangulatable = results[2]
+num_triangulatable = results.number_triangulatable
 expected_number = 841
-total_time = results[6]
+total_time = results.total_time
 if  num_triangulatable == expected_number
     println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")
@@ -152,9 +180,9 @@ results = triangulate(
     "Polytopes/small-lattice-polytopes/data/6-polytopes/v10.txt",
     terminal_output=terminal_output
     )
-num_triangulatable = results[2]
+num_triangulatable = results.number_triangulatable
 expected_number = 959
-total_time = results[6]
+total_time = results.total_time
 if  num_triangulatable == expected_number
     println(styled"{bold, green:passed} in $(format_duration(total_time))\n")
     push!(test_results, "$(format_duration(total_time))")

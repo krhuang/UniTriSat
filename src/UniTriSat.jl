@@ -50,7 +50,7 @@ include("subdivision_regularity.jl")
 using .SubdivisionRegularity
 
 # a struct to keep track of the timings of the separate operations
-struct StepStats
+struct StepStat
     name::String
     duration_s::Float64
     alloc_bytes::Int64
@@ -97,11 +97,33 @@ mutable struct Config
     return_triangulations::String
 end
 
+mutable struct TriangulationResult
+    solution_simplices::Vector{Vector{Matrix{Int}}}
+    number_of_triangulations_found::Int
+    number_of_regular_triangulations_found::Int
+    minimal_log::String
+    total_time::Float64
+    step_stats::Vector{StepStat}
+end
+
+mutable struct RunResult
+    triangulation_results::Vector{TriangulationResult}
+    number_triangulatable::Int
+    number_regularly_triangulatable::Int
+    total_number_of_triangulations_found::Int
+    total_number_of_regular_triangulations_found::Int
+    total_time::Float64
+end
+
 # the main function processing a single polytope, here all the computations happen
 # Modified to return a Tuple instead of ProcessResult to reduce memory overhead
-function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_run::Int, config::Config, show_running_updates::Bool, log_stream::Union{IO, Nothing})
+function process_polytope(  initial_vertices::Matrix{Int}, 
+                            run_idx::Int, total_in_run::Int, 
+                            config::Config, 
+                            show_running_updates::Bool, log_stream::Union{IO, Nothing})
+
     dim = size(initial_vertices, 2)
-    step_stats = Vector{StepStats}()
+    step_stats = Vector{StepStat}()
     t_start_total = time_ns()
     validation_status = :not_run
 
@@ -131,7 +153,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices)
     end
     P = timed_result_lp.value # P is now the set of all lattice points in the polytope
-    push!(step_stats, StepStats("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
+    push!(step_stats, StepStat("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
 
     num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
@@ -144,7 +166,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     timed_result_simplices = @timed all_simplices(P, unimodular=config.unimodular) # find all (unimodular) simplices spanned by P
     S_indices = timed_result_simplices.value
-    push!(step_stats, StepStats("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
+    push!(step_stats, StepStat("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
 
     num_simplices = length(S_indices)
     cnf = Vector{Vector{Int}}()
@@ -157,8 +179,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     if isempty(S_indices) # handle the case that there are no simplices
         total_time = (time_ns() - t_start_total) / 1e9
         minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> No simplices found", run_idx, total_in_run, num_lattice_points, num_simplices)
-        # return tuple: (solutions, step_stats, num_found, num_regular, min_log, total_time)
-        return (Vector{Vector{Matrix{Int}}}[], step_stats, 0, 0, minimal_log, total_time)
+        return TriangulationResult([], 0, 0, minimal_log, time()-t_start_total,step_stats)
     end
 
     log_verbose("Step 3: Computing internal faces...")
@@ -168,7 +189,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     timed_result_faces = @timed internal_faces(P, dim)
     internal_faces_set = timed_result_faces.value
-    push!(step_stats, StepStats("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
+    push!(step_stats, StepStat("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
     log_verbose("-> Found $(length(internal_faces_set)) unique internal faces. Step 3 complete.\n")
 
     log_verbose("Step 4: Computing intersecting pairs...")
@@ -210,7 +231,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
 
     intersection_clauses = timed_result_intersections.value
-    push!(step_stats, StepStats("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
+    push!(step_stats, StepStat("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
     append!(cnf, intersection_clauses)
     #add the clauses to the formula. If s1 and s2 intersect, then (not s1) or (not s2) is added, ensuring that not both can be in a triangulation at the same time
     log_verbose("-> Found $(length(intersection_clauses)) intersecting pairs. Step 4a complete.\n")
@@ -247,7 +268,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     end
     face_clauses = timed_result_face_clauses.value
     append!(cnf, face_clauses)
-    push!(step_stats, StepStats("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
+    push!(step_stats, StepStat("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
     log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4b complete.\n")
 
     log_verbose("Step 5: Handing SAT problem to solver...");
@@ -297,7 +318,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 
     num_solutions = config.regular ? number_of_regular_triangulations_found : number_of_triangulations_found
 
-    push!(step_stats, StepStats("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
+    push!(step_stats, StepStat("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
 
     # validation is not yet implemented. We plan to have very robust and trusted code (using exact Rational{BigInt}) test everything again
@@ -308,7 +329,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
 #             #TODO implement validation or remove validation
 #         end
 #
-#         push!(step_stats, StepStats("Validation", timed_validation.time, timed_validation.bytes))
+#         push!(step_stats, StepStat("Validation", timed_validation.time, timed_validation.bytes))
 #         if validation_status == :passed
 #             log_verbose("  VALIDATION SUCCESSFUL: No intersections found among solution simplices.")
 #         else
@@ -382,7 +403,7 @@ function process_polytope(initial_vertices::Matrix{Int}, run_idx::Int, total_in_
     cnf = Vector{Vector{Int}}() # Reassign to empty to allow GC to eat the old one immediately
 
     # Return tuple: (solutions, step_stats, num_found, num_regular, min_log, total_time)
-    return (solution_simplices, step_stats, number_of_triangulations_found, number_of_regular_triangulations_found, minimal_log, total_time)
+    return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, minimal_log, total_time, step_stats)
 end
 
 function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stream)
@@ -445,31 +466,40 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     total_number_of_regular_triangulations_found = 0
 
     is_first_single_line_update = true
-    all_solutions = Vector{Vector{Vector{Matrix{Int}}}}()
-    if config.return_triangulations != ""
-        sizehint!(all_solutions, number_of_polytopes)
-    end
+    # all_solutions = Vector{Vector{Vector{Matrix{Int}}}}()
+    # if config.return_triangulations != ""
+    #     sizehint!(all_solutions, number_of_polytopes)
+    # end
 
     global_step_stats = Dict{String, StatAggregator}()
     step_order = String[] # To preserve the order of steps for the final table
+    all_results = Vector{TriangulationResult}()
 
     for (i, P) in enumerate(polytopes)
 
-        (solutions, step_stats, n_found, n_reg, minimal_log, p_total_time) = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
+        r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
+        # solution_simplices = r.solution_simplices
+        number_of_triangulations_found = r.number_of_triangulations_found
+        number_of_regular_triangulations_found = r.number_of_regular_triangulations_found
+        minimal_log = r.minimal_log
+        # total_time = r.total_time
+        step_stats = r.step_stats
+
+        push!(all_results, r)
 
         # Write to log if needed
         if !isnothing(log_stream)
              flush(log_stream)
         end
 
-        if n_found > 0
+        if number_of_triangulations_found > 0
             triangulatable += 1
         end
-        if n_reg > 0
+        if number_of_regular_triangulations_found > 0
             regularly_triangulatable += 1
         end
-        total_number_of_triangulations_found += n_found
-        total_number_of_regular_triangulations_found += n_reg
+        total_number_of_triangulations_found += number_of_triangulations_found
+        total_number_of_regular_triangulations_found += number_of_regular_triangulations_found
 
         # Online aggregation of statistics
         for stat in step_stats
@@ -485,10 +515,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             agg.count += 1
         end
 
-        # Store solutions only if requested
-        if config.return_triangulations != ""
-            push!(all_solutions, solutions)
-        end
+        # # Store solutions only if requested
+        # if config.return_triangulations != ""
+        #     push!(all_solutions, solution_simplices)
+        # end
 
         if show_running
             if !is_first_single_line_update
@@ -513,7 +543,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         end
 
         # Explicitly clear temporary variables to help GC
-        solutions = nothing
+        # solutions = nothing
         step_stats = nothing
 
         if i%1000 == 0
@@ -592,11 +622,20 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         print(log_stream, replace(stats_table_str, r"\u001b\[\d+m" => ""))
         flush(log_stream)
     end
-    return [all_solutions, triangulatable, regularly_triangulatable, total_number_of_triangulations_found, total_number_of_regular_triangulations_found, time()-t_start_run]
+
+    return RunResult(all_results, triangulatable, regularly_triangulatable, total_number_of_triangulations_found, total_number_of_regular_triangulations_found, time()-t_start_run)
 end
 
 # the entry point of the internal code of the modul. It sets up the config struct, opens the log file etc.
-function setup_run(polytopes::Vector{Matrix{Int}}, intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false, return_triangulations::String="first")
+function setup_run( polytopes::Vector{Matrix{Int}}, 
+                    intersection_backend::String="cpu", 
+                    unimodular::Bool=true, regular::Bool=false, 
+                    find_all::Bool=false, log_file::String="", 
+                    terminal_output::String="", 
+                    validate::Bool=false, 
+                    plot::Bool=false, 
+                    use_normaliz::Bool=false, 
+                    return_triangulations::String="first")
 
     config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz, return_triangulations)
     log_stream = nothing
@@ -627,14 +666,35 @@ end
 # Public api function
 # it can be called with a matrix containing the vertices, a list of matrices, Polyhedra object(s) or a path to a file from which to read in the polytopes
 
-function triangulate(vmatrix::Matrix{Int}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false, return_triangulations::String="first")
+function triangulate(   vmatrix::Matrix{Int}; 
+                        intersection_backend::String="cpu", 
+                        unimodular::Bool=true, 
+                        regular::Bool=false, 
+                        find_all::Bool=false, 
+                        log_file::String="", 
+                        terminal_output::String="", 
+                        validate::Bool=false, 
+                        plot::Bool=false, 
+                        use_normaliz::Bool=false, 
+                        return_triangulations::String="first")
+
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
      return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
 
-function triangulate(vmatrices::Vector{Matrix{Int}}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false, return_triangulations::String="first")
+function triangulate(   vmatrices::Vector{Matrix{Int}}; 
+                        intersection_backend::String="cpu", 
+                        unimodular::Bool=true, 
+                        regular::Bool=false, 
+                        find_all::Bool=false, 
+                        log_file::String="", 
+                        terminal_output::String="", 
+                        validate::Bool=false, 
+                        plot::Bool=false, 
+                        use_normaliz::Bool=false, 
+                        return_triangulations::String="first")
 
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
@@ -642,7 +702,18 @@ function triangulate(vmatrices::Vector{Matrix{Int}}; intersection_backend::Strin
     return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
 
-function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false, return_triangulations::String="first")
+function triangulate(   polytope::Polyhedron; 
+                        intersection_backend::String="cpu", 
+                        unimodular::Bool=true, 
+                        regular::Bool=false, 
+                        find_all::Bool=false, 
+                        log_file::String="", 
+                        terminal_output::String="", 
+                        validate::Bool=false, 
+                        plot::Bool=false, 
+                        use_normaliz::Bool=false, 
+                        return_triangulations::String="first")
+
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
@@ -655,7 +726,18 @@ function triangulate(polytope::Polyhedron; intersection_backend::String="cpu", u
     return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
 
-function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false, return_triangulations::String="first")
+function triangulate(   polytopes::Vector{Polyhedron}; 
+                        intersection_backend::String="cpu", 
+                        unimodular::Bool=true, 
+                        regular::Bool=false, 
+                        find_all::Bool=false, 
+                        log_file::String="", 
+                        terminal_output::String="", 
+                        validate::Bool=false, 
+                        plot::Bool=false, 
+                        use_normaliz::Bool=false, 
+                        return_triangulations::String="first")
+
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
@@ -676,7 +758,18 @@ function triangulate(polytopes::Vector{Polyhedron}; intersection_backend::String
     return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
 
-function triangulate(path_to_polytopes::String; intersection_backend::String="cpu", unimodular::Bool=true, regular::Bool=false, find_all::Bool=false, log_file::String="", terminal_output::String="", validate::Bool=false, plot::Bool=false, use_normaliz::Bool=false, return_triangulations::String="first")
+function triangulate(   path_to_polytopes::String; 
+                        intersection_backend::String="cpu", 
+                        unimodular::Bool=true, 
+                        regular::Bool=false, 
+                        find_all::Bool=false, 
+                        log_file::String="", 
+                        terminal_output::String="", 
+                        validate::Bool=false, 
+                        plot::Bool=false, 
+                        use_normaliz::Bool=false, 
+                        return_triangulations::String="first")
+
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
