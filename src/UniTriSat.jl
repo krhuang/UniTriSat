@@ -122,9 +122,11 @@ end
 # the main function processing a single polytope, here all the computations happen
 # Modified to return a Tuple instead of ProcessResult to reduce memory overhead
 function process_polytope(  initial_vertices::Matrix{Int}, 
-                            run_idx::Int, total_in_run::Int, 
+                            run_idx::Int,
+                            total_in_run::Int,
                             config::Config, 
-                            show_running_updates::Bool, log_stream::Union{IO, Nothing})
+                            show_running_updates::Bool,
+                            log_stream::Union{IO, Nothing})
 
     dim = size(initial_vertices, 2)
     step_stats = Vector{StepStat}()
@@ -313,7 +315,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
                     push!(solution_simplices, simplices)
                 end
                 if !config.find_all; break; end #we found a regular solution and we dont want all of them : We can stop here
-            else
+            elseif show_running_updates
                 s = " ($number_of_triangulations_found non-regular triangulations found)"
                 print(s*"\b"^(length(s)))
             end
@@ -556,10 +558,10 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         # solutions = nothing
         step_stats = nothing
 
-        if i%1000 == 0
-            GC.gc()
-            ccall(:malloc_trim, Cvoid, (Cint,), 0)
-        end
+#         if i%1000 == 0
+#             GC.gc()
+#             ccall(:malloc_trim, Cvoid, (Cint,), 0)
+#         end
     end
 
     if show_running
