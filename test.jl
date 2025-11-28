@@ -57,12 +57,12 @@ function run_test(test::Test)
     println(styled"{bold, blue:Test $(test.id): $name. Expect $(test.exp) triangulatable polytopes$exp_reg_str}")
     println("-")
     result  = triangulate(
-        path,
-        terminal_output=terminal_output, 
-        intersection_backend=backend, 
-        return_triangulations="", 
-        regular=regular
-        )
+                            path,
+                            terminal_output=terminal_output,
+                            intersection_backend=backend,
+                            return_triangulations="",
+                            regular=regular
+                            )
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
     time = format_duration(result.total_time)
@@ -122,10 +122,11 @@ if plot
     println(styled"{bold, blue:Test plotting on two big 3D Polytopes}")
     println("-")
     triangulate("Polytopes/Big3D", 
-    plot=true, 
-    return_triangulations="", 
-    intersection_backend=backend,
-    terminal_output=terminal_output)
+                plot=true,
+                log_file = "cnf",
+                return_triangulations="",
+                intersection_backend=backend,
+                terminal_output=terminal_output)
 end
 
 for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)

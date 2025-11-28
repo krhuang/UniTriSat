@@ -283,6 +283,11 @@ function process_polytope(  initial_vertices::Matrix{Int},
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices solving...")
     end
 
+    # for line in cnf
+    #     println(line)
+    # end
+    # exit()
+
     solution_simplices = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
     first_regular_solution_simplices = Vector{Matrix{Int}}()
