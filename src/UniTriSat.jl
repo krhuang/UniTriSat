@@ -52,7 +52,6 @@ include("subdivision_regularity.jl")
 using .SubdivisionRegularity
 
 # Utility: remove ANSI SGR sequences (colors/formatting) from a string.
-# Matches ESC '[' followed by digits and semicolons and ending in 'm', e.g. "\x1b[1;31m".
 strip_ansi(s::AbstractString) = replace(s, r"\x1b\[[0-9;]*m" => "")
 
 # a struct to keep track of the timings of the separate operations
@@ -73,28 +72,6 @@ end
 # Initializer for the aggregator
 StatAggregator() = StatAggregator(0.0, 0.0, 0, 0, 0)
 
-# contains the run details
-# terminal_output (default "") is a subset of "initial, running, table, final".
-# Depending on which are present, the following is printed to the terminal:
-#       initial: print an initial run summary
-#       running: after a polytope is done, a running summary is being updated showing intermediate results
-#       table: after the run is done, a table breaking up the time and memory used in each major computation step
-#       final: print a final summary showing the number of solutions found and the total run time
-# unimodular (default true): if true, only unimodular 
-# simplices are used for the triangulations
-# intersection backend (default "cpu"): select between the backends "cpu" and "gpu"
-# regular (default false): if true, we search for regular triangulations
-# find_all (default false): if true, then we enumerate all triangulations
-# validate (default false): NOT YET IMPLEMENTED
-# plot (default false): if true, the first triangulations found is being plotted.
-# If the dimension is not 3, then we plot the 3-faces
-# use_normaliz (default false): if true, we use the much faster, but unstable normaliz backend to find all lattice points in a given polytope
-# return_triangulations (default "first"): Select between "", "first" and "all".
-# The returned vector will be empty, contain the first set of
-# simplices of a solution, or contain all solutions, respectively.
-# On long runs the set of solutions can clog up the memory if set to "all" (with find_all set to true)
-#and on really long runs even "first" is not recommended.
-# Note that the first found solution can also be recovered from the log file.
 mutable struct Config
     terminal_output::String
     unimodular::Bool
@@ -125,20 +102,122 @@ mutable struct RunResult
     total_time::Float64
 end
 
-# the main function processing a single polytope, here all 
-# the computations happen
-# Modified to return a Tuple instead of ProcessResult to reduce memory overhead
-function process_polytope(  initial_vertices::Matrix{Int}, 
+# --- NEW HELPER FUNCTIONS START ---
+
+# Finds a generic point strictly inside the polytope using Rational{BigInt} arithmetic
+function find_generic_point(P_rational::Matrix{Rational{BigInt}}, internal_faces_set, dim::Int)
+    n_points_total = size(P_rational, 1)
+
+    # Ensure we don't loop forever
+    max_attempts = 1000
+
+    for attempt in 1:max_attempts
+        # --- STEP 1: Generate Candidates (Random Convex Combination) ---
+        # Random positive weights guarantee we are in the "Strict Interior"
+        # of the convex hull of the points.
+        weights = rand(1:10000, n_points_total)
+        weight_sum = sum(weights)
+        p_vec = vec((P_rational' * weights) .// weight_sum)
+
+        is_generic = true
+
+        # --- STEP 2: Validation against internal faces ---
+        for face_indices in internal_faces_set
+            # Collect indices and vertices
+            idx_list = collect(face_indices)
+
+            # A face must have at least d vertices to span a hyperplane
+            if length(idx_list) < dim
+                continue
+            end
+
+            # Reference point of the face
+            v1 = P_rational[idx_list[1], :]
+
+            # We form a matrix of all difference vectors of the face
+            # F = [v2-v1, v3-v1, ..., vk-v1]
+            # Transpose so vectors are columns
+            face_vectors = Matrix{Rational{Int}}(undef, dim, length(idx_list)-1)
+            for (i, k) in enumerate(idx_list[2:end])
+                face_vectors[:, i] = P_rational[k, :] - v1
+            end
+
+            # --- Robust Check via Rank ---
+            # Check: Does (p - v1) lie in the column space of face_vectors?
+            # This is true if: rank(F) == rank([F, p-v1])
+
+            # Note: rank() usually converts to Float for SVD in Julia.
+            # This is acceptable and more robust than naive determinants on singular submatrices.
+            r_face = rank(Float64.(face_vectors))
+
+            # If the face itself is degenerate (e.g., points on a line in 3D),
+            # it doesn't form a blocking hyperplane. Ignore.
+            if r_face < dim - 1
+                continue
+            end
+
+            # Add test vector
+            aug_matrix = hcat(face_vectors, p_vec - v1)
+            r_aug = rank(Float64.(aug_matrix))
+
+            # If rank doesn't increase, p is linearly dependent (lies on the face extension)
+            if r_face == r_aug
+                is_generic = false
+                break
+            end
+        end
+
+        if is_generic
+            return p_vec
+        end
+    end
+
+    error("Could not find a generic point. Check if 'internal_faces_set' is correctly defined.")
+end
+
+# Checks if a point p lies strictly inside the simplex defined by indices s_indices
+# Uses Barycentric coordinates: V * lambda = p, sum(lambda) = 1.
+# Since the simplex is full dimensional and unimodular, we can solve the linear system.
+# UPDATED: s_indices is now untyped/Any to allow NTuples or Vectors.
+function is_point_in_simplex(P_rational::Matrix{Rational{BigInt}}, s_indices, p::Vector{Rational{BigInt}})
+    dim = length(p)
+
+    # Ensure indices are in a Vector (handle case where s_indices is a Tuple)
+    indices = collect(s_indices)
+
+    # Construct matrix M = [v1 v2 ... v_{d+1}]
+    # We want M * lambda = p with sum(lambda)=1
+    # Equivalent to solving [M; 1...1] * lambda = [p; 1]
+
+    verts = P_rational[indices, :]' # dim x (dim+1)
+
+    # Extended matrix for affine solve
+    A = vcat(verts, ones(Rational{BigInt}, 1, dim + 1))
+    b = vcat(p, one(Rational{BigInt}))
+
+    # Solve A * lambda = b
+    # For a valid simplex, A is square (dim+1 x dim+1) and invertible.
+    try
+        lambda = A \ b
+        # Check if all lambda > 0 (strictly inside)
+        return all(x -> x > 0, lambda)
+    catch
+        return false
+    end
+end
+# --- NEW HELPER FUNCTIONS END ---
+
+# the main function processing a single polytope
+function process_polytope(  initial_vertices::Matrix{Int},
                             run_idx::Int,
                             total_in_run::Int,
-                            config::Config, 
+                            config::Config,
                             show_running_updates::Bool,
                             log_stream::Union{IO, Nothing})
 
     dim = size(initial_vertices, 2)
     step_stats = Vector{StepStat}()
     t_start_total = time_ns()
-    validation_status = :not_run
 
     # Printing verbose statements
     function log_verbose(msg...; is_display::Bool=false)
@@ -146,11 +225,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
             return
         end
         timestamp = Dates.format(now(), "HH:MM:SS")
-        s_msg = if is_display
-            sprint(show, "text/plain", msg[1])
-        else
-            join(msg, " ")
-        end
+        s_msg = is_display ? sprint(show, "text/plain", msg[1]) : join(msg, " ")
         full_msg = "[$timestamp] " * s_msg
         println(log_stream, full_msg)
     end
@@ -160,13 +235,12 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose(initial_vertices, is_display=true)
 
     log_verbose("Step 1: Computing all lattice points...")
-    if Normaliz_available[] && config.use_normaliz # global flag for if the Normaliz package has been imported
-        timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points.
-        # Source in Normaliz_backend.jl
+    if Normaliz_available[] && config.use_normaliz
+        timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices)
     else
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices)
     end
-    P = timed_result_lp.value # P is now the set of all lattice points in the polytope
+    P = timed_result_lp.value
     push!(step_stats, StepStat("Compute all lattice points", timed_result_lp.time, timed_result_lp.bytes))
 
     num_lattice_points = size(P, 1)
@@ -178,87 +252,151 @@ function process_polytope(  initial_vertices::Matrix{Int},
     simplex_search_type = config.unimodular ? "unimodular" : "non-degenerate"
     log_verbose("Step 2: Computing $simplex_search_type $(dim)-simplices...")
 
-    timed_result_simplices = @timed all_simplices(P, unimodular=config.unimodular) # find all (unimodular) simplices spanned by P
+    timed_result_simplices = @timed all_simplices(P, unimodular=config.unimodular)
     S_indices = timed_result_simplices.value
     push!(step_stats, StepStat("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
 
     num_simplices = length(S_indices)
     cnf = Vector{Vector{Int}}()
-    push!(cnf, collect(1:num_simplices)) # set up the cnf formula.
-    # This first clause makes sure that at least one simplex must be chosen for the triangulation
+    push!(cnf, collect(1:num_simplices))
     log_verbose("-> Found $num_simplices simplices. Step 2 complete.\n")
     if show_running_updates
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices...")
     end
 
-    if isempty(S_indices) # handle the case that there are no simplices
+    if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
         minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> No simplices found", run_idx, total_in_run, num_lattice_points, num_simplices)
         return TriangulationResult([], 0, 0, minimal_log, time()-t_start_total,step_stats)
     end
 
     log_verbose("Step 3: Computing internal faces...")
-    # the internal faces are d-1 dimensional simplices which are not contained in a facet
-    # each of these must be a facet of exactly two or exactly zero simplices used in a triangulation
-    # we do not check these for unimodularity, as the SAT solver does not mind a few extra clauses and the checking would take real time
-
     timed_result_faces = @timed internal_faces(P, dim)
     internal_faces_set = timed_result_faces.value
     push!(step_stats, StepStat("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
     log_verbose("-> Found $(length(internal_faces_set)) unique internal faces. Step 3 complete.\n")
 
-    log_verbose("Step 4: Computing intersecting pairs...")
-    # the main part of the computation is finding all pairs of simplices which intersect with volume
+    log_verbose("Step 4: Computing intersection clauses (New Logic)...")
 
-    timed_result_intersections = @timed let n_simplices = num_simplices
-        intersect_func = nothing
-        use_gpu = false
+    timed_result_intersections = @timed let
+        local_clauses = Vector{Vector{Int}}()
 
-        # load the right GPU backend if required, or fall back to CPU
-        if config.intersection_backend == "gpu"
-            if dim == 3 && isdefined(@__MODULE__, :GPUIntersection3D)
-                log_verbose("     Using 3D GPU backend...")
-                intersect_func = () -> GPUIntersection3D.get_intersecting_pairs_gpu(P, S_indices)
-                use_gpu = true
-            elseif dim == 4 && isdefined(@__MODULE__, :GPUIntersection4D)
-                log_verbose("     Using 4D GPU backend...")
-                intersect_func = () -> GPUIntersection4D.get_intersecting_pairs_gpu_4d(P, S_indices)
-                use_gpu = true
-            elseif dim == 5 && isdefined(@__MODULE__, :GPUIntersection5D)
-                log_verbose("     Using 5D GPU backend...")
-                intersect_func = () -> GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
-                use_gpu = true
-            elseif dim == 6 && isdefined(@__MODULE__, :GPUIntersection6D)
-                log_verbose("     Using 6D GPU backend...")
-                intersect_func = () -> GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
-                use_gpu = true
+        # 4a. Find Generic Point
+        P_rational = Matrix{Rational{BigInt}}(P)
+        generic_point = find_generic_point(P_rational, internal_faces_set, dim)
+        log_verbose("   Generic point found.")
+
+        # 4b. Identify Central Simplices & Compute Full Intersections for them
+        central_indices_map = Int[] # Maps local index in central set -> global index in S_indices
+        for (i, s) in enumerate(S_indices)
+            if is_point_in_simplex(P_rational, s, generic_point)
+                push!(central_indices_map, i)
             end
         end
-        if use_gpu && !isnothing(intersect_func)
-            intersect_func() # Execute the selected GPU function
-        else
-            if config.intersection_backend == "gpu"
-                log_verbose("     WARNING: GPU backend for $(dim)D not available. Falling back to CPU.")
+        log_verbose("   Found $(length(central_indices_map)) simplices containing the generic point.")
+
+        if !isempty(central_indices_map)
+            central_S_indices = S_indices[central_indices_map]
+
+            # Use the CPU intersection backend for this subset
+            # central_S_indices might be a vector of Tuples, get_intersecting_pairs_cpu_generic handles this.
+            central_clauses = CPUIntersection.get_intersecting_pairs_cpu_generic(P, central_S_indices, Val(dim))
+
+            # Map clauses back to global indices
+            for c in central_clauses
+                mapped_clause = [x < 0 ? -central_indices_map[abs(x)] : central_indices_map[abs(x)] for x in c]
+                push!(local_clauses, mapped_clause)
             end
-            log_verbose("     Using CPU backend.")
-            CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices, Val(dim))
         end
+
+        # 4c. Hyperplane Separation Logic
+        # Pre-compute a Set of S_indices (sorted vectors) for fast lookup O(1)
+        # UPDATED: collect(s) ensures we can sort if s is a Tuple.
+        S_lookup = Set(Tuple(sort(collect(s))) for s in S_indices)
+
+        # Map from simplex tuple to its index in S_indices (needed for clause generation)
+        S_idx_map = Dict(Tuple(sort(collect(s))) => i for (i,s) in enumerate(S_indices))
+
+        # Iterate over all d-element subsets of lattice points
+        for face_indices_iter in combinations(1:num_lattice_points, dim)
+            face_indices = collect(face_indices_iter)
+
+            # Get the vertices for this face
+            face_verts = [P[i, :] for i in face_indices]
+
+            # Calculate Normal using Generalized Cross Product
+            normal = CPUIntersection.compute_face_normal(face_verts, Val(dim))
+
+            if all(iszero, normal)
+                continue # Degenerate face
+            end
+
+            left_simplices = Int[]
+            right_simplices = Int[]
+
+            # Reference vertex on the face
+            v_ref = P[face_indices[1], :]
+
+            # Iterate over remaining points to form candidate simplices
+            for p_idx in 1:num_lattice_points
+                if p_idx in face_indices
+                    continue
+                end
+
+                # Construct candidate simplex indices
+                candidate_s = copy(face_indices)
+                push!(candidate_s, p_idx)
+                sort!(candidate_s)
+                candidate_tuple = Tuple(candidate_s)
+
+                # Check if this simplex exists in our pre-computed unimodular list
+                if haskey(S_idx_map, candidate_tuple)
+                    s_global_idx = S_idx_map[candidate_tuple]
+
+                    # Determine side of hyperplane
+                    val = 0
+                    p_coords = P[p_idx, :]
+                    for k in 1:dim
+                        val += normal[k] * (p_coords[k] - v_ref[k])
+                    end
+
+                    if val > 0
+                        push!(left_simplices, s_global_idx)
+                    elseif val < 0
+                        push!(right_simplices, s_global_idx)
+                    end
+                end
+            end
+
+            # Add clauses: Forbidden pairs are those on the SAME side
+            for i in 1:length(left_simplices)
+                s1 = left_simplices[i]
+                for j in (i+1):length(left_simplices)
+                    s2 = left_simplices[j]
+                    push!(local_clauses, [-s1, -s2])
+                end
+            end
+
+            for i in 1:length(right_simplices)
+                s1 = right_simplices[i]
+                for j in (i+1):length(right_simplices)
+                    s2 = right_simplices[j]
+                    push!(local_clauses, [-s1, -s2])
+                end
+            end
+        end
+
+        # Deduplicate clauses
+        unique(local_clauses)
     end
 
     intersection_clauses = timed_result_intersections.value
-    push!(step_stats, StepStat("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
-
+    push!(step_stats, StepStat("Compute intersection clauses", timed_result_intersections.time, timed_result_intersections.bytes))
 
     append!(cnf, intersection_clauses)
-    #add the clauses to the formula. If s1 and s2 intersect, then (not 
-    # s1) or (not s2) is added, ensuring that not both can be in a triangulation at the same time
-    log_verbose("-> Found $(length(intersection_clauses)) intersecting pairs (after filtering). Step 4c complete.\n")
+    log_verbose("-> Generated $(length(intersection_clauses)) intersection clauses. Step 4 complete.\n")
 
     log_verbose("Step 4d: Generating face-covering clauses...")
-    # we already computed the set of internal faces, we still need to compute the clauses to add them to the formula
-    # If simplex s has internal face f as a facet, and s1,...,sk is the set of simplices other than s which have f as a facet, then we add the clause
-    # (not s) or s1 or s2 or s3 or ...
-    # together with the intersection clauses, this implies that exactly zero or two simplices contain f
     face_dim = dim
     timed_result_face_clauses = @timed let n_simplices = num_simplices
         next_simplex_idx = Threads.Atomic{Int}(1)
@@ -287,7 +425,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     face_clauses = timed_result_face_clauses.value
     append!(cnf, face_clauses)
     push!(step_stats, StepStat("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
-    
+
     log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4d complete.\n")
 
     log_verbose("Step 5: Handing SAT problem to solver...");
@@ -296,18 +434,12 @@ function process_polytope(  initial_vertices::Matrix{Int},
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices solving...")
     end
 
-    # for line in cnf
-    #     println(line)
-    # end
-    # exit()
-
     solution_simplices = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
     first_regular_solution_simplices = Vector{Matrix{Int}}()
     number_of_triangulations_found = 0
     number_of_regular_triangulations_found = 0
-    solver_func = PicoSAT # we only support PicoSAT atm, but other solvers could be easily used by replacing this solver function
-    # (and possible changing how the solver api is called)
+    solver_func = PicoSAT
 
     timed_solve_result = @timed for solution in solver_func.itersolve(cnf)
         sol_indices = findall(l -> l > 0, solution)
@@ -320,7 +452,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
             if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
                 push!(solution_simplices, simplices)
             end
-            if !config.find_all; break; end #we found a solution, we do not want a regular one and we dont want all of them : We can stop here
+            if !config.find_all; break; end
         end
         reg = is_regular(simplices)
         if config.regular
@@ -332,7 +464,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
                 if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
                     push!(solution_simplices, simplices)
                 end
-                if !config.find_all; break; end #we found a regular solution and we dont want all of them : We can stop here
+                if !config.find_all; break; end
             elseif show_running_updates
                 s = " ($number_of_triangulations_found non-regular triangulations found)"
                 print(s*"\b"^(length(s)))
@@ -340,33 +472,10 @@ function process_polytope(  initial_vertices::Matrix{Int},
         end
     end
 
-    if number_of_triangulations_found > 0 && number_of_regular_triangulations_found == 0
-        # This logic seems to be a debug break from the original code, kept as requested.
-        # println(initial_vertices)
-        # exit()
-    end
-
     num_solutions = config.regular ? number_of_regular_triangulations_found : number_of_triangulations_found
 
     push!(step_stats, StepStat("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
-
-    # validation is not yet implemented. We plan to have very robust and trusted code (using exact Rational{BigInt}) test everything again
-#     if config.validate && num_solutions > 0
-#         log_verbose("\nStep 6: Validating solution (not yet implemented)...")
-#         timed_validation = @timed begin
-#             validation_status = :passed
-#             #TODO implement validation or remove validation
-#         end
-#
-#         push!(step_stats, StepStat("Validation", timed_validation.time, timed_validation.bytes))
-#         if validation_status == :passed
-#             log_verbose("  VALIDATION SUCCESSFUL: No intersections found among solution simplices.")
-#         else
-#             @error("Valitdation failed! Initial vertices where: '$initial_vertices'")
-#         end
-#         log_verbose("-> Validation complete. Step 6 complete.")
-#     end
 
     log_verbose("\n$(number_of_triangulations_found) valid triangulation(s) found.")
     if config.regular
@@ -386,8 +495,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
         end
     end
 
-    # plotting uses the python script plot_triangulation.py found under src/
-    # we plot the intersection of the triangulation from the first solution with every facet of the polytope if it is not 3d
     if config.plot
         log_verbose("\nStep 6: Plotting result..")
         if config.regular
@@ -432,9 +539,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices, result_str)
 
     empty!(cnf)
-    cnf = Vector{Vector{Int}}() # Reassign to empty to allow GC to eat the old one immediately
+    cnf = Vector{Vector{Int}}()
 
-    # Return tuple: (solutions, step_stats, num_found, num_regular, min_log, total_time)
     return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, minimal_log, total_time, step_stats)
 end
 
@@ -464,7 +570,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     if !isnothing(log_stream)
         log_summary_buf = IOBuffer()
-        println(log_summary_buf, "Number of threads:                    $(nthreads())")
+        println(log_summary_buf, "Number of threads:                     $(nthreads())")
         println(log_summary_buf, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
         println(log_summary_buf, "Intersection backend selected:       $(config.intersection_backend)")
         println(log_summary_buf, "Validation enabled:                  $(config.validate)")
@@ -498,10 +604,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     total_number_of_regular_triangulations_found = 0
 
     is_first_single_line_update = true
-    # all_solutions = Vector{Vector{Vector{Matrix{Int}}}}()
-    # if config.return_triangulations != ""
-    #     sizehint!(all_solutions, number_of_polytopes)
-    # end
 
     global_step_stats = Dict{String, StatAggregator}()
     step_order = String[] # To preserve the order of steps for the final table
@@ -510,16 +612,13 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     for (i, P) in enumerate(polytopes)
 
         r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
-        # solution_simplices = r.solution_simplices
         number_of_triangulations_found = r.number_of_triangulations_found
         number_of_regular_triangulations_found = r.number_of_regular_triangulations_found
         minimal_log = r.minimal_log
-        # total_time = r.total_time
         step_stats = r.step_stats
 
         push!(all_results, r)
 
-        # Write to log if needed
         if !isnothing(log_stream)
              flush(log_stream)
         end
@@ -533,7 +632,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         total_number_of_triangulations_found += number_of_triangulations_found
         total_number_of_regular_triangulations_found += number_of_regular_triangulations_found
 
-        # Online aggregation of statistics
         for stat in step_stats
             if !haskey(global_step_stats, stat.name)
                 global_step_stats[stat.name] = StatAggregator()
@@ -546,11 +644,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             agg.max_alloc = max(agg.max_alloc, stat.alloc_bytes)
             agg.count += 1
         end
-
-        # # Store solutions only if requested
-        # if config.return_triangulations != ""
-        #     push!(all_solutions, solution_simplices)
-        # end
 
         if show_running
             if !is_first_single_line_update
@@ -573,15 +666,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             print(stdout, "\r" * minimal_log * "\u001b[K")
             flush(stdout)
         end
-
-        # Explicitly clear temporary variables to help GC
-        # solutions = nothing
         step_stats = nothing
-
-#         if i%1000 == 0
-#             GC.gc()
-#             ccall(:malloc_trim, Cvoid, (Cint,), 0)
-#         end
     end
 
     if show_running
@@ -603,10 +688,9 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         if !isempty(global_step_stats)
             println()
             println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
-                                            "Step Name", "Total Time", "Avg Time", "Max Time", "Avg Memory", "Max Memory"))
+                                   "Step Name", "Total Time", "Avg Time", "Max Time", "Avg Memory", "Max Memory"))
             println(stats_table_buf, "-"^108)
 
-            # Iterate over the preserved order of steps
             for step_name in step_order
                 if !haskey(global_step_stats, step_name); continue; end
                 stat = global_step_stats[step_name]
@@ -639,7 +723,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     Total Polytopes Processed:     $(length(polytopes))$(reg_str)
     Triangulatable:                \u001b[32m$triangulatable\u001b[0m
     Non-Triangulatable:            \u001b[31m$(number_of_polytopes - triangulatable)\u001b[0m
-    $(avg_solutions_str)Total Run Time:                  $(format_duration(total_time_run))
+    $(avg_solutions_str)Total Run Time:          $(format_duration(total_time_run))
     ----------------------------------------
     """
     if show_final
@@ -649,9 +733,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         print(stdout, stats_table_str)
         println(stdout)
     end
-    # Strip ANSI SGR color/formatting sequences from log output before writing to file.
-    # Existing regex used "\\u001b\[\d+m" which misses multi-parameter sequences like "\x1b[1;34m".
-    # Use a more general pattern that matches the ESC (hex 1b) followed by '[' and any digits/semicolon params ending in 'm'.
+
     if !isnothing(log_stream)
         print(log_stream, strip_ansi(summary_core_str))
         print(log_stream, strip_ansi(stats_table_str))
@@ -661,20 +743,18 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     return RunResult(all_results, triangulatable, regularly_triangulatable, total_number_of_triangulations_found, total_number_of_regular_triangulations_found, time()-t_start_run)
 end
 
-# the entry point of the internal code of the modul. It sets up the config struct, opens the log file etc.
-function setup_run( polytopes::Vector{Matrix{Int}}, 
-                    intersection_backend::String="cpu", 
-                    unimodular::Bool=true, regular::Bool=false, 
-                    find_all::Bool=false, log_file::String="", 
-                    terminal_output::String="", 
-                    validate::Bool=false, 
-                    plot::Bool=false, 
-                    use_normaliz::Bool=false, 
+function setup_run( polytopes::Vector{Matrix{Int}},
+                    intersection_backend::String="cpu",
+                    unimodular::Bool=true, regular::Bool=false,
+                    find_all::Bool=false, log_file::String="",
+                    terminal_output::String="",
+                    validate::Bool=false,
+                    plot::Bool=false,
+                    use_normaliz::Bool=false,
                     return_triangulations::String="first")
 
     config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz, return_triangulations)
     log_stream = nothing
-    # Initialize with empty vector instead of typed empty array for type stability
     results = Vector{Vector{Vector{Matrix{Int}}}}()
     try
         if !isempty(log_file)
@@ -698,19 +778,16 @@ function setup_run( polytopes::Vector{Matrix{Int}},
     return results
 end
 
-# Public api function
-# it can be called with a matrix containing the vertices, a list of matrices, Polyhedra object(s) or a path to a file from which to read in the polytopes
-
 function triangulate(   vmatrix::Matrix{Int};
-                        intersection_backend::String="cpu", 
-                        unimodular::Bool=true, 
-                        regular::Bool=false, 
-                        find_all::Bool=false, 
-                        log_file::String="", 
-                        terminal_output::String="", 
-                        validate::Bool=false, 
-                        plot::Bool=false, 
-                        use_normaliz::Bool=false, 
+                        intersection_backend::String="cpu",
+                        unimodular::Bool=true,
+                        regular::Bool=false,
+                        find_all::Bool=false,
+                        log_file::String="",
+                        terminal_output::String="",
+                        validate::Bool=false,
+                        plot::Bool=false,
+                        use_normaliz::Bool=false,
                         return_triangulations::String="first")
 
     if intersection_backend == "gpu"
@@ -720,15 +797,15 @@ function triangulate(   vmatrix::Matrix{Int};
 end
 
 function triangulate(   vmatrices::Vector{Matrix{Int}};
-                        intersection_backend::String="cpu", 
-                        unimodular::Bool=true, 
-                        regular::Bool=false, 
-                        find_all::Bool=false, 
-                        log_file::String="", 
-                        terminal_output::String="", 
-                        validate::Bool=false, 
-                        plot::Bool=false, 
-                        use_normaliz::Bool=false, 
+                        intersection_backend::String="cpu",
+                        unimodular::Bool=true,
+                        regular::Bool=false,
+                        find_all::Bool=false,
+                        log_file::String="",
+                        terminal_output::String="",
+                        validate::Bool=false,
+                        plot::Bool=false,
+                        use_normaliz::Bool=false,
                         return_triangulations::String="first")
 
     if intersection_backend == "gpu"
@@ -737,16 +814,16 @@ function triangulate(   vmatrices::Vector{Matrix{Int}};
     return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
 
-function triangulate(   polytope::Polyhedron; 
-                        intersection_backend::String="cpu", 
-                        unimodular::Bool=true, 
-                        regular::Bool=false, 
-                        find_all::Bool=false, 
-                        log_file::String="", 
-                        terminal_output::String="", 
-                        validate::Bool=false, 
-                        plot::Bool=false, 
-                        use_normaliz::Bool=false, 
+function triangulate(   polytope::Polyhedron;
+                        intersection_backend::String="cpu",
+                        unimodular::Bool=true,
+                        regular::Bool=false,
+                        find_all::Bool=false,
+                        log_file::String="",
+                        terminal_output::String="",
+                        validate::Bool=false,
+                        plot::Bool=false,
+                        use_normaliz::Bool=false,
                         return_triangulations::String="first")
 
     if intersection_backend == "gpu"
@@ -761,16 +838,16 @@ function triangulate(   polytope::Polyhedron;
     return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
 
-function triangulate(   polytopes::Vector{Polyhedron}; 
-                        intersection_backend::String="cpu", 
-                        unimodular::Bool=true, 
-                        regular::Bool=false, 
-                        find_all::Bool=false, 
-                        log_file::String="", 
-                        terminal_output::String="", 
-                        validate::Bool=false, 
-                        plot::Bool=false, 
-                        use_normaliz::Bool=false, 
+function triangulate(   polytopes::Vector{Polyhedron};
+                        intersection_backend::String="cpu",
+                        unimodular::Bool=true,
+                        regular::Bool=false,
+                        find_all::Bool=false,
+                        log_file::String="",
+                        terminal_output::String="",
+                        validate::Bool=false,
+                        plot::Bool=false,
+                        use_normaliz::Bool=false,
                         return_triangulations::String="first")
 
     if intersection_backend == "gpu"
@@ -793,16 +870,16 @@ function triangulate(   polytopes::Vector{Polyhedron};
     return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
 
-function triangulate(   path_to_polytopes::String; 
-                        intersection_backend::String="cpu", 
-                        unimodular::Bool=true, 
-                        regular::Bool=false, 
-                        find_all::Bool=false, 
-                        log_file::String="", 
-                        terminal_output::String="", 
-                        validate::Bool=false, 
-                        plot::Bool=false, 
-                        use_normaliz::Bool=false, 
+function triangulate(   path_to_polytopes::String;
+                        intersection_backend::String="cpu",
+                        unimodular::Bool=true,
+                        regular::Bool=false,
+                        find_all::Bool=false,
+                        log_file::String="",
+                        terminal_output::String="",
+                        validate::Bool=false,
+                        plot::Bool=false,
+                        use_normaliz::Bool=false,
                         return_triangulations::String="first")
 
     if intersection_backend == "gpu"

@@ -7,7 +7,7 @@ using Combinatorics
 using Base.Threads
 using StaticArrays
 
-export get_intersecting_pairs_cpu, simplices_intersect_sat_cpu
+export get_intersecting_pairs_cpu, simplices_intersect_sat_cpu, compute_face_normal
 
 macro generate_determinants_up_to(n)
     n = Int(n)
@@ -74,15 +74,14 @@ macro generate_determinants_bareiss_up_to(n)
             push!(stmts, :($(Symbol(:a_, i, "_", j)) = $(Symbol(:m, i, j))))
         end
 
-        # Unroll elimination updates.
+        # Unroll elimination updates
         for pivot in 1:k-1
             app = Symbol(:a_, pivot, "_", pivot)
 
-            # Do row-swapping to avoid division-by-zero.
+            # Do row-swapping to avoid division-by-zero
             if pivot < k - 1
                 inner = quote
-                    # no non-zero entries found, means the matrix is
-                    # singular
+                    # no non-zero entries found, means the matrix is singular
                     return 0
                 end
 
@@ -169,7 +168,7 @@ macro generate_gcross_unrolled_full(d)
         for r in rows_minor, c in 1:(d_val-1)
             push!(subargs, vsym[r, c])
         end
-        # Use the Bareiss algorithm for 5x5 determinants.
+        # Use the Bareiss algorithm for 5x5 determinants
         det_name = if d_val >= 6
             Symbol("det", d_val-1, "x", d_val-1, "_bareiss")
         else
@@ -245,13 +244,29 @@ function _generalized_cross_product(vectors::MVector{N, SVector{D, Int64}}) wher
     return normal
 end
 
+# --- NEW FUNCTION START ---
+# Exposes the generalized cross product to the outside world for hyperplane computation
+function compute_face_normal(face_verts::Vector{Vector{Int}}, ::Val{D}) where D
+    # The generalized cross product takes d-1 vectors (edges of the face)
+    # We construct edges relative to the first vertex of the face
+    # face_verts has d vertices.
+    p0 = SVector{D, Int64}(face_verts[1])
+    # Create the MVector of SVectors expected by the internal function
+    # Size is D-1 (number of edge vectors)
+    span = MVector{D - 1, SVector{D, Int64}}(
+        SVector{D, Int64}(face_verts[i] - face_verts[1]) for i in 2:D
+    )
+    return _generalized_cross_product(span)
+end
+# --- NEW FUNCTION END ---
+
 struct Simplex{V, D}
     verts::SVector{V, SVector{D, Int64}}         # (num_verts) x d
     facet_normals::SVector{V, SVector{D, Int64}} # list of normals (one per facet)
     face_edges::Vector{Vector{Vector{SVector{D, Int64}}}} # maps face_dim => list of edge vectors (j>i) per face
 end
 
-# Evil macro.
+# Evil macro
 macro generate_cross_axes_case_scalar(d)
     d_val = Int(d)
     stmts = Expr[]
@@ -365,7 +380,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
     return true
 end
 
-# Compute facet normals and edge vectors for a single simplex.
+# Compute facet normals and edge vectors for a single simplex
 function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
     num_verts = D + 1
 
@@ -392,7 +407,7 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
         p0 = verts[first_index]
         span = MVector{D - 1, SVector{D, Int64}}(verts[facet_index] - p0
                                                  for facet_index in (first_index + 1):num_verts
-                                                     if facet_index != off_index)
+                                                 if facet_index != off_index)
         normal = _generalized_cross_product(span)  # Int64 vector length d
         if all(iszero, normal)
             continue
@@ -426,7 +441,7 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
 end
 
 # Precompute the type conversion and also the generalized cross
-# products for each simplex.
+# products for each simplex
 function prepare_simplices_cpu(P::Matrix{Int}, S_indices::Vector, ::Val{D}) where D
     num_simplices = length(S_indices)
     simplices = Vector{Simplex{D + 1, D}}(undef, num_simplices)
@@ -448,7 +463,7 @@ function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector, :
     end
 
     num_threads = nthreads()
-    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()];
+    thread_clauses = [Vector{Vector{Int}}() for _ in 1:nthreads()]
     block_size = div(num_simplices + num_threads - 1, num_threads)
     @threads for thread_id in 1:num_threads
         i_start = (thread_id - 1) * block_size + 1
@@ -471,4 +486,3 @@ function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector, :
 end
 
 end
-

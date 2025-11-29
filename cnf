@@ -563,3 +563,81 @@ Compute internal faces              | 00:00:00     | 0.200 s      | 0.395 s     
 Compute intersecting pairs          | 00:00:31     | 15.647 s     | 21.297 s     | 9.83 GiB     | 12.91 GiB   
 Generate face-covering clauses      | 00:00:00     | 0.403 s      | 0.444 s      | 154.41 MiB   | 179.61 MiB  
 Solve SAT problem                   | 00:00:14     | 7.440 s      | 10.573 s     | 1.24 MiB     | 1.98 MiB    
+
+
+################################################################################
+# New Run Started at 2025-11-29T19:26:59.381
+################################################################################
+Number of threads:                     16
+Solve mode:                          Find First
+Intersection backend selected:       cpu
+Validation enabled:                  false
+Number of polytopes found:           2
+Restricting to unimodular simplices: true
+Looking for regular triangulations:  false
+Using Normaliz:                      false
+
+[19:26:59] Processing 3D Polytope #1
+[19:26:59] Initial vertices provided:
+[19:26:59] 22×3 Matrix{Int64}:
+ 0  0  0
+ 0  1  0
+ 1  0  0
+ 2  1  0
+ 2  2  0
+ 1  2  0
+ 0  0  1
+ 0  1  1
+ 2  0  1
+ 1  0  2
+ 2  0  2
+ 3  1  1
+ 3  4  1
+ 4  5  2
+ 4  2  2
+ 1  2  2
+ 4  5  3
+ 3  4  3
+ 2  1  3
+ 2  2  3
+ 3  1  3
+ 4  2  3
+[19:26:59] Step 1: Computing all lattice points...
+[19:27:00] -> Found 45 lattice points. Step 1 complete.
+
+[19:27:00] Step 2: Computing unimodular 3-simplices...
+[19:27:00] -> Found 21395 simplices. Step 2 complete.
+
+[19:27:00] Step 3: Computing internal faces...
+[19:27:01] -> Found 13528 unique internal faces. Step 3 complete.
+
+[19:27:01] Step 4: Computing intersection clauses (New Logic)...
+[19:27:01]    Generic point found.
+[19:27:03]    Found 584 simplices containing the generic point.
+[19:27:04] -> Generated 429446 intersection clauses. Step 4 complete.
+
+[19:27:04] Step 4d: Generating face-covering clauses...
+[19:27:04] -> Found 82116 face-covering clauses. Step 4d complete.
+
+[19:27:04] Step 5: Handing SAT problem to solver...
+[19:27:04]       Problem details: 21395 variables, 511563 clauses.
+[19:27:07] -> SAT solver finished. Step 5 complete.
+[19:27:07] 
+1 valid triangulation(s) found.
+[19:27:07] 
+Step 6: Plotting result..
+[19:27:07] -> Plotting complete. Step 6 complete.
+[19:27:07] 
+--- Timing & Memory Summary for Polytope #1 ---
+Step                                          | Duration     | Allocations 
+-------------------------------------------------------------------------
+Compute all lattice points                    | 1.0196 s     | 141.49 MiB  
+Compute unimodular simplices                  | 0.0146 s     | 20.44 MiB   
+Compute internal faces                        | 0.3664 s     | 54.76 MiB   
+Compute intersection clauses                  | 3.4717 s     | 1.03 GiB    
+Generate face-covering clauses                | 0.4776 s     | 178.54 MiB  
+Solve SAT problem                             | 2.3041 s     | 1.98 MiB    
+-------------------------------------------------------------------------
+Total execution time                          | 8.2371 s     |             
+Peak memory usage (Max RSS)                  : 1097.57 MiB
+
