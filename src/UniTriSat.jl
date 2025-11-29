@@ -11,11 +11,13 @@ using Printf
 using Base.Threads
 using TOML
 using Random
+using CDDLib
 
 # mutable flag in module scope
 const Normaliz_available = Ref(true)
 
-# Try to import Normaliz. If it's not available it gives a small warning and modifies the flag
+# Try to import Normaliz.
+# If it's not available it gives a small warning and modifies the flag
 try
     @eval using Normaliz  # top-level import
     include("Normaliz_backend.jl")
@@ -72,20 +74,24 @@ end
 StatAggregator() = StatAggregator(0.0, 0.0, 0, 0, 0)
 
 # contains the run details
-# terminal_output (default "") is a subset of "initial, running, table, final". Depending on which are present, the following is printed to the terminal:
+# terminal_output (default "") is a subset of "initial, running, table, final".
+# Depending on which are present, the following is printed to the terminal:
 #       initial: print an initial run summary
 #       running: after a polytope is done, a running summary is being updated showing intermediate results
 #       table: after the run is done, a table breaking up the time and memory used in each major computation step
 #       final: print a final summary showing the number of solutions found and the total run time
-# unimodular (default true): if true, only unimodular simplices are used for the triangulations
+# unimodular (default true): if true, only unimodular 
+# simplices are used for the triangulations
 # intersection backend (default "cpu"): select between the backends "cpu" and "gpu"
 # regular (default false): if true, we search for regular triangulations
 # find_all (default false): if true, then we enumerate all triangulations
 # validate (default false): NOT YET IMPLEMENTED
-# plot (default false): if true, the first triangulations found is being plotted. If the dimension is not 3, then we plot the 3-faces
+# plot (default false): if true, the first triangulations found is being plotted.
+# If the dimension is not 3, then we plot the 3-faces
 # use_normaliz (default false): if true, we use the much faster, but unstable normaliz backend to find all lattice points in a given polytope
-# return_triangulations (default "first"): Select between "", "first" and "all". The returned vector will be empty, contain the first set of
-#simplices of a solution, or contain all solutions, respectively.
+# return_triangulations (default "first"): Select between "", "first" and "all".
+# The returned vector will be empty, contain the first set of
+# simplices of a solution, or contain all solutions, respectively.
 # On long runs the set of solutions can clog up the memory if set to "all" (with find_all set to true)
 #and on really long runs even "first" is not recommended.
 # Note that the first found solution can also be recovered from the log file.
@@ -119,7 +125,8 @@ mutable struct RunResult
     total_time::Float64
 end
 
-# the main function processing a single polytope, here all the computations happen
+# the main function processing a single polytope, here all 
+# the computations happen
 # Modified to return a Tuple instead of ProcessResult to reduce memory overhead
 function process_polytope(  initial_vertices::Matrix{Int}, 
                             run_idx::Int,
@@ -154,7 +161,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     log_verbose("Step 1: Computing all lattice points...")
     if Normaliz_available[] && config.use_normaliz # global flag for if the Normaliz package has been imported
-        timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points. Source in Normaliz_backend.jl
+        timed_result_lp = @timed lattice_points_via_Normaliz(initial_vertices) # Find the lattice points.
+        # Source in Normaliz_backend.jl
     else
         timed_result_lp = @timed lattice_points_via_CDDLib(initial_vertices)
     end
@@ -176,7 +184,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     num_simplices = length(S_indices)
     cnf = Vector{Vector{Int}}()
-    push!(cnf, collect(1:num_simplices)) # set up the cnf formula. This first clause makes sure that at least one simplex must be chosen for the triangulation
+    push!(cnf, collect(1:num_simplices)) # set up the cnf formula.
+    # This first clause makes sure that at least one simplex must be chosen for the triangulation
     log_verbose("-> Found $num_simplices simplices. Step 2 complete.\n")
     if show_running_updates
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices...")
@@ -238,11 +247,14 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     intersection_clauses = timed_result_intersections.value
     push!(step_stats, StepStat("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
-    append!(cnf, intersection_clauses)
-    #add the clauses to the formula. If s1 and s2 intersect, then (not s1) or (not s2) is added, ensuring that not both can be in a triangulation at the same time
-    log_verbose("-> Found $(length(intersection_clauses)) intersecting pairs. Step 4a complete.\n")
 
-    log_verbose("Step 4b: Generating face-covering clauses...")
+
+    append!(cnf, intersection_clauses)
+    #add the clauses to the formula. If s1 and s2 intersect, then (not 
+    # s1) or (not s2) is added, ensuring that not both can be in a triangulation at the same time
+    log_verbose("-> Found $(length(intersection_clauses)) intersecting pairs (after filtering). Step 4c complete.\n")
+
+    log_verbose("Step 4d: Generating face-covering clauses...")
     # we already computed the set of internal faces, we still need to compute the clauses to add them to the formula
     # If simplex s has internal face f as a facet, and s1,...,sk is the set of simplices other than s which have f as a facet, then we add the clause
     # (not s) or s1 or s2 or s3 or ...
@@ -275,7 +287,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
     face_clauses = timed_result_face_clauses.value
     append!(cnf, face_clauses)
     push!(step_stats, StepStat("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
-    log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4b complete.\n")
+    
+    log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4d complete.\n")
 
     log_verbose("Step 5: Handing SAT problem to solver...");
     log_verbose("      Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
@@ -361,12 +374,14 @@ function process_polytope(  initial_vertices::Matrix{Int},
     end
 
     if !isempty(first_solution_simplices) && number_of_regular_triangulations_found > 0
-        log_verbose("\nDisplaying first valid triangulation:"); for s in first_solution_simplices
+        log_verbose("\nDisplaying first valid triangulation:");
+        for s in first_solution_simplices
             log_verbose(s, is_display=true)
         end
     end
     if !isempty(first_regular_solution_simplices)
-        log_verbose("\nDisplaying first valid regular triangulation:"); for s in first_regular_solution_simplices
+        log_verbose("\nDisplaying first valid regular triangulation:");
+        for s in first_regular_solution_simplices
             log_verbose(s, is_display=true)
         end
     end
@@ -449,7 +464,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     if !isnothing(log_stream)
         log_summary_buf = IOBuffer()
-        println(log_summary_buf, "Number of threads:                   $(nthreads())")
+        println(log_summary_buf, "Number of threads:                    $(nthreads())")
         println(log_summary_buf, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
         println(log_summary_buf, "Intersection backend selected:       $(config.intersection_backend)")
         println(log_summary_buf, "Validation enabled:                  $(config.validate)")
@@ -624,7 +639,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     Total Polytopes Processed:     $(length(polytopes))$(reg_str)
     Triangulatable:                \u001b[32m$triangulatable\u001b[0m
     Non-Triangulatable:            \u001b[31m$(number_of_polytopes - triangulatable)\u001b[0m
-    $(avg_solutions_str)Total Run Time:                 $(format_duration(total_time_run))
+    $(avg_solutions_str)Total Run Time:                  $(format_duration(total_time_run))
     ----------------------------------------
     """
     if show_final
@@ -686,7 +701,7 @@ end
 # Public api function
 # it can be called with a matrix containing the vertices, a list of matrices, Polyhedra object(s) or a path to a file from which to read in the polytopes
 
-function triangulate(   vmatrix::Matrix{Int}; 
+function triangulate(   vmatrix::Matrix{Int};
                         intersection_backend::String="cpu", 
                         unimodular::Bool=true, 
                         regular::Bool=false, 
@@ -704,7 +719,7 @@ function triangulate(   vmatrix::Matrix{Int};
      return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
 end
 
-function triangulate(   vmatrices::Vector{Matrix{Int}}; 
+function triangulate(   vmatrices::Vector{Matrix{Int}};
                         intersection_backend::String="cpu", 
                         unimodular::Bool=true, 
                         regular::Bool=false, 
