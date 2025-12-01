@@ -369,9 +369,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
         if !Sys.islinux()
             @warn("CaDiCaL is currently only supported on Linux. Falling back to PicoSAT.")
             active_solver = "picosat"
-        elseif config.find_all
-            @warn("CaDiCaL wrapper is optimized for finding a single solution. 'find_all' requested; falling back to PicoSAT.")
-            active_solver = "picosat"
         end
     end
     log_verbose("      Using solver: $active_solver")
@@ -392,10 +389,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
                         push!(solution_simplices, simplices)
                     end
                     if !config.find_all; break; end
-                end
-                reg = is_regular(simplices)
-                if config.regular
-                    if reg
+                else
+                    if is_regular(simplices)
                         if isempty(first_regular_solution_simplices)
                             first_regular_solution_simplices = simplices
                         end
@@ -429,89 +424,125 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
             pair_iterator = combinations(1:num_simplices, 2)
             new_clauses_buffer = Vector{Vector{Int}}()
-
             while true
-                # 1. Stop if solver finished early
-                if istaskdone(task)
-                    break
-                end
-                idx1 = rand(1:(length(S_indices)-1))
-                idx2 = rand((idx1+1):length(S_indices))
-
-                # 2. Fast check: Shared vertices
-                s1_inds = collect(S_indices[idx1])
-                s2_inds = collect(S_indices[idx2])
-                shared_count = count(x -> x in s2_inds, s1_inds)
-
-                if shared_count < dim
-                    if CPUIntersection.simplices_intersect_sat_cpu(cpu_simplices[idx1], cpu_simplices[idx2])
-                         push!(new_clauses_buffer, [-idx1, -idx2])
-                    end
-                end
-
-                # 3. Batch Update
-                if length(new_clauses_buffer) >= INTERSECTION_CLAUSE_CHUNK_SIZE
-#                     print("|")
-                    #println("adding new clauses")
-                    # Interrupt solver
-                    CadicalWrapper.interrupt(solver)
-                    res_temp = fetch(task) # Wait for pause
-
-                    if res_temp == 10 || res_temp == 20
-                        # Finished while we were calculating
+                while true
+                    # 1. Stop if solver finished early
+                    if istaskdone(task)
                         break
                     end
+                    if length(S_indices) > 1
+                        idx1 = rand(1:(length(S_indices)-1))
+                        idx2 = rand((idx1+1):length(S_indices))
 
-                    # Add clauses
-                    for c in new_clauses_buffer
-                        CadicalWrapper.add_clause(solver, c)
+                        # 2. Fast check: Shared vertices
+                        s1_inds = collect(S_indices[idx1])
+                        s2_inds = collect(S_indices[idx2])
+                        shared_count = count(x -> x in s2_inds, s1_inds)
+
+                        if shared_count < dim
+                            if CPUIntersection.simplices_intersect_sat_cpu(cpu_simplices[idx1], cpu_simplices[idx2])
+                                push!(new_clauses_buffer, [-idx1, -idx2])
+                            end
+                        end
                     end
-                    empty!(new_clauses_buffer)
 
-                    # Resume
-                    task = CadicalWrapper.solve_async(solver)
+                    # 3. Batch Update
+                    if length(new_clauses_buffer) >= INTERSECTION_CLAUSE_CHUNK_SIZE
+                        # Interrupt solver
+                        CadicalWrapper.interrupt(solver)
+                        res_temp = fetch(task) # Wait for pause
+
+                        if res_temp == 10 || res_temp == 20
+                            # Finished while we were calculating
+                            break
+                        end
+
+                        # Add clauses
+                        for c in new_clauses_buffer
+                            CadicalWrapper.add_clause(solver, c)
+                        end
+                        empty!(new_clauses_buffer)
+
+                        # Resume
+                        task = CadicalWrapper.solve_async(solver)
+                    end
+                end
+
+                # Flush remaining clauses if solver still running
+                if !istaskdone(task) && !isempty(new_clauses_buffer)
+                    CadicalWrapper.interrupt(solver)
+                    res_temp = fetch(task)
+                    if res_temp != 10 && res_temp != 20
+                        for c in new_clauses_buffer
+                            CadicalWrapper.add_clause(solver, c)
+                        end
+                        task = CadicalWrapper.solve_async(solver)
+                    end
+                end
+
+                # Final Result
+                final_res = fetch(task)
+
+                if final_res == 10 # SAT
+                    solution_vector = Int[]
+                    for i in 1:num_simplices
+                        if CadicalWrapper.val(solver, i) > 0
+                            push!(solution_vector, i)
+                        end
+                    end
+
+                    simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector]
+                    number_of_triangulations_found += 1
+                    if isempty(first_solution_simplices)
+                        first_solution_simplices = simplices
+                    end
+                    if !config.regular
+                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                            push!(solution_simplices, simplices)
+                        end
+                        if !config.find_all
+                            CadicalWrapper.release(solver)
+                            break
+                        end
+                    else
+                        if is_regular(simplices)
+                            if isempty(first_regular_solution_simplices)
+                                first_regular_solution_simplices = simplices
+                            end
+                            number_of_regular_triangulations_found += 1
+                            if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                                push!(solution_simplices, simplices)
+                            end
+                            if !config.find_all
+                                CadicalWrapper.release(solver)
+                                break
+                            else
+                                CadicalWrapper.interrupt(solver)
+                                CadicalWrapper.add_clause(solver, [-solution_vector...]) # Block this solution
+                                task = CadicalWrapper.solve_async(solver) #resume with this solution blocked, this functions like itersolve from picosat
+                            end
+                        else
+                            if show_running_updates
+                                s = " ($number_of_triangulations_found non-regular triangulations found)"
+                                print(s*"\b"^(length(s)))
+                            end
+                            CadicalWrapper.interrupt(solver)
+                            CadicalWrapper.add_clause(solver, [-solution_vector...]) # Block this solution
+                            task = CadicalWrapper.solve_async(solver) #resume with this solution blocked, this functions like itersolve from picosat
+                        end
+                    end
+                elseif final_res == 20 # UNSAT
+                    break
+                else
+                    task = CadicalWrapper.solve_async(solver) # Interrupted, resume
                 end
             end
-
-            # Flush remaining clauses if solver still running
-            if !istaskdone(task) && !isempty(new_clauses_buffer)
-                CadicalWrapper.interrupt(solver)
-                res_temp = fetch(task)
-                if res_temp != 10 && res_temp != 20
-                    for c in new_clauses_buffer
-                        CadicalWrapper.add_clause(solver, c)
-                    end
-                    task = CadicalWrapper.solve_async(solver)
-                end
-            end
-
-            # Final Result
-            final_res = fetch(task)
-
-            if final_res == 10 # SAT
-                solution_vector = Int[]
-                for i in 1:num_simplices
-                    if CadicalWrapper.val(solver, i) > 0
-                        push!(solution_vector, i)
-                    end
-                end
-
-                simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector]
-
-                number_of_triangulations_found = 1
-                first_solution_simplices = simplices
-                push!(solution_simplices, simplices)
-
-                if config.regular
-                     if is_regular(simplices)
-                        number_of_regular_triangulations_found = 1
-                        first_regular_solution_simplices = simplices
-                     end
-                end
-            end
+            CadicalWrapper.release(solver)
         end
     end
 
+
+    
     push!(step_stats, StepStat("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
 
