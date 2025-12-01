@@ -22,7 +22,7 @@ else
     backend="cpu"
 end
 
-terminal_output = "running, table, final" #initial, running, table, final
+terminal_output = "initial, running, table, final" #initial, running, table, final
 
 println("-")
 println(styled"{bold, blue:Cross Polytope Dimension $(d)}")
@@ -32,6 +32,7 @@ triangulate(
     terminal_output=terminal_output,
 #    log_file="logs/$(d)d/v$(n)_$(backend)",
     intersection_backend=backend,
+ #   solver="cadical"
 #    regular=true
     )
 

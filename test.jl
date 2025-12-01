@@ -61,7 +61,8 @@ function run_test(test::Test)
                             terminal_output=terminal_output,
                             intersection_backend=backend,
                             return_triangulations="",
-                            regular=regular
+                            regular=regular,
+                            solver=solver
                             )
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
@@ -89,9 +90,13 @@ using ArgParse
 s = ArgParseSettings()
 @add_arg_table s begin
   "--backend"
-    help = "intersection backend"
+    help = "intersection backend, cpu or gpu"
     arg_type = String
     default = "cpu"
+  "--solver"
+    help = "sat solver, picosat or cadical"
+    arg_type = String
+    default = "picosat"
   "--regular"
     help = "find regular triangulations"
     action = :store_true
@@ -101,6 +106,7 @@ s = ArgParseSettings()
 end
 parsed = parse_args(s)
 backend = parsed["backend"]
+solver = parsed["solver"]
 regular = parsed["regular"]
 plot = parsed["plot"]
 reg_str = regular ? ", regular" : ""
@@ -123,10 +129,11 @@ if plot
     println("-")
     triangulate("Polytopes/Big3D", 
                 plot=true,
-                log_file = "cnf",
+ #               log_file = "cnf",
                 return_triangulations="",
                 intersection_backend=backend,
-                terminal_output=terminal_output)
+                terminal_output=terminal_output,
+                solver=solver)
 end
 
 for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)

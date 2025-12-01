@@ -2,6 +2,10 @@ module UniTriSat
 
 export triangulate
 
+# Include the Cadical wrapper
+include("CadicalWrapper.jl")
+using .CadicalWrapper
+
 using Combinatorics
 using LinearAlgebra
 using Polyhedra
@@ -12,6 +16,9 @@ using Base.Threads
 using TOML
 using Random
 using CDDLib
+
+# Global constant for the chunk size of incremental clauses
+const INTERSECTION_CLAUSE_CHUNK_SIZE = 10000
 
 # mutable flag in module scope
 const Normaliz_available = Ref(true)
@@ -82,6 +89,7 @@ mutable struct Config
     plot::Bool
     use_normaliz::Bool
     return_triangulations::String
+    solver::String
 end
 
 mutable struct TriangulationResult
@@ -102,65 +110,37 @@ mutable struct RunResult
     total_time::Float64
 end
 
-# --- NEW HELPER FUNCTIONS START ---
-
 # Finds a generic point strictly inside the polytope using Rational{BigInt} arithmetic
 function find_generic_point(P_rational::Matrix{Rational{BigInt}}, internal_faces_set, dim::Int)
     n_points_total = size(P_rational, 1)
-
-    # Ensure we don't loop forever
     max_attempts = 1000
 
     for attempt in 1:max_attempts
-        # --- STEP 1: Generate Candidates (Random Convex Combination) ---
-        # Random positive weights guarantee we are in the "Strict Interior"
-        # of the convex hull of the points.
         weights = rand(1:10000, n_points_total)
         weight_sum = sum(weights)
         p_vec = vec((P_rational' * weights) .// weight_sum)
 
         is_generic = true
 
-        # --- STEP 2: Validation against internal faces ---
         for face_indices in internal_faces_set
-            # Collect indices and vertices
             idx_list = collect(face_indices)
-
-            # A face must have at least d vertices to span a hyperplane
             if length(idx_list) < dim
                 continue
             end
-
-            # Reference point of the face
             v1 = P_rational[idx_list[1], :]
-
-            # We form a matrix of all difference vectors of the face
-            # F = [v2-v1, v3-v1, ..., vk-v1]
-            # Transpose so vectors are columns
             face_vectors = Matrix{Rational{Int}}(undef, dim, length(idx_list)-1)
             for (i, k) in enumerate(idx_list[2:end])
                 face_vectors[:, i] = P_rational[k, :] - v1
             end
 
-            # --- Robust Check via Rank ---
-            # Check: Does (p - v1) lie in the column space of face_vectors?
-            # This is true if: rank(F) == rank([F, p-v1])
-
-            # Note: rank() usually converts to Float for SVD in Julia.
-            # This is acceptable and more robust than naive determinants on singular submatrices.
             r_face = rank(Float64.(face_vectors))
-
-            # If the face itself is degenerate (e.g., points on a line in 3D),
-            # it doesn't form a blocking hyperplane. Ignore.
             if r_face < dim - 1
                 continue
             end
 
-            # Add test vector
             aug_matrix = hcat(face_vectors, p_vec - v1)
             r_aug = rank(Float64.(aug_matrix))
 
-            # If rank doesn't increase, p is linearly dependent (lies on the face extension)
             if r_face == r_aug
                 is_generic = false
                 break
@@ -171,41 +151,22 @@ function find_generic_point(P_rational::Matrix{Rational{BigInt}}, internal_faces
             return p_vec
         end
     end
-
-    error("Could not find a generic point. Check if 'internal_faces_set' is correctly defined.")
+    error("Could not find a generic point.")
 end
 
-# Checks if a point p lies strictly inside the simplex defined by indices s_indices
-# Uses Barycentric coordinates: V * lambda = p, sum(lambda) = 1.
-# Since the simplex is full dimensional and unimodular, we can solve the linear system.
-# UPDATED: s_indices is now untyped/Any to allow NTuples or Vectors.
 function is_point_in_simplex(P_rational::Matrix{Rational{BigInt}}, s_indices, p::Vector{Rational{BigInt}})
     dim = length(p)
-
-    # Ensure indices are in a Vector (handle case where s_indices is a Tuple)
     indices = collect(s_indices)
-
-    # Construct matrix M = [v1 v2 ... v_{d+1}]
-    # We want M * lambda = p with sum(lambda)=1
-    # Equivalent to solving [M; 1...1] * lambda = [p; 1]
-
-    verts = P_rational[indices, :]' # dim x (dim+1)
-
-    # Extended matrix for affine solve
+    verts = P_rational[indices, :]'
     A = vcat(verts, ones(Rational{BigInt}, 1, dim + 1))
     b = vcat(p, one(Rational{BigInt}))
-
-    # Solve A * lambda = b
-    # For a valid simplex, A is square (dim+1 x dim+1) and invertible.
     try
         lambda = A \ b
-        # Check if all lambda > 0 (strictly inside)
         return all(x -> x > 0, lambda)
     catch
         return false
     end
 end
-# --- NEW HELPER FUNCTIONS END ---
 
 # the main function processing a single polytope
 function process_polytope(  initial_vertices::Matrix{Int},
@@ -287,7 +248,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         log_verbose("   Generic point found.")
 
         # 4b. Identify Central Simplices & Compute Full Intersections for them
-        central_indices_map = Int[] # Maps local index in central set -> global index in S_indices
+        central_indices_map = Int[]
         for (i, s) in enumerate(S_indices)
             if is_point_in_simplex(P_rational, s, generic_point)
                 push!(central_indices_map, i)
@@ -297,12 +258,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
         if !isempty(central_indices_map)
             central_S_indices = S_indices[central_indices_map]
-
-            # Use the CPU intersection backend for this subset
-            # central_S_indices might be a vector of Tuples, get_intersecting_pairs_cpu_generic handles this.
             central_clauses = CPUIntersection.get_intersecting_pairs_cpu_generic(P, central_S_indices, Val(dim))
-
-            # Map clauses back to global indices
             for c in central_clauses
                 mapped_clause = [x < 0 ? -central_indices_map[abs(x)] : central_indices_map[abs(x)] for x in c]
                 push!(local_clauses, mapped_clause)
@@ -310,56 +266,31 @@ function process_polytope(  initial_vertices::Matrix{Int},
         end
 
         # 4c. Hyperplane Separation Logic
-        # Pre-compute a Set of S_indices (sorted vectors) for fast lookup O(1)
-        # UPDATED: collect(s) ensures we can sort if s is a Tuple.
-        S_lookup = Set(Tuple(sort(collect(s))) for s in S_indices)
-
-        # Map from simplex tuple to its index in S_indices (needed for clause generation)
         S_idx_map = Dict(Tuple(sort(collect(s))) => i for (i,s) in enumerate(S_indices))
-
-        # Iterate over all d-element subsets of lattice points
         for face_indices_iter in combinations(1:num_lattice_points, dim)
             face_indices = collect(face_indices_iter)
-
-            # Get the vertices for this face
             face_verts = [P[i, :] for i in face_indices]
-
-            # Calculate Normal using Generalized Cross Product
             normal = CPUIntersection.compute_face_normal(face_verts, Val(dim))
-
-            if all(iszero, normal)
-                continue # Degenerate face
-            end
+            if all(iszero, normal); continue; end
 
             left_simplices = Int[]
             right_simplices = Int[]
-
-            # Reference vertex on the face
             v_ref = P[face_indices[1], :]
 
-            # Iterate over remaining points to form candidate simplices
             for p_idx in 1:num_lattice_points
-                if p_idx in face_indices
-                    continue
-                end
-
-                # Construct candidate simplex indices
+                if p_idx in face_indices; continue; end
                 candidate_s = copy(face_indices)
                 push!(candidate_s, p_idx)
                 sort!(candidate_s)
                 candidate_tuple = Tuple(candidate_s)
 
-                # Check if this simplex exists in our pre-computed unimodular list
                 if haskey(S_idx_map, candidate_tuple)
                     s_global_idx = S_idx_map[candidate_tuple]
-
-                    # Determine side of hyperplane
                     val = 0
                     p_coords = P[p_idx, :]
                     for k in 1:dim
                         val += normal[k] * (p_coords[k] - v_ref[k])
                     end
-
                     if val > 0
                         push!(left_simplices, s_global_idx)
                     elseif val < 0
@@ -368,7 +299,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
                 end
             end
 
-            # Add clauses: Forbidden pairs are those on the SAME side
             for i in 1:length(left_simplices)
                 s1 = left_simplices[i]
                 for j in (i+1):length(left_simplices)
@@ -376,7 +306,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
                     push!(local_clauses, [-s1, -s2])
                 end
             end
-
             for i in 1:length(right_simplices)
                 s1 = right_simplices[i]
                 for j in (i+1):length(right_simplices)
@@ -385,8 +314,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
                 end
             end
         end
-
-        # Deduplicate clauses
         unique(local_clauses)
     end
 
@@ -405,9 +332,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
                 local_clauses = Vector{Vector{Int}}()
                 while true
                     i = Threads.atomic_add!(next_simplex_idx, 1)
-                    if i > n_simplices
-                        break
-                    end
+                    if i > n_simplices; break; end
                     for face_indices in combinations(S_indices[i], face_dim)
                         canonical_face = Tuple(sort(collect(face_indices)))
                         if canonical_face in internal_faces_set
@@ -426,8 +351,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
     append!(cnf, face_clauses)
     push!(step_stats, StepStat("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
 
-    log_verbose("-> Found $(length(face_clauses)) face-covering clauses. Step 4d complete.\n")
-
     log_verbose("Step 5: Handing SAT problem to solver...");
     log_verbose("      Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
     if show_running_updates
@@ -439,40 +362,152 @@ function process_polytope(  initial_vertices::Matrix{Int},
     first_regular_solution_simplices = Vector{Matrix{Int}}()
     number_of_triangulations_found = 0
     number_of_regular_triangulations_found = 0
-    solver_func = PicoSAT
 
-    timed_solve_result = @timed for solution in solver_func.itersolve(cnf)
-        sol_indices = findall(l -> l > 0, solution)
-        simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
-        number_of_triangulations_found += 1
-        if isempty(first_solution_simplices)
-            first_solution_simplices = simplices
+    # Determine solver
+    active_solver = config.solver
+    if active_solver == "cadical"
+        if !Sys.islinux()
+            @warn("CaDiCaL is currently only supported on Linux. Falling back to PicoSAT.")
+            active_solver = "picosat"
+        elseif config.find_all
+            @warn("CaDiCaL wrapper is optimized for finding a single solution. 'find_all' requested; falling back to PicoSAT.")
+            active_solver = "picosat"
         end
-        if !config.regular
-            if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                push!(solution_simplices, simplices)
+    end
+    log_verbose("      Using solver: $active_solver")
+
+    timed_solve_result = @timed begin
+        if active_solver == "picosat"
+            # --- Picosat Logic ---
+            solver_func = PicoSAT
+            for solution in solver_func.itersolve(cnf)
+                sol_indices = findall(l -> l > 0, solution)
+                simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
+                number_of_triangulations_found += 1
+                if isempty(first_solution_simplices)
+                    first_solution_simplices = simplices
+                end
+                if !config.regular
+                    if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                        push!(solution_simplices, simplices)
+                    end
+                    if !config.find_all; break; end
+                end
+                reg = is_regular(simplices)
+                if config.regular
+                    if reg
+                        if isempty(first_regular_solution_simplices)
+                            first_regular_solution_simplices = simplices
+                        end
+                        number_of_regular_triangulations_found += 1
+                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                            push!(solution_simplices, simplices)
+                        end
+                        if !config.find_all; break; end
+                    elseif show_running_updates
+                        s = " ($number_of_triangulations_found non-regular triangulations found)"
+                        print(s*"\b"^(length(s)))
+                    end
+                end
             end
-            if !config.find_all; break; end
-        end
-        reg = is_regular(simplices)
-        if config.regular
-            if reg
-                if isempty(first_regular_solution_simplices)
-                    first_regular_solution_simplices = simplices
+        else
+            # --- CaDiCaL Incremental Logic ---
+            solver = CadicalWrapper.Solver()
+
+            # Add initial clauses
+            for clause in cnf
+                CadicalWrapper.add_clause(solver, clause)
+            end
+
+            # Start Async
+            task = CadicalWrapper.solve_async(solver)
+
+            log_verbose("      (Async) Calculating intersection pairs incrementally and feeding to solver...")
+
+            # Pre-compute optimized simplex structures for the CPU intersection test
+            cpu_simplices = CPUIntersection.prepare_simplices_cpu(P, S_indices, Val(dim))
+
+            pair_iterator = combinations(1:num_simplices, 2)
+            new_clauses_buffer = Vector{Vector{Int}}()
+
+            for (idx1, idx2) in pair_iterator
+                # 1. Stop if solver finished early
+                if istaskdone(task)
+                    break
                 end
-                number_of_regular_triangulations_found += 1
-                if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                    push!(solution_simplices, simplices)
+
+                # 2. Fast check: Shared vertices
+                s1_inds = collect(S_indices[idx1])
+                s2_inds = collect(S_indices[idx2])
+                shared_count = count(x -> x in s2_inds, s1_inds)
+
+                if shared_count < dim
+                    if CPUIntersection.simplices_intersect_sat_cpu(cpu_simplices[idx1], cpu_simplices[idx2])
+                         push!(new_clauses_buffer, [-idx1, -idx2])
+                    end
                 end
-                if !config.find_all; break; end
-            elseif show_running_updates
-                s = " ($number_of_triangulations_found non-regular triangulations found)"
-                print(s*"\b"^(length(s)))
+
+                # 3. Batch Update
+                if length(new_clauses_buffer) >= INTERSECTION_CLAUSE_CHUNK_SIZE
+                    println("adding new clauses")
+                    # Interrupt solver
+                    CadicalWrapper.interrupt(solver)
+                    res_temp = fetch(task) # Wait for pause
+
+                    if res_temp == 10 || res_temp == 20
+                        # Finished while we were calculating
+                        break
+                    end
+
+                    # Add clauses
+                    for c in new_clauses_buffer
+                        CadicalWrapper.add_clause(solver, c)
+                    end
+                    empty!(new_clauses_buffer)
+
+                    # Resume
+                    task = CadicalWrapper.solve_async(solver)
+                end
+            end
+
+            # Flush remaining clauses if solver still running
+            if !istaskdone(task) && !isempty(new_clauses_buffer)
+                CadicalWrapper.interrupt(solver)
+                res_temp = fetch(task)
+                if res_temp != 10 && res_temp != 20
+                    for c in new_clauses_buffer
+                        CadicalWrapper.add_clause(solver, c)
+                    end
+                    task = CadicalWrapper.solve_async(solver)
+                end
+            end
+
+            # Final Result
+            final_res = fetch(task)
+
+            if final_res == 10 # SAT
+                solution_vector = Int[]
+                for i in 1:num_simplices
+                    if CadicalWrapper.val(solver, i) > 0
+                        push!(solution_vector, i)
+                    end
+                end
+
+                simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector]
+
+                number_of_triangulations_found = 1
+                first_solution_simplices = simplices
+                push!(solution_simplices, simplices)
+
+                if config.regular
+                     if is_regular(simplices)
+                        number_of_regular_triangulations_found = 1
+                        first_regular_solution_simplices = simplices
+                     end
+                end
             end
         end
     end
-
-    num_solutions = config.regular ? number_of_regular_triangulations_found : number_of_triangulations_found
 
     push!(step_stats, StepStat("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
@@ -483,13 +518,13 @@ function process_polytope(  initial_vertices::Matrix{Int},
     end
 
     if !isempty(first_solution_simplices) && number_of_regular_triangulations_found > 0
-        log_verbose("\nDisplaying first valid triangulation:");
+        log_verbose("\nDisplaying first valid triangulation:")
         for s in first_solution_simplices
             log_verbose(s, is_display=true)
         end
     end
     if !isempty(first_regular_solution_simplices)
-        log_verbose("\nDisplaying first valid regular triangulation:");
+        log_verbose("\nDisplaying first valid regular triangulation:")
         for s in first_regular_solution_simplices
             log_verbose(s, is_display=true)
         end
@@ -558,6 +593,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         println(term_summary_buf, "Run started at:                      $(Dates.format(now(), "HH:MM:SS"))")
         println(term_summary_buf, "Number of threads:                   $(nthreads())")
         println(term_summary_buf, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
+        println(term_summary_buf, "Solver:                              $(config.solver)")
         println(term_summary_buf, "Intersection backend selected:       $(config.intersection_backend)")
         println(term_summary_buf, "Validation enabled:                  $(config.validate)")
         println(term_summary_buf, "Number of polytopes found:           $(length(polytopes))")
@@ -570,14 +606,15 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     if !isnothing(log_stream)
         log_summary_buf = IOBuffer()
-        println(log_summary_buf, "Number of threads:                     $(nthreads())")
-        println(log_summary_buf, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
-        println(log_summary_buf, "Intersection backend selected:       $(config.intersection_backend)")
-        println(log_summary_buf, "Validation enabled:                  $(config.validate)")
-        println(log_summary_buf, "Number of polytopes found:           $(length(polytopes))")
-        println(log_summary_buf, "Restricting to unimodular simplices: $(config.unimodular)")
-        println(log_summary_buf, "Looking for regular triangulations:  $(config.regular)")
-        println(log_summary_buf, "Using Normaliz:                      $(config.use_normaliz)")
+        println(log_summary_buf, "Number of threads:                      $(nthreads())")
+        println(log_summary_buf, "Solve mode:                             $(config.find_all ? "Find All" : "Find First")")
+        println(log_summary_buf, "Solver:                                 $(config.solver)")
+        println(log_summary_buf, "Intersection backend selected:          $(config.intersection_backend)")
+        println(log_summary_buf, "Validation enabled:                     $(config.validate)")
+        println(log_summary_buf, "Number of polytopes found:              $(length(polytopes))")
+        println(log_summary_buf, "Restricting to unimodular simplices:    $(config.unimodular)")
+        println(log_summary_buf, "Looking for regular triangulations:     $(config.regular)")
+        println(log_summary_buf, "Using Normaliz:                         $(config.use_normaliz)")
         println(log_summary_buf, "")
         print(log_stream, String(take!(log_summary_buf)))
         flush(log_stream)
@@ -606,7 +643,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     is_first_single_line_update = true
 
     global_step_stats = Dict{String, StatAggregator}()
-    step_order = String[] # To preserve the order of steps for the final table
+    step_order = String[]
     all_results = Vector{TriangulationResult}()
 
     for (i, P) in enumerate(polytopes)
@@ -688,7 +725,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         if !isempty(global_step_stats)
             println()
             println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
-                                   "Step Name", "Total Time", "Avg Time", "Max Time", "Avg Memory", "Max Memory"))
+                                      "Step Name", "Total Time", "Avg Time", "Max Time", "Avg Memory", "Max Memory"))
             println(stats_table_buf, "-"^108)
 
             for step_name in step_order
@@ -751,9 +788,10 @@ function setup_run( polytopes::Vector{Matrix{Int}},
                     validate::Bool=false,
                     plot::Bool=false,
                     use_normaliz::Bool=false,
-                    return_triangulations::String="first")
+                    return_triangulations::String="first",
+                    solver::String="picosat")
 
-    config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz, return_triangulations)
+    config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz, return_triangulations, solver)
     log_stream = nothing
     results = Vector{Vector{Vector{Matrix{Int}}}}()
     try
@@ -788,12 +826,13 @@ function triangulate(   vmatrix::Matrix{Int};
                         validate::Bool=false,
                         plot::Bool=false,
                         use_normaliz::Bool=false,
-                        return_triangulations::String="first")
+                        return_triangulations::String="first",
+                        solver::String="picosat")
 
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
-     return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
+     return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver)
 end
 
 function triangulate(   vmatrices::Vector{Matrix{Int}};
@@ -806,12 +845,13 @@ function triangulate(   vmatrices::Vector{Matrix{Int}};
                         validate::Bool=false,
                         plot::Bool=false,
                         use_normaliz::Bool=false,
-                        return_triangulations::String="first")
+                        return_triangulations::String="first",
+                        solver::String="picosat")
 
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
-    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
+    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver)
 end
 
 function triangulate(   polytope::Polyhedron;
@@ -824,7 +864,8 @@ function triangulate(   polytope::Polyhedron;
                         validate::Bool=false,
                         plot::Bool=false,
                         use_normaliz::Bool=false,
-                        return_triangulations::String="first")
+                        return_triangulations::String="first",
+                        solver::String="picosat")
 
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
@@ -835,7 +876,7 @@ function triangulate(   polytope::Polyhedron;
         @error("Could not process a single polytope")
         return nothing
     end
-    return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
+    return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver)
 end
 
 function triangulate(   polytopes::Vector{Polyhedron};
@@ -848,7 +889,8 @@ function triangulate(   polytopes::Vector{Polyhedron};
                         validate::Bool=false,
                         plot::Bool=false,
                         use_normaliz::Bool=false,
-                        return_triangulations::String="first")
+                        return_triangulations::String="first",
+                        solver::String="picosat")
 
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
@@ -867,7 +909,7 @@ function triangulate(   polytopes::Vector{Polyhedron};
         @error("Could not porcess a single polytope.")
         return Vector{Vector{Matrix{Int}}}[]
     end
-    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
+    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver)
 end
 
 function triangulate(   path_to_polytopes::String;
@@ -880,7 +922,8 @@ function triangulate(   path_to_polytopes::String;
                         validate::Bool=false,
                         plot::Bool=false,
                         use_normaliz::Bool=false,
-                        return_triangulations::String="first")
+                        return_triangulations::String="first",
+                        solver::String="picosat")
 
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
@@ -893,7 +936,7 @@ function triangulate(   path_to_polytopes::String;
         @error("Error loading polytopes from '$path_to_polytopes': '$e'")
         return Vector{Vector{Matrix{Int}}}[]
     end
-    return setup_run(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations)
+    return setup_run(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver)
 end
 
 end
