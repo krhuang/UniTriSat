@@ -18,7 +18,7 @@ using Random
 using CDDLib
 
 # Global constant for the chunk size of incremental clauses
-const INTERSECTION_CLAUSE_CHUNK_SIZE = 10000
+const INTERSECTION_CLAUSE_CHUNK_SIZE = 1000
 
 # mutable flag in module scope
 const Normaliz_available = Ref(true)
@@ -430,11 +430,13 @@ function process_polytope(  initial_vertices::Matrix{Int},
             pair_iterator = combinations(1:num_simplices, 2)
             new_clauses_buffer = Vector{Vector{Int}}()
 
-            for (idx1, idx2) in pair_iterator
+            while true
                 # 1. Stop if solver finished early
                 if istaskdone(task)
                     break
                 end
+                idx1 = rand(1:(length(S_indices)-1))
+                idx2 = rand((idx1+1):length(S_indices))
 
                 # 2. Fast check: Shared vertices
                 s1_inds = collect(S_indices[idx1])
@@ -449,7 +451,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
                 # 3. Batch Update
                 if length(new_clauses_buffer) >= INTERSECTION_CLAUSE_CHUNK_SIZE
-                    println("adding new clauses")
+#                     print("|")
+                    #println("adding new clauses")
                     # Interrupt solver
                     CadicalWrapper.interrupt(solver)
                     res_temp = fetch(task) # Wait for pause

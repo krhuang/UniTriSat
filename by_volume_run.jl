@@ -36,6 +36,7 @@ triangulate(
     intersection_backend=backend,
     regular=regular,
     use_normaliz=true,
-    return_triangulations = ""
+    return_triangulations = "",
+    solver="cadical"
     )
 
