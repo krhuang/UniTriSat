@@ -112,9 +112,13 @@ mutable struct RunResult
 end
 
 # Finds a generic point strictly inside the polytope using Rational{BigInt} arithmetic
-function find_generic_point(P_rational::Matrix{Rational{BigInt}}, internal_faces_set, dim::Int)
-    n_points_total = size(P_rational, 1)
+function find_generic_point(P::Matrix{Int}, internal_faces_set, ::Val{D}) where D
+    n_points_total = size(P, 1)
     max_attempts = 1000
+
+    P_rational = Matrix{Rational{BigInt}}(P)
+    face_vectors_f = zeros(MMatrix{D, D - 1, Float64})
+    aug_matrix_f = zeros(MMatrix{D, D, Float64})
 
     for attempt in 1:max_attempts
         weights = rand(1:10000, n_points_total)
@@ -124,23 +128,30 @@ function find_generic_point(P_rational::Matrix{Rational{BigInt}}, internal_faces
         is_generic = true
 
         for face_indices in internal_faces_set
-            idx_list = collect(face_indices)
-            if length(idx_list) < dim
+            first_face_index = face_indices[1]
+            if length(face_indices) < D
                 continue
             end
-            v1 = P_rational[idx_list[1], :]
-            face_vectors = Matrix{Rational{Int}}(undef, dim, length(idx_list)-1)
-            for (i, k) in enumerate(idx_list[2:end])
-                face_vectors[:, i] = P_rational[k, :] - v1
+            @assert length(face_indices) == D
+            for j in 1:D-1
+                vertex_index = face_indices[j+1]
+                for k in 1:D
+                    face_vectors_f[k,j] = float(P[vertex_index, k] - P[first_face_index, k])
+                end
             end
 
-            r_face = rank(Float64.(face_vectors))
-            if r_face < dim - 1
+            r_face = rank(face_vectors_f)
+            if r_face < D - 1
                 continue
             end
 
-            aug_matrix = hcat(face_vectors, p_vec - v1)
-            r_aug = rank(Float64.(aug_matrix))
+            for j in 1:(D-1)
+                aug_matrix_f[:, j] .= face_vectors_f[:, j]
+            end
+            for k in 1:D
+                aug_matrix_f[k, end] = float(p_vec[k] - P[first_face_index, k])
+            end
+            r_aug = rank(aug_matrix_f)
 
             if r_face == r_aug
                 is_generic = false
@@ -264,8 +275,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         local_clauses = Vector{Vector{Int}}()
 
         # 4a. Find Generic Point
-        P_rational = Matrix{Rational{BigInt}}(P)
-        generic_point = find_generic_point(P_rational, internal_faces_set, dim)
+        generic_point = find_generic_point(P, internal_faces_set, Val(dim))
         log_verbose("   Generic point found.")
 
         # 4b. Identify Central Simplices & Compute Full Intersections for them
@@ -752,7 +762,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     for (i, P) in enumerate(polytopes)
 
-         r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
+        r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
         number_of_triangulations_found = r.number_of_triangulations_found
         number_of_regular_triangulations_found = r.number_of_regular_triangulations_found
         minimal_log = r.minimal_log
