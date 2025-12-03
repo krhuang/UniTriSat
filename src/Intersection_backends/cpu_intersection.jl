@@ -7,7 +7,8 @@ using Combinatorics
 using Base.Threads
 using StaticArrays
 
-export get_intersecting_pairs_cpu, simplices_intersect_sat_cpu, compute_face_normal
+export get_intersecting_pairs_cpu, simplices_intersect_sat_cpu, compute_face_normal, prepare_simplices_cpu
+export check_intersections_range_cpu, find_intersections_in_subset
 
 macro generate_determinants_up_to(n)
     n = Int(n)
@@ -20,7 +21,7 @@ macro generate_determinants_up_to(n)
         args = [Symbol(:m, i, j) for i in 1:k, j in 1:k]
 
         if k == 2
-            return quote
+             return quote
                 @inline function $(esc(fname))($(args...))
                     return m11*m22 - m12*m21
                 end
@@ -71,7 +72,7 @@ macro generate_determinants_bareiss_up_to(n)
 
         # Initialize all a_ij
         for i in 1:k, j in 1:k
-            push!(stmts, :($(Symbol(:a_, i, "_", j)) = $(Symbol(:m, i, j))))
+             push!(stmts, :($(Symbol(:a_, i, "_", j)) = $(Symbol(:m, i, j))))
         end
 
         # Unroll elimination updates
@@ -334,7 +335,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         for i in 1:V
             axis = facet_normals[i]
             if !iszero(axis) && axis_separates(s1_verts, s2_verts, axis)
-                return false
+                 return false
             end
         end
     end
@@ -392,7 +393,7 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
     edge_index = Vector{Vector{Int64}}(undef, num_verts - 1)
     let edges_idx = 1
         for i in 1:(num_verts-1)
-            edge_index[i] = Vector{Int64}(undef, num_verts)
+             edge_index[i] = Vector{Int64}(undef, num_verts)
             for j in (i+1):num_verts
                 edges[edges_idx] = verts[j] - verts[i]
                 edge_index[i][j] = edges_idx
@@ -401,7 +402,7 @@ function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
         end
     end
 
-    # facets are combinations(1:num_verts, d)
+     # facets are combinations(1:num_verts, d)
     for off_index in 1:num_verts
         first_index = (off_index == 1) ? 2 : 1
         p0 = verts[first_index]
@@ -483,6 +484,54 @@ function get_intersecting_pairs_cpu_generic(P::Matrix{Int}, S_indices::Vector, :
     end
 
     return vcat(thread_clauses...)
+end
+
+# --- NEW HELPERS FOR INCREMENTAL SOLVING ---
+
+# Checks intersections for a single simplex `idx1` against a range of other simplices.
+# Efficient for use in worker threads.
+function check_intersections_range_cpu(
+    simplices::Vector{Simplex{V, D}},
+    idx1::Int,
+    range_start::Int,
+    range_end::Int
+) where {V, D}
+    conflicts = Vector{Vector{Int}}()
+    # If range is invalid or empty, return immediately
+    if range_start > range_end
+        return conflicts
+    end
+
+    t1 = simplices[idx1]
+    @inbounds for idx2 in range_start:range_end
+        t2 = simplices[idx2]
+        if simplices_intersect_sat_cpu(t1, t2)
+            push!(conflicts, [-idx1, -idx2])
+        end
+    end
+    return conflicts
+end
+
+# Validates a specific subset of simplices (e.g. a candidate solution)
+# Returns a list of conflicting pairs found within this subset.
+function find_intersections_in_subset(
+    simplices::Vector{Simplex{V, D}},
+    indices::Vector{Int}
+) where {V, D}
+    conflicts = Vector{Vector{Int}}()
+    n = length(indices)
+    for i in 1:n
+        idx1 = indices[i]
+        t1 = simplices[idx1]
+        for j in (i+1):n
+            idx2 = indices[j]
+            t2 = simplices[idx2]
+            if simplices_intersect_sat_cpu(t1, t2)
+                push!(conflicts, [-idx1, -idx2])
+            end
+        end
+    end
+    return conflicts
 end
 
 end

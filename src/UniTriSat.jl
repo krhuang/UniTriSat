@@ -17,8 +17,9 @@ using TOML
 using Random
 using CDDLib
 
-# Global constant for the chunk size of incremental clauses
-const INTERSECTION_CLAUSE_CHUNK_SIZE = 1000
+# Constants for the new producer-consumer logic
+const INTERSECTION_GENERATION_CHUNK_SIZE = 5000 # Number of simplices each generator thread processes at once
+const SOLVER_UPDATE_THRESHOLD = 50000  # Number of new clauses to buffer before updating the solver
 
 # mutable flag in module scope
 const Normaliz_available = Ref(true)
@@ -289,7 +290,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
                     val = 0
                     p_coords = P[p_idx, :]
                     for k in 1:dim
-                        val += normal[k] * (p_coords[k] - v_ref[k])
+                         val += normal[k] * (p_coords[k] - v_ref[k])
                     end
                     if val > 0
                         push!(left_simplices, s_global_idx)
@@ -351,8 +352,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     append!(cnf, face_clauses)
     push!(step_stats, StepStat("Generate face-covering clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
 
-    log_verbose("Step 5: Handing SAT problem to solver...");
-    log_verbose("      Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
+    log_verbose("Step 5: Handing SAT problem to solver..."); log_verbose("      Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
     if show_running_updates
         update_line("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices solving...")
     end
@@ -406,7 +406,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
                 end
             end
         else
-            # --- CaDiCaL Incremental Logic ---
+            # --- CaDiCaL Incremental Logic (Producer-Consumer) ---
             solver = CadicalWrapper.Solver()
 
             # Add initial clauses
@@ -414,129 +414,182 @@ function process_polytope(  initial_vertices::Matrix{Int},
                 CadicalWrapper.add_clause(solver, clause)
             end
 
-            # Start Async
-            task = CadicalWrapper.solve_async(solver)
-
             log_verbose("      (Async) Calculating intersection pairs incrementally and feeding to solver...")
 
-            # Pre-compute optimized simplex structures for the CPU intersection test
+            # 1. Prepare Optimized Simplex Data
             cpu_simplices = CPUIntersection.prepare_simplices_cpu(P, S_indices, Val(dim))
 
-            pair_iterator = combinations(1:num_simplices, 2)
+            # 2. Shared State for Intersection Generators
+            # Large buffer channel
+            clause_channel = Channel{Vector{Int}}(100000)
+            
+            # Atomic counter for next simplex to check
+            next_simplex_idx = Threads.Atomic{Int}(1)
+            
+            # Flag to indicate if generators are finished
+            generation_complete = Threads.Atomic{Bool}(false)
+
+            # 3. Launch Generator Threads
+            # We use max(1, nthreads() - 1) to leave the main thread free for coordination
+            num_workers = max(1, nthreads() - 1)
+            generator_tasks = []
+            
+            for _ in 1:num_workers
+                t = Threads.@spawn begin
+                    while true
+                        # Grab a chunk of work
+                        # The 'i' here represents the index of the first simplex
+                        # We will check i against all j > i
+                        i = Threads.atomic_add!(next_simplex_idx, 1)
+                        if i >= num_simplices
+                            break
+                        end
+                        
+                        # Generate conflicts for this simplex against all subsequent ones
+                        # Range is (i+1) to num_simplices
+                        conflicts = CPUIntersection.check_intersections_range_cpu(cpu_simplices, i, i+1, num_simplices)
+                        
+                        for c in conflicts
+                            put!(clause_channel, c)
+                        end
+                    end
+                end
+                push!(generator_tasks, t)
+            end
+
+            # Monitor task to close channel when all generators are done
+            Threads.@spawn begin
+                for t in generator_tasks
+                    wait(t)
+                end
+                generation_complete[] = true
+                # Do NOT close the channel immediately, the coordinator needs to drain it.
+                # But we can rely on generation_complete + isready checks.
+            end
+
+            # 4. Start Solver Async
+            task = CadicalWrapper.solve_async(solver)
+            number_of_clauses_added = 0
             new_clauses_buffer = Vector{Vector{Int}}()
+
+            # 5. Coordinator Loop
             while true
-                while true
-                    # 1. Stop if solver finished early
-                    if istaskdone(task)
-                        break
-                    end
-                    if length(S_indices) > 1
-                        idx1 = rand(1:(length(S_indices)-1))
-                        idx2 = rand((idx1+1):length(S_indices))
-
-                        # 2. Fast check: Shared vertices
-                        s1_inds = collect(S_indices[idx1])
-                        s2_inds = collect(S_indices[idx2])
-                        shared_count = count(x -> x in s2_inds, s1_inds)
-
-                        if shared_count < dim
-                            if CPUIntersection.simplices_intersect_sat_cpu(cpu_simplices[idx1], cpu_simplices[idx2])
-                                push!(new_clauses_buffer, [-idx1, -idx2])
+                # --- A. Check Solver Status ---
+                if istaskdone(task)
+                    res = fetch(task)
+                    
+                    if res == 10 # SAT
+                        # Retrieve candidate solution
+                        solution_vector = Int[]
+                        for i in 1:num_simplices
+                            if CadicalWrapper.val(solver, i) > 0
+                                push!(solution_vector, i)
                             end
                         end
-                    end
+                        
+                        simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector]
 
-                    # 3. Batch Update
-                    if length(new_clauses_buffer) >= INTERSECTION_CLAUSE_CHUNK_SIZE
-                        # Interrupt solver
-                        CadicalWrapper.interrupt(solver)
-                        res_temp = fetch(task) # Wait for pause
-
-                        if res_temp == 10 || res_temp == 20
-                            # Finished while we were calculating
-                            break
+                        number_of_triangulations_found += 1
+                        if isempty(first_solution_simplices)
+                            first_solution_simplices = simplices
                         end
 
-                        # Add clauses
-                        for c in new_clauses_buffer
-                            CadicalWrapper.add_clause(solver, c)
-                        end
-                        empty!(new_clauses_buffer)
+                        should_terminate = false
 
-                        # Resume
-                        task = CadicalWrapper.solve_async(solver)
-                    end
-                end
-
-                # Flush remaining clauses if solver still running
-                if !istaskdone(task) && !isempty(new_clauses_buffer)
-                    CadicalWrapper.interrupt(solver)
-                    res_temp = fetch(task)
-                    if res_temp != 10 && res_temp != 20
-                        for c in new_clauses_buffer
-                            CadicalWrapper.add_clause(solver, c)
-                        end
-                        task = CadicalWrapper.solve_async(solver)
-                    end
-                end
-
-                # Final Result
-                final_res = fetch(task)
-
-                if final_res == 10 # SAT
-                    solution_vector = Int[]
-                    for i in 1:num_simplices
-                        if CadicalWrapper.val(solver, i) > 0
-                            push!(solution_vector, i)
-                        end
-                    end
-
-                    simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector]
-                    number_of_triangulations_found += 1
-                    if isempty(first_solution_simplices)
-                        first_solution_simplices = simplices
-                    end
-                    if !config.regular
-                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                            push!(solution_simplices, simplices)
-                        end
-                        if !config.find_all
-                            CadicalWrapper.release(solver)
-                            break
-                        end
-                    else
-                        if is_regular(simplices)
-                            if isempty(first_regular_solution_simplices)
-                                first_regular_solution_simplices = simplices
-                            end
-                            number_of_regular_triangulations_found += 1
+                        if !config.regular
+                            # --- Standard Logic ---
                             if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
                                 push!(solution_simplices, simplices)
                             end
                             if !config.find_all
-                                CadicalWrapper.release(solver)
-                                break
-                            else
-                                CadicalWrapper.interrupt(solver)
-                                CadicalWrapper.add_clause(solver, [-solution_vector...]) # Block this solution
-                                task = CadicalWrapper.solve_async(solver) #resume with this solution blocked, this functions like itersolve from picosat
+                                should_terminate = true
                             end
                         else
-                            if show_running_updates
-                                s = " ($number_of_triangulations_found non-regular triangulations found)"
-                                print(s*"\b"^(length(s)))
+                            # --- Regular Logic ---
+                            if is_regular(simplices)
+                                if isempty(first_regular_solution_simplices)
+                                    first_regular_solution_simplices = simplices
+                                end
+                                number_of_regular_triangulations_found += 1
+                                if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                                    push!(solution_simplices, simplices)
+                                end
+                                if !config.find_all
+                                    should_terminate = true
+                                end
+                            else
+                                if show_running_updates
+                                    s = " ($number_of_triangulations_found non-regular triangulations found)"
+                                    print(s*"\b"^(length(s)))
+                                end
+                                # It's valid but not regular -> we treat this as a "failure" of the regularity constraint
+                                # We don't terminate. We block and continue.
                             end
-                            CadicalWrapper.interrupt(solver)
-                            CadicalWrapper.add_clause(solver, [-solution_vector...]) # Block this solution
-                            task = CadicalWrapper.solve_async(solver) #resume with this solution blocked, this functions like itersolve from picosat
                         end
+
+                        if should_terminate
+                            break
+                        else
+                            # Block this solution and resume
+                            CadicalWrapper.add_clause(solver, [-solution_vector...])
+                            task = CadicalWrapper.solve_async(solver)
+                        end
+                        
+                    elseif res == 20 # UNSAT
+                        # If generators are done, it's definitively UNSAT.
+                        # If generators are running, but the solver proved UNSAT with a SUBSET of constraints,
+                        # adding more constraints (intersections) will not make it SAT.
+                        # So UNSAT is final regardless of generator state.
+                        break
+                    else
+                        # Unknown/Interrupted - Just resume
+                        task = CadicalWrapper.solve_async(solver)
                     end
-                elseif final_res == 20 # UNSAT
-                    break
+                end
+
+                # --- B. Process Incoming Clauses ---
+                # Drain channel into local buffer
+                while isready(clause_channel)
+                    try
+                        push!(new_clauses_buffer, take!(clause_channel))
+                    catch
+                        break
+                    end
+                end
+
+                # --- C. Update Solver if Threshold Reached ---
+                should_update = length(new_clauses_buffer) >= SOLVER_UPDATE_THRESHOLD || (generation_complete[] && !isempty(new_clauses_buffer))
+                
+                if should_update && !istaskdone(task)
+                    number_of_clauses_added += length(new_clauses_buffer)
+                    s = "   Number of clauses added: $number_of_clauses_added"
+                    print("$s"*"\b"^length(s))
+                    CadicalWrapper.interrupt(solver)
+                    # We must wait for the task to finish (it should return status 0 or similar)
+                    try
+                        wait(task)
+                    catch
+                    end
+                    
+                    # Add buffered clauses
+                    for c in new_clauses_buffer
+                        CadicalWrapper.add_clause(solver, c)
+                    end
+                    empty!(new_clauses_buffer)
+                    
+                    # Resume solver
+                    task = CadicalWrapper.solve_async(solver)
+                end
+                
+                # --- D. Termination Check ---
+                # If generators are done, buffer is empty, and solver is running (and not finished in A), just wait.
+                if generation_complete[] && isempty(new_clauses_buffer) && !istaskdone(task)
+                    sleep(0.01) # Yield
                 else
-                    task = CadicalWrapper.solve_async(solver) # Interrupted, resume
+                    sleep(0.001) # Yield slightly to let generators work
                 end
             end
+            
             CadicalWrapper.release(solver)
         end
     end
@@ -569,14 +622,14 @@ function process_polytope(  initial_vertices::Matrix{Int},
         if config.regular
             if isempty(first_regular_solution_simplices)
                 @error("Cannot plot, no regular triangulation found")
-            else
+             else
                 plot(initial_vertices, dim, first_regular_solution_simplices)
             end
         else
             if isempty(first_solution_simplices)
                 @error("Cannot plot, no triangulation found")
             else
-                plot(initial_vertices, dim, first_solution_simplices)
+                 plot(initial_vertices, dim, first_solution_simplices)
             end
         end
         log_verbose("-> Plotting complete. Step 6 complete.")
@@ -635,7 +688,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         println(term_summary_buf, "Looking for regular triangulations:  $(config.regular)")
         println(term_summary_buf, "Using Normaliz:                      $(config.use_normaliz)")
         println(term_summary_buf, "")
-        print(stdout, String(take!(term_summary_buf)))
+         print(stdout, String(take!(term_summary_buf)))
     end
 
     if !isnothing(log_stream)
@@ -645,7 +698,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         println(log_summary_buf, "Solver:                                 $(config.solver)")
         println(log_summary_buf, "Intersection backend selected:          $(config.intersection_backend)")
         println(log_summary_buf, "Validation enabled:                     $(config.validate)")
-        println(log_summary_buf, "Number of polytopes found:              $(length(polytopes))")
+         println(log_summary_buf, "Number of polytopes found:              $(length(polytopes))")
         println(log_summary_buf, "Restricting to unimodular simplices:    $(config.unimodular)")
         println(log_summary_buf, "Looking for regular triangulations:     $(config.regular)")
         println(log_summary_buf, "Using Normaliz:                         $(config.use_normaliz)")
@@ -682,7 +735,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     for (i, P) in enumerate(polytopes)
 
-        r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
+         r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
         number_of_triangulations_found = r.number_of_triangulations_found
         number_of_regular_triangulations_found = r.number_of_regular_triangulations_found
         minimal_log = r.minimal_log
@@ -694,7 +747,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
              flush(log_stream)
         end
 
-        if number_of_triangulations_found > 0
+         if number_of_triangulations_found > 0
             triangulatable += 1
         end
         if number_of_regular_triangulations_found > 0
@@ -704,14 +757,14 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         total_number_of_regular_triangulations_found += number_of_regular_triangulations_found
 
         for stat in step_stats
-            if !haskey(global_step_stats, stat.name)
+             if !haskey(global_step_stats, stat.name)
                 global_step_stats[stat.name] = StatAggregator()
                 push!(step_order, stat.name)
             end
             agg = global_step_stats[stat.name]
             agg.total_time += stat.duration_s
             agg.max_time = max(agg.max_time, stat.duration_s)
-            agg.total_alloc += stat.alloc_bytes
+             agg.total_alloc += stat.alloc_bytes
             agg.max_alloc = max(agg.max_alloc, stat.alloc_bytes)
             agg.count += 1
         end
@@ -726,7 +779,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             eta_str = ""
             avg_time = (time() - t_start_run) / i
             remaining = number_of_polytopes - i
-            eta_seconds = avg_time * remaining
+             eta_seconds = avg_time * remaining
             eta_str = format_duration(eta_seconds)
 
             @printf(stdout, "\r%-40s %s\u001b[K\n", "Elapsed Time:", format_duration(elapsed_time))
@@ -741,7 +794,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     end
 
     if show_running
-        print(stdout, "\u001b[5A")
+         print(stdout, "\u001b[5A")
         if config.regular; print(stdout, "\u001b[1A"); end
         print(stdout, "\u001b[0J")
     end
@@ -771,13 +824,13 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
                 avg_time = total_time / stat.count
                 avg_mem = stat.total_alloc / stat.count
 
-                println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
+                 println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
                                                 step_name,
-                                                format_duration(total_time),
+                                                 format_duration(total_time),
                                                 @sprintf("%.3f s", avg_time),
-                                                @sprintf("%.3f s", max_time),
+                                                 @sprintf("%.3f s", max_time),
                                                 format_bytes(avg_mem),
-                                                format_bytes(stat.max_alloc)))
+                                                 format_bytes(stat.max_alloc)))
             end
         end
         stats_table_str = String(take!(stats_table_buf))
@@ -819,7 +872,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
                     unimodular::Bool=true, regular::Bool=false,
                     find_all::Bool=false, log_file::String="",
                     terminal_output::String="",
-                    validate::Bool=false,
+                   validate::Bool=false,
                     plot::Bool=false,
                     use_normaliz::Bool=false,
                     return_triangulations::String="first",
@@ -834,7 +887,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
                 log_stream = open(log_file, "a")
                 println(log_stream, "\n\n" * "#"^80, "\n# New Run Started at $(now())\n" * "#"^80)
             catch e
-                @error("Error opening log file: $e")
+                 @error("Error opening log file: $e")
                 log_stream = nothing
             end
         end
@@ -843,7 +896,8 @@ function setup_run( polytopes::Vector{Matrix{Int}},
             @warn("No polytopes provided to setup_run.")
             return results
         end
-        results = run_processing(polytopes, config, log_stream)
+    
+     results = run_processing(polytopes, config, log_stream)
     finally
         !isnothing(log_stream) && close(log_stream)
     end
@@ -941,7 +995,7 @@ function triangulate(   polytopes::Vector{Polyhedron};
 
     if isempty(vmatrices)
         @error("Could not porcess a single polytope.")
-        return Vector{Vector{Matrix{Int}}}[]
+         return Vector{Vector{Matrix{Int}}}[]
     end
     return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver)
 end
@@ -963,7 +1017,7 @@ function triangulate(   path_to_polytopes::String;
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
     end
     local polytopes
-    try
+     try
         polytopes = read_polytopes_from_file(path_to_polytopes)
         if isempty(polytopes); @error("Error: No polytopes loaded from '$path_to_polytopes'."); return Vector{Vector{Matrix{Int}}}[]; end
         catch e

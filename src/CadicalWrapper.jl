@@ -2,25 +2,21 @@ module CadicalWrapper
 
 using Libdl
 
-# Pfad zur Shared Library im selben Verzeichnis
 const LIBCADICAL = joinpath(@__DIR__, "libcadical.so")
 
-# Status-Codes gemäß SAT-Standard
 const STATUS_UNKNOWN = 0
 const STATUS_SAT = 10
 const STATUS_UNSAT = 20
 
 mutable struct Solver
-    ptr::Ptr{Cvoid}         # Zeiger auf die C-Instanz
-    is_solving::Bool        # Flag, um parallele Aufrufe zu verhindern
-    lock::ReentrantLock     # Thread-Sicherheit
+    ptr::Ptr{Cvoid}         
+    is_solving::Bool        
+    lock::ReentrantLock     
 
     function Solver()
-        # Initialisiert den Solver über die C-API
         ptr = ccall((:ccadical_init, LIBCADICAL), Ptr{Cvoid}, ())
         solver = new(ptr, false, ReentrantLock())
 
-        # Finalizer registrieren, um Speicher freizugeben, wenn das Julia-Objekt gelöscht wird
         finalizer(release, solver)
         return solver
     end
@@ -54,7 +50,7 @@ function add_clause(s::Solver, clause::Vector{Int})
         for lit in clause
             add_literal(s, lit)
         end
-        add_literal(s, 0) # 0 terminiert die Klausel in CaDiCaL
+        add_literal(s, 0) # Terminate clause
     end
 end
 
@@ -62,7 +58,6 @@ end
 Pauses the solver
 """
 function interrupt(s::Solver)
-    # Ruft ccadical_terminate auf. Dies signalisiert dem Solver, so bald wie möglich zu stoppen.
     ccall((:ccadical_terminate, LIBCADICAL), Cvoid, (Ptr{Cvoid},), s.ptr)
 end
 
@@ -73,12 +68,12 @@ function solve_blocking(s::Solver)
     lock(s.lock) do
         s.is_solving = true
     end
-
-    # Der eigentliche C-Aufruf
-    res = ccall((:ccadical_solve, LIBCADICAL), Cint, (Ptr{Cvoid},), s.ptr)
-
-    lock(s.lock) do
-        s.is_solving = false
+    res = try
+        ccall((:ccadical_solve, LIBCADICAL), Cint, (Ptr{Cvoid},), s.ptr)
+    finally
+        lock(s.lock) do
+            s.is_solving = false
+        end
     end
 
     return res
@@ -111,7 +106,6 @@ end
 Check the value of a literal to extract the actual assignment
 """
 function val(s::Solver, lit::Int)
-    # Gibt lit zurück, wenn wahr, -lit wenn falsch, 0 wenn unentschieden
     return ccall((:ccadical_val, LIBCADICAL), Cint, (Ptr{Cvoid}, Cint), s.ptr, Cint(lit))
 end
 
