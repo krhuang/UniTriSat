@@ -259,7 +259,9 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
         if !isempty(central_indices_map)
             central_S_indices = S_indices[central_indices_map]
-            central_clauses = CPUIntersection.get_intersecting_pairs_cpu_generic(P, central_S_indices, Val(dim))
+            #central_clauses = CPUIntersection.get_intersecting_pairs_cpu_generic(P, central_S_indices, Val(dim))
+            # all simplices containing the generic point intersect with each other
+            central_clauses = [[-i, -j] for i in 1:length(central_S_indices) for j in (i+1):length(central_S_indices)]
             for c in central_clauses
                 mapped_clause = [x < 0 ? -central_indices_map[abs(x)] : central_indices_map[abs(x)] for x in c]
                 push!(local_clauses, mapped_clause)
