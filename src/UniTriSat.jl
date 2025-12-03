@@ -159,14 +159,15 @@ function is_point_in_simplex(P_rational::Matrix{Rational{BigInt}}, s_indices, p:
     dim = length(p)
     indices = collect(s_indices)
     verts = P_rational[indices, :]'
-    A = vcat(verts, ones(Rational{BigInt}, 1, dim + 1))
-    b = vcat(p, one(Rational{BigInt}))
-    try
-        lambda = A \ b
-        return all(x -> x > 0, lambda)
-    catch
-        return false
-    end
+    # The intention is to solve the (d+1)x(d+1) barycentric matrix
+    # (with ones in the last row), but we can make things faster by
+    # reducing the dimension of the solve by subtracting the first
+    # vertex.
+    first_vert = verts[:, 1]
+    A = verts[:, 2:end] .- first_vert
+    mu = A \ (p - first_vert)
+    lambda_last = 1 - sum(mu)
+    return all(mu .> 0) && lambda_last > 0
 end
 
 # the main function processing a single polytope
