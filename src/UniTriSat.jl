@@ -155,19 +155,38 @@ function find_generic_point(P_rational::Matrix{Rational{BigInt}}, internal_faces
     error("Could not find a generic point.")
 end
 
-function is_point_in_simplex(P_rational::Matrix{Rational{BigInt}}, s_indices, p::Vector{Rational{BigInt}})
+function is_point_in_simplex(P::Matrix{Int}, s_indices, p::Vector{Rational{BigInt}})
     dim = length(p)
     indices = collect(s_indices)
-    verts = P_rational[indices, :]'
     # The intention is to solve the (d+1)x(d+1) barycentric matrix
     # (with ones in the last row), but we can make things faster by
     # reducing the dimension of the solve by subtracting the first
     # vertex.
-    first_vert = verts[:, 1]
-    A = verts[:, 2:end] .- first_vert
+    first_vert = Vector{Int}(undef, dim)
+    for k in 1:dim
+        first_vert[k] = P[s_indices[1], k]
+    end
+    A = Matrix{Rational{Int}}(undef, dim, dim)
+    # Fill A manually: each column = vertex_i - first_vert
+    for j in 1:dim
+        vert_index = s_indices[j + 1]
+        for k in 1:dim
+            A[k, j] = P[vert_index, k] - first_vert[k]
+        end
+    end
     mu = A \ (p - first_vert)
     lambda_last = 1 - sum(mu)
     return all(mu .> 0) && lambda_last > 0
+end
+
+function compute_central_indices(P::Matrix{Int}, S_indices, generic_point::Vector{Rational{BigInt}})
+    central_indices_map = Int[]
+    for (i, s) in enumerate(S_indices)
+        if is_point_in_simplex(P, s, generic_point)
+            push!(central_indices_map, i)
+        end
+    end
+    return central_indices_map
 end
 
 # the main function processing a single polytope
@@ -250,12 +269,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         log_verbose("   Generic point found.")
 
         # 4b. Identify Central Simplices & Compute Full Intersections for them
-        central_indices_map = Int[]
-        for (i, s) in enumerate(S_indices)
-            if is_point_in_simplex(P_rational, s, generic_point)
-                push!(central_indices_map, i)
-            end
-        end
+        central_indices_map = compute_central_indices(P, S_indices, generic_point)
         log_verbose("   Found $(length(central_indices_map)) simplices containing the generic point.")
 
         if !isempty(central_indices_map)
