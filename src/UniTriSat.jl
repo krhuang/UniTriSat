@@ -16,6 +16,7 @@ using Base.Threads
 using TOML
 using Random
 using CDDLib
+using StaticArrays
 
 # Constants for the new producer-consumer logic
 const INTERSECTION_GENERATION_CHUNK_SIZE = 5000 # Number of simplices each generator thread processes at once
