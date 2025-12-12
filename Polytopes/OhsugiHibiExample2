@@ -1,0 +1,20 @@
+# Ohsugi-Hibi Example
+# A edge polytope of a graph with 10 vertices and 15 edges
+# The resulting polytope has 15 vertices and is ???-dimensional
+# It has a unimodular triangulation but no regular one
+# See Example 3.11 of Ohsugi, Hibi - "Normal Polytopes without Unimodular Regular Triangulation"
+1 1 0 0 0 0 0 0 0 0
+1 0 0 0 0 0 0 1 0 0
+1 0 0 0 0 0 0 0 1 0
+0 1 1 0 0 0 0 0 0 0
+0 1 0 1 0 0 0 0 0 0
+0 0 1 1 0 0 0 0 0 0
+0 0 1 0 0 0 0 0 0 1
+0 0 0 1 1 0 0 0 0 0
+0 0 0 0 1 1 0 0 0 0
+0 0 0 0 1 0 1 0 0 0
+0 0 0 0 0 1 1 0 0 0
+0 0 0 0 0 1 0 0 0 1
+0 0 0 0 0 0 1 1 0 0
+0 0 0 0 0 0 0 1 1 0
+0 0 0 0 0 0 0 0 1 1
