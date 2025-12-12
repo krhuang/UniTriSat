@@ -151,7 +151,7 @@ function write_matrices_to_file(k::Int, d::Int, filename::String)
             count += 1
         end
     end
-    println("Successfully generated $count sequences (sum <= $k, d=$d) and wrote $count matrices to '$filename'.")
+    println("Successfully generated $count sequences (sum <= $k, d=$d) and wrote $count matrices (representing vertices of the simplices) to '$filename'.")
 end
 
 # ----------------------------------------------------------------------
