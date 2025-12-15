@@ -62,8 +62,8 @@ function run_test(test::Test)
                             intersection_backend=backend,
                             return_triangulations="",
                             regular=regular,
-                            solver=solver
-                            )
+                            solver=solver,
+                            incremental_solving=incremental)
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
     time = format_duration(result.total_time)
@@ -103,12 +103,16 @@ s = ArgParseSettings()
   "--plot"
     help = "produce plots"
     action = :store_true
+  "--incremental"
+    help = "use incremental solving (cadical only)"
+    action = :store_true
 end
 parsed = parse_args(s)
 backend = parsed["backend"]
 solver = parsed["solver"]
 regular = parsed["regular"]
 plot = parsed["plot"]
+incremental = parsed["incremental"]
 reg_str = regular ? ", regular" : ""
 
 test_data = [   (3, 8, 125, 125),
@@ -133,7 +137,8 @@ if plot
                 return_triangulations="",
                 intersection_backend=backend,
                 terminal_output=terminal_output,
-                solver=solver)
+                solver=solver,
+                incremental_solving=incremental)
 end
 
 for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)
