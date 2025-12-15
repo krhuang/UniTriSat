@@ -19,8 +19,8 @@ using CDDLib
 using StaticArrays
 
 # Constants for the new producer-consumer logic
-const INTERSECTION_GENERATION_CHUNK_SIZE = 5000 # Number of simplices each generator thread processes at once
-const SOLVER_UPDATE_THRESHOLD = 50000  # Number of new clauses to buffer before updating the solver
+const INTERSECTION_GENERATION_CHUNK_SIZE = 10000 # Number of simplices each generator thread processes at once
+const SOLVER_UPDATE_THRESHOLD = 500000  # Number of new clauses to buffer before updating the solver
 
 # mutable flag in module scope
 const Normaliz_available = Ref(true)
@@ -427,26 +427,37 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
     clause_channel = Channel{Vector{Int}}(100000)
     next_simplex_idx = Threads.Atomic{Int}(1)
     generation_complete = Threads.Atomic{Bool}(false)
+    
+    # Error flag to detect generator failures
+    generator_failed = Threads.Atomic{Bool}(false)
 
-    # 3. Launch Generator Threads
+    # 3. Launch Generator Threads with Error Handling
     num_workers = max(1, nthreads() - 1)
     generator_tasks = []
 
-    for _ in 1:num_workers
+    for t_id in 1:num_workers
         t = Threads.@spawn begin
-            while true
-                # Grab a chunk of work
-                i = Threads.atomic_add!(next_simplex_idx, 1)
-                if i >= num_simplices
-                    break
+            try
+                while true
+                    # Grab a chunk of work
+                    i = Threads.atomic_add!(next_simplex_idx, 1)
+                    if i >= num_simplices
+                        break
+                    end
+                    
+                    # Generate conflicts for this simplex against all subsequent ones
+                    conflicts = CPUIntersection.check_intersections_range_cpu(cpu_simplices, i, i+1, num_simplices)
+                    
+                    for c in conflicts
+                        put!(clause_channel, c)
+                    end
                 end
-                
-                # Generate conflicts for this simplex against all subsequent ones
-                conflicts = CPUIntersection.check_intersections_range_cpu(cpu_simplices, i, i+1, num_simplices)
-                
-                for c in conflicts
-                    put!(clause_channel, c)
-                end
+            catch e
+                # LOG ERROR and set failure flag
+                @error "Generator thread $t_id failed: $e"
+                Base.show_backtrace(stderr, catch_backtrace())
+                generator_failed[] = true
+                # Close channel to unblock consumer if needed (optional but risky if others are running)
             end
         end
         push!(generator_tasks, t)
@@ -454,12 +465,17 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
 
     # Monitor task to close channel when all generators are done
     Threads.@spawn begin
-        for t in generator_tasks
-            wait(t)
+        try
+            for t in generator_tasks
+                wait(t)
+            end
+        catch e
+            @error "Monitor thread error waiting for generators: $e"
+            generator_failed[] = true
+        finally
+            # Always signal completion, even if failed, so the main loop doesn't hang
+            generation_complete[] = true
         end
-        generation_complete[] = true
-        # Do NOT close the channel immediately, the coordinator needs to drain it.
-        # But we can rely on generation_complete + isready checks.
     end
 
     # 4. Start Solver Async
@@ -469,6 +485,12 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
 
     # 5. Coordinator Loop
     while true
+        # Check for generator failure
+        if generator_failed[]
+            @error "Aborting solving due to generator failure."
+            break
+        end
+
         # --- A. Check Solver Status ---
         if istaskdone(task)
             res = fetch(task)
@@ -515,8 +537,7 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
                             s = " ($number_of_triangulations_found non-regular triangulations found)"
                             print(s*"\b"^(length(s)))
                         end
-                        # It's valid but not regular -> we treat this as a "failure" of the regularity constraint
-                        # We don't terminate. We block and continue.
+                        # Valid but not regular -> continue search
                     end
                 end
 
@@ -530,9 +551,6 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
                 
             elseif res == 20 # UNSAT
                 # If generators are done, it's definitively UNSAT.
-                # If generators are running, but the solver proved UNSAT with a SUBSET of constraints,
-                # adding more constraints (intersections) will not make it SAT.
-                # So UNSAT is final regardless of generator state.
                 break
             else
                 # Unknown/Interrupted - Just resume
@@ -541,29 +559,47 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
         end
 
         # --- B. Process Incoming Clauses ---
-        # Drain channel into local buffer
-        while isready(clause_channel)
+        # Drain channel into local buffer, BUT LIMIT IT to prevent starvation
+        # We fetch up to Update Threshold + a bit, then force a check/update cycle
+        clauses_fetched_this_cycle = 0
+        limit = SOLVER_UPDATE_THRESHOLD * 2 
+        
+        while isready(clause_channel) && clauses_fetched_this_cycle < limit
             try
                 push!(new_clauses_buffer, take!(clause_channel))
+                clauses_fetched_this_cycle += 1
             catch
                 break
             end
         end
 
         # --- C. Update Solver if Threshold Reached ---
-        should_update = length(new_clauses_buffer) >= SOLVER_UPDATE_THRESHOLD || (generation_complete[] && !isempty(new_clauses_buffer))
+        should_update = length(new_clauses_buffer) >= SOLVER_UPDATE_THRESHOLD ||
+                        (generation_complete[] && !isempty(new_clauses_buffer))
         
+        # Only interrupt if the task is NOT done. If it is done, we loop around to 'A' to handle result first.
         if should_update && !istaskdone(task)
             number_of_clauses_added += length(new_clauses_buffer)
             s = "   Number of clauses added: $number_of_clauses_added"
             print("$s"*"\b"^length(s))
+            
             CadicalWrapper.interrupt(solver)
-            # We must wait for the task to finish (it should return status 0 or similar)
+            
+            # Wait for task to effectively stop
             try
                 wait(task)
             catch
             end
             
+            # CRITICAL CHECK: Did the solver finish with a result (SAT/UNSAT) while we tried to interrupt?
+            # If so, we MUST process that result before adding clauses, otherwise we might corrupt the state
+            # or miss a solution.
+            if istaskdone(task)
+                # If done, we loop back to A immediately to process the result.
+                # We do NOT add clauses yet. The buffer remains for the next pass.
+                continue 
+            end
+
             # Add buffered clauses
             for c in new_clauses_buffer
                 CadicalWrapper.add_clause(solver, c)
@@ -575,11 +611,10 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
         end
         
         # --- D. Termination Check ---
-        # If generators are done, buffer is empty, and solver is running (and not finished in A), just wait.
         if generation_complete[] && isempty(new_clauses_buffer) && !istaskdone(task)
             sleep(0.01) # Yield
         else
-            sleep(0.001) # Yield slightly to let generators work
+            sleep(0.001) # Yield slightly
         end
     end
     
