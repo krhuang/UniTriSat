@@ -609,13 +609,6 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
             # Resume solver
             task = CadicalWrapper.solve_async(solver)
         end
-        
-        # --- D. Termination Check ---
-        if generation_complete[] && isempty(new_clauses_buffer) && !istaskdone(task)
-            sleep(0.01) # Yield
-        else
-            sleep(0.001) # Yield slightly
-        end
     end
     
     CadicalWrapper.release(solver)
@@ -672,7 +665,6 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
                     if !config.find_all; should_terminate = true; end
                 elseif show_running_updates
                     s = " ($number_of_triangulations_found non-regular triangulations found)"
-                    print(s*"\b"^(length(s)))
                 end
             end
 
