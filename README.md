@@ -1,6 +1,6 @@
 Finding unimodular triangulations and regular unimodular triangulations of lattice polytopes, via conversion to a SAT equation. `UniTriSat` can handle larger examples than were previously possible--it finds a unimodular triangulation of a 3-polytope with 50 lattice points in about 2 seconds. 
 
-
+**UniTriSat is still under active development. An upcoming future version will be substantially faster, especially for finding regular unimodular triangulations. If it fails for a particularly large example of yours, please email us at krhuang5@gmail.com**
 
 Quick Start Guide
 =================
@@ -14,6 +14,7 @@ Quick Start Guide
 **3)** Run on your favorite lattice polytope
 
 ```
+using UniTriSat;
 P = [ 1 0  0 0 0; -1 0 0 0 0; 0 1 0  0 0; 0 -1 0 0 0; 0 0 1 0  0;
       0 0 -1 0 0;  0 0 0 1 0; 0 0 0 -1 0; 0  0 0 0 1; 0 0 0 0 -1]
 
@@ -33,7 +34,7 @@ triangulate(
     "Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt")
 ```
 
-See the function `triangulate` in `UniTriSat.jl` to see what options the function takes.
+See the function `triangulate` in `src/UniTriSat.jl` to see what options the function takes.
 
 Tests
 =============
