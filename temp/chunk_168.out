@@ -1,0 +1,288 @@
+-
+Dimension 3, Smooth, regular, chunk = 168
+-
+Run started at:                      17:55:32
+Number of threads:                   8
+Solve mode:                          Find First
+Solver:                              cadical
+Incremental Solving:                 false
+Intersection backend selected:       cpu
+Validation enabled:                  false
+Number of polytopes found:           50
+Restricting to unimodular simplices: true
+Looking for regular triangulations:  true
+Using Normaliz:                      false
+
+(1 / 50): |P|=44...[K(1 / 50): |P|=44 |S|=16655...[K(1 / 50): |P|=44 |S|=16655 solving...[KElapsed Time:                            00:00:46[K
+Estimated Time Left:                     00:38:05[K
+Regularly Triangulatable:                [32m1[0m[K
+Triangulatable:                          [32m1[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(1 / 50): |P|=44 |S|=16655 -> [32mfound 1 regular solution(s)[0m in 46.28 s[K(2 / 50): |P|=44...[K(2 / 50): |P|=44 |S|=16864...[K(2 / 50): |P|=44 |S|=16864 solving...[K[4A[1AElapsed Time:                            00:01:29[K
+Estimated Time Left:                     00:35:47[K
+Regularly Triangulatable:                [32m2[0m[K
+Triangulatable:                          [32m2[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(2 / 50): |P|=44 |S|=16864 -> [32mfound 1 regular solution(s)[0m in 42.47 s[K(3 / 50): |P|=47...[K(3 / 50): |P|=47 |S|=19796...[K(3 / 50): |P|=47 |S|=19796 solving...[K[4A[1AElapsed Time:                            00:02:29[K
+Estimated Time Left:                     00:39:00[K
+Regularly Triangulatable:                [32m3[0m[K
+Triangulatable:                          [32m3[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(3 / 50): |P|=47 |S|=19796 -> [32mfound 1 regular solution(s)[0m in 59.88 s[K(4 / 50): |P|=49...[K(4 / 50): |P|=49 |S|=21831...[K(4 / 50): |P|=49 |S|=21831 solving...[K[4A[1AElapsed Time:                            00:03:46[K
+Estimated Time Left:                     00:43:20[K
+Regularly Triangulatable:                [32m4[0m[K
+Triangulatable:                          [32m4[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(4 / 50): |P|=49 |S|=21831 -> [32mfound 1 regular solution(s)[0m in 76.75 s[K(5 / 50): |P|=49...[K(5 / 50): |P|=49 |S|=21970...[K(5 / 50): |P|=49 |S|=21970 solving...[K[4A[1AElapsed Time:                            00:04:57[K
+Estimated Time Left:                     00:44:41[K
+Regularly Triangulatable:                [32m5[0m[K
+Triangulatable:                          [32m5[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(5 / 50): |P|=49 |S|=21970 -> [32mfound 1 regular solution(s)[0m in 71.82 s[K(6 / 50): |P|=32...[K(6 / 50): |P|=32 |S|=6840...[K(6 / 50): |P|=32 |S|=6840 solving...[K[4A[1AElapsed Time:                            00:05:05[K
+Estimated Time Left:                     00:37:22[K
+Regularly Triangulatable:                [32m6[0m[K
+Triangulatable:                          [32m6[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(6 / 50): |P|=32 |S|=6840 -> [32mfound 1 regular solution(s)[0m in 7.83 s[K(7 / 50): |P|=36...[K(7 / 50): |P|=36 |S|=9910...[K(7 / 50): |P|=36 |S|=9910 solving...[K[4A[1AElapsed Time:                            00:05:20[K
+Estimated Time Left:                     00:32:45[K
+Regularly Triangulatable:                [32m7[0m[K
+Triangulatable:                          [32m7[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(7 / 50): |P|=36 |S|=9910 -> [32mfound 1 regular solution(s)[0m in 14.23 s[K(8 / 50): |P|=39...[K(8 / 50): |P|=39 |S|=12332...[K(8 / 50): |P|=39 |S|=12332 solving...[K[4A[1AElapsed Time:                            00:05:40[K
+Estimated Time Left:                     00:29:46[K
+Regularly Triangulatable:                [32m8[0m[K
+Triangulatable:                          [32m8[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(8 / 50): |P|=39 |S|=12332 -> [32mfound 1 regular solution(s)[0m in 20.31 s[K(9 / 50): |P|=41...[K(9 / 50): |P|=41 |S|=14024...[K(9 / 50): |P|=41 |S|=14024 solving...[K[4A[1AElapsed Time:                            00:06:08[K
+Estimated Time Left:                     00:27:58[K
+Regularly Triangulatable:                [32m9[0m[K
+Triangulatable:                          [32m9[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(9 / 50): |P|=41 |S|=14024 -> [32mfound 1 regular solution(s)[0m in 28.03 s[K(10 / 50): |P|=38...[K(10 / 50): |P|=38 |S|=11544...[K(10 / 50): |P|=38 |S|=11544 solving...[K[4A[1AElapsed Time:                            00:06:27[K
+Estimated Time Left:                     00:25:50[K
+Regularly Triangulatable:                [32m10[0m[K
+Triangulatable:                          [32m10[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(10 / 50): |P|=38 |S|=11544 -> [32mfound 1 regular solution(s)[0m in 19.18 s[K(11 / 50): |P|=42...[K(11 / 50): |P|=42 |S|=15122...[K(11 / 50): |P|=42 |S|=15122 solving...[K[4A[1AElapsed Time:                            00:07:00[K
+Estimated Time Left:                     00:24:52[K
+Regularly Triangulatable:                [32m11[0m[K
+Triangulatable:                          [32m11[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(11 / 50): |P|=42 |S|=15122 -> [32mfound 1 regular solution(s)[0m in 33.31 s[K(12 / 50): |P|=45...[K(12 / 50): |P|=45 |S|=18060...[K(12 / 50): |P|=45 |S|=18060 solving...[K[4A[1AElapsed Time:                            00:07:51[K
+Estimated Time Left:                     00:24:54[K
+Regularly Triangulatable:                [32m12[0m[K
+Triangulatable:                          [32m12[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(12 / 50): |P|=45 |S|=18060 -> [32mfound 1 regular solution(s)[0m in 51.00 s[K(13 / 50): |P|=47...[K(13 / 50): |P|=47 |S|=19920...[K(13 / 50): |P|=47 |S|=19920 solving...[K[4A[1AElapsed Time:                            00:08:53[K
+Estimated Time Left:                     00:25:19[K
+Regularly Triangulatable:                [32m13[0m[K
+Triangulatable:                          [32m13[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(13 / 50): |P|=47 |S|=19920 -> [32mfound 1 regular solution(s)[0m in 62.12 s[K(14 / 50): |P|=44...[K(14 / 50): |P|=44 |S|=17092...[K(14 / 50): |P|=44 |S|=17092 solving...[K[4A[1AElapsed Time:                            00:09:40[K
+Estimated Time Left:                     00:24:52[K
+Regularly Triangulatable:                [32m14[0m[K
+Triangulatable:                          [32m14[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(14 / 50): |P|=44 |S|=17092 -> [32mfound 1 regular solution(s)[0m in 46.29 s[K(15 / 50): |P|=48...[K(15 / 50): |P|=48 |S|=21382...[K(15 / 50): |P|=48 |S|=21382 solving...[K[4A[1AElapsed Time:                            00:10:56[K
+Estimated Time Left:                     00:25:31[K
+Regularly Triangulatable:                [32m15[0m[K
+Triangulatable:                          [32m15[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(15 / 50): |P|=48 |S|=21382 -> [32mfound 1 regular solution(s)[0m in 76.31 s[K(16 / 50): |P|=50...[K(16 / 50): |P|=50 |S|=23627...[K(16 / 50): |P|=50 |S|=23627 solving...[K[4A[1AElapsed Time:                            00:12:22[K
+Estimated Time Left:                     00:26:17[K
+Regularly Triangulatable:                [32m16[0m[K
+Triangulatable:                          [32m16[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(16 / 50): |P|=50 |S|=23627 -> [32mfound 1 regular solution(s)[0m in 85.94 s[K(17 / 50): |P|=35...[K(17 / 50): |P|=35 |S|=8944...[K(17 / 50): |P|=35 |S|=8944 solving...[K[4A[1AElapsed Time:                            00:12:33[K
+Estimated Time Left:                     00:24:23[K
+Regularly Triangulatable:                [32m17[0m[K
+Triangulatable:                          [32m17[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(17 / 50): |P|=35 |S|=8944 -> [32mfound 1 regular solution(s)[0m in 11.40 s[K(18 / 50): |P|=40...[K(18 / 50): |P|=40 |S|=13272...[K(18 / 50): |P|=40 |S|=13272 solving...[K[4A[1AElapsed Time:                            00:12:58[K
+Estimated Time Left:                     00:23:03[K
+Regularly Triangulatable:                [32m18[0m[K
+Triangulatable:                          [32m18[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(18 / 50): |P|=40 |S|=13272 -> [32mfound 1 regular solution(s)[0m in 24.48 s[K(19 / 50): |P|=44...[K(19 / 50): |P|=44 |S|=17022...[K(19 / 50): |P|=44 |S|=17022 solving...[K[4A[1AElapsed Time:                            00:13:40[K
+Estimated Time Left:                     00:22:18[K
+Regularly Triangulatable:                [32m19[0m[K
+Triangulatable:                          [32m19[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(19 / 50): |P|=44 |S|=17022 -> [32mfound 1 regular solution(s)[0m in 42.17 s[K(20 / 50): |P|=47...[K(20 / 50): |P|=47 |S|=20086...[K(20 / 50): |P|=47 |S|=20086 solving...[K[4A[1AElapsed Time:                            00:14:44[K
+Estimated Time Left:                     00:22:06[K
+Regularly Triangulatable:                [32m20[0m[K
+Triangulatable:                          [32m20[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(20 / 50): |P|=47 |S|=20086 -> [32mfound 1 regular solution(s)[0m in 64.00 s[K(21 / 50): |P|=49...[K(21 / 50): |P|=49 |S|=22030...[K(21 / 50): |P|=49 |S|=22030 solving...[K[4A[1AElapsed Time:                            00:16:01[K
+Estimated Time Left:                     00:22:07[K
+Regularly Triangulatable:                [32m21[0m[K
+Triangulatable:                          [32m21[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(21 / 50): |P|=49 |S|=22030 -> [32mfound 1 regular solution(s)[0m in 76.62 s[K(22 / 50): |P|=42...[K(22 / 50): |P|=42 |S|=15170...[K(22 / 50): |P|=42 |S|=15170 solving...[K[4A[1AElapsed Time:                            00:16:36[K
+Estimated Time Left:                     00:21:08[K
+Regularly Triangulatable:                [32m22[0m[K
+Triangulatable:                          [32m22[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(22 / 50): |P|=42 |S|=15170 -> [32mfound 1 regular solution(s)[0m in 35.14 s[K(23 / 50): |P|=47...[K(23 / 50): |P|=47 |S|=20255...[K(23 / 50): |P|=47 |S|=20255 solving...[K[4A[1AElapsed Time:                            00:17:41[K
+Estimated Time Left:                     00:20:45[K
+Regularly Triangulatable:                [32m23[0m[K
+Triangulatable:                          [32m23[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(23 / 50): |P|=47 |S|=20255 -> [32mfound 1 regular solution(s)[0m in 64.87 s[K(24 / 50): |P|=49...[K(24 / 50): |P|=49 |S|=22484...[K(24 / 50): |P|=49 |S|=22484 solving...[K[4A[1AElapsed Time:                            00:19:01[K
+Estimated Time Left:                     00:20:36[K
+Regularly Triangulatable:                [32m24[0m[K
+Triangulatable:                          [32m24[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(24 / 50): |P|=49 |S|=22484 -> [32mfound 1 regular solution(s)[0m in 80.30 s[K(25 / 50): |P|=38...[K(25 / 50): |P|=38 |S|=11312...[K(25 / 50): |P|=38 |S|=11312 solving...[K[4A[1AElapsed Time:                            00:19:20[K
+Estimated Time Left:                     00:19:20[K
+Regularly Triangulatable:                [32m25[0m[K
+Triangulatable:                          [32m25[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(25 / 50): |P|=38 |S|=11312 -> [32mfound 1 regular solution(s)[0m in 18.78 s[K(26 / 50): |P|=44...[K(26 / 50): |P|=44 |S|=17158...[K(26 / 50): |P|=44 |S|=17158 solving...[K[4A[1AElapsed Time:                            00:20:03[K
+Estimated Time Left:                     00:18:31[K
+Regularly Triangulatable:                [32m26[0m[K
+Triangulatable:                          [32m26[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(26 / 50): |P|=44 |S|=17158 -> [32mfound 1 regular solution(s)[0m in 43.64 s[K(27 / 50): |P|=49...[K(27 / 50): |P|=49 |S|=22496...[K(27 / 50): |P|=49 |S|=22496 solving...[K[4A[1AElapsed Time:                            00:21:24[K
+Estimated Time Left:                     00:18:13[K
+Regularly Triangulatable:                [32m27[0m[K
+Triangulatable:                          [32m27[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(27 / 50): |P|=49 |S|=22496 -> [32mfound 1 regular solution(s)[0m in 80.20 s[K(28 / 50): |P|=46...[K(28 / 50): |P|=46 |S|=19230...[K(28 / 50): |P|=46 |S|=19230 solving...[K[4A[1AElapsed Time:                            00:22:22[K
+Estimated Time Left:                     00:17:34[K
+Regularly Triangulatable:                [32m28[0m[K
+Triangulatable:                          [32m28[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(28 / 50): |P|=46 |S|=19230 -> [32mfound 1 regular solution(s)[0m in 58.52 s[K(29 / 50): |P|=41...[K(29 / 50): |P|=41 |S|=13860...[K(29 / 50): |P|=41 |S|=13860 solving...[K[4A[1AElapsed Time:                            00:22:50[K
+Estimated Time Left:                     00:16:32[K
+Regularly Triangulatable:                [32m29[0m[K
+Triangulatable:                          [32m29[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(29 / 50): |P|=41 |S|=13860 -> [32mfound 1 regular solution(s)[0m in 27.80 s[K(30 / 50): |P|=48...[K(30 / 50): |P|=48 |S|=21392...[K(30 / 50): |P|=48 |S|=21392 solving...[K[4A[1AElapsed Time:                            00:24:04[K
+Estimated Time Left:                     00:16:02[K
+Regularly Triangulatable:                [32m30[0m[K
+Triangulatable:                          [32m30[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(30 / 50): |P|=48 |S|=21392 -> [32mfound 1 regular solution(s)[0m in 73.87 s[K(31 / 50): |P|=50...[K(31 / 50): |P|=50 |S|=23675...[K(31 / 50): |P|=50 |S|=23675 solving...[K[4A[1AElapsed Time:                            00:25:34[K
+Estimated Time Left:                     00:15:40[K
+Regularly Triangulatable:                [32m31[0m[K
+Triangulatable:                          [32m31[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(31 / 50): |P|=50 |S|=23675 -> [32mfound 1 regular solution(s)[0m in 89.85 s[K(32 / 50): |P|=44...[K(32 / 50): |P|=44 |S|=16664...[K(32 / 50): |P|=44 |S|=16664 solving...[K[4A[1AElapsed Time:                            00:26:17[K
+Estimated Time Left:                     00:14:47[K
+Regularly Triangulatable:                [32m32[0m[K
+Triangulatable:                          [32m32[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(32 / 50): |P|=44 |S|=16664 -> [32mfound 1 regular solution(s)[0m in 43.24 s[K(33 / 50): |P|=47...[K(33 / 50): |P|=47 |S|=19648...[K(33 / 50): |P|=47 |S|=19648 solving...[K[4A[1AElapsed Time:                            00:27:18[K
+Estimated Time Left:                     00:14:04[K
+Regularly Triangulatable:                [32m33[0m[K
+Triangulatable:                          [32m33[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(33 / 50): |P|=47 |S|=19648 -> [32mfound 1 regular solution(s)[0m in 61.35 s[K(34 / 50): |P|=50...[K(34 / 50): |P|=50 |S|=22880...[K(34 / 50): |P|=50 |S|=22880 solving...[K[4A[1AElapsed Time:                            00:28:43[K
+Estimated Time Left:                     00:13:30[K
+Regularly Triangulatable:                [32m34[0m[K
+Triangulatable:                          [32m34[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(34 / 50): |P|=50 |S|=22880 -> [32mfound 1 regular solution(s)[0m in 84.49 s[K(35 / 50): |P|=48...[K(35 / 50): |P|=48 |S|=24704...[K(35 / 50): |P|=48 |S|=24704 solving...[K[4A[1AElapsed Time:                            00:30:00[K
+Estimated Time Left:                     00:12:51[K
+Regularly Triangulatable:                [32m35[0m[K
+Triangulatable:                          [32m35[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(35 / 50): |P|=48 |S|=24704 -> [32mfound 1 regular solution(s)[0m in 77.65 s[K(36 / 50): |P|=30...[K(36 / 50): |P|=30 |S|=5448...[K(36 / 50): |P|=30 |S|=5448 solving...[K[4A[1AElapsed Time:                            00:30:05[K
+Estimated Time Left:                     00:11:42[K
+Regularly Triangulatable:                [32m36[0m[K
+Triangulatable:                          [32m36[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(36 / 50): |P|=30 |S|=5448 -> [32mfound 1 regular solution(s)[0m in 4.68 s[K(37 / 50): |P|=34...[K(37 / 50): |P|=34 |S|=8092...[K(37 / 50): |P|=34 |S|=8092 solving...[K[4A[1AElapsed Time:                            00:30:14[K
+Estimated Time Left:                     00:10:37[K
+Regularly Triangulatable:                [32m37[0m[K
+Triangulatable:                          [32m37[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(37 / 50): |P|=34 |S|=8092 -> [32mfound 1 regular solution(s)[0m in 8.74 s[K(38 / 50): |P|=38...[K(38 / 50): |P|=38 |S|=11120...[K(38 / 50): |P|=38 |S|=11120 solving...[K[4A[1AElapsed Time:                            00:30:31[K
+Estimated Time Left:                     00:09:38[K
+Regularly Triangulatable:                [32m38[0m[K
+Triangulatable:                          [32m38[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(38 / 50): |P|=38 |S|=11120 -> [32mfound 1 regular solution(s)[0m in 16.85 s[K(39 / 50): |P|=42...[K(39 / 50): |P|=42 |S|=14501...[K(39 / 50): |P|=42 |S|=14501 solving...[K[4A[1AElapsed Time:                            00:31:00[K
+Estimated Time Left:                     00:08:44[K
+Regularly Triangulatable:                [32m39[0m[K
+Triangulatable:                          [32m39[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(39 / 50): |P|=42 |S|=14501 -> [32mfound 1 regular solution(s)[0m in 29.22 s[K(40 / 50): |P|=46...[K(40 / 50): |P|=46 |S|=18276...[K(40 / 50): |P|=46 |S|=18276 solving...[K[4A[1AElapsed Time:                            00:31:51[K
+Estimated Time Left:                     00:07:57[K
+Regularly Triangulatable:                [32m40[0m[K
+Triangulatable:                          [32m40[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(40 / 50): |P|=46 |S|=18276 -> [32mfound 1 regular solution(s)[0m in 51.22 s[K(41 / 50): |P|=50...[K(41 / 50): |P|=50 |S|=22402...[K(41 / 50): |P|=50 |S|=22402 solving...[K[4A[1AElapsed Time:                            00:33:07[K
+Estimated Time Left:                     00:07:16[K
+Regularly Triangulatable:                [32m41[0m[K
+Triangulatable:                          [32m41[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(41 / 50): |P|=50 |S|=22402 -> [32mfound 1 regular solution(s)[0m in 75.46 s[K(42 / 50): |P|=35...[K(42 / 50): |P|=35 |S|=8912...[K(42 / 50): |P|=35 |S|=8912 solving...[K[4A[1AElapsed Time:                            00:33:18[K
+Estimated Time Left:                     00:06:20[K
+Regularly Triangulatable:                [32m42[0m[K
+Triangulatable:                          [32m42[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(42 / 50): |P|=35 |S|=8912 -> [32mfound 1 regular solution(s)[0m in 11.51 s[K(43 / 50): |P|=37...[K(43 / 50): |P|=37 |S|=10436...[K(43 / 50): |P|=37 |S|=10436 solving...[K[4A[1AElapsed Time:                            00:33:32[K
+Estimated Time Left:                     00:05:27[K
+Regularly Triangulatable:                [32m43[0m[K
+Triangulatable:                          [32m43[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(43 / 50): |P|=37 |S|=10436 -> [32mfound 1 regular solution(s)[0m in 14.31 s[K(44 / 50): |P|=40...[K(44 / 50): |P|=40 |S|=13134...[K(44 / 50): |P|=40 |S|=13134 solving...[K[4A[1AElapsed Time:                            00:33:55[K
+Estimated Time Left:                     00:04:37[K
+Regularly Triangulatable:                [32m44[0m[K
+Triangulatable:                          [32m44[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(44 / 50): |P|=40 |S|=13134 -> [32mfound 1 regular solution(s)[0m in 22.68 s[K(45 / 50): |P|=42...[K(45 / 50): |P|=42 |S|=14784...[K(45 / 50): |P|=42 |S|=14784 solving...[K[4A[1AElapsed Time:                            00:34:26[K
+Estimated Time Left:                     00:03:49[K
+Regularly Triangulatable:                [32m45[0m[K
+Triangulatable:                          [32m45[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(45 / 50): |P|=42 |S|=14784 -> [32mfound 1 regular solution(s)[0m in 30.64 s[K(46 / 50): |P|=45...[K(46 / 50): |P|=45 |S|=17692...[K(46 / 50): |P|=45 |S|=17692 solving...[K[4A[1AElapsed Time:                            00:35:12[K
+Estimated Time Left:                     00:03:03[K
+Regularly Triangulatable:                [32m46[0m[K
+Triangulatable:                          [32m46[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(46 / 50): |P|=45 |S|=17692 -> [32mfound 1 regular solution(s)[0m in 46.37 s[K(47 / 50): |P|=47...[K(47 / 50): |P|=47 |S|=19643...[K(47 / 50): |P|=47 |S|=19643 solving...[K[4A[1AElapsed Time:                            00:36:10[K
+Estimated Time Left:                     00:02:18[K
+Regularly Triangulatable:                [32m47[0m[K
+Triangulatable:                          [32m47[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(47 / 50): |P|=47 |S|=19643 -> [32mfound 1 regular solution(s)[0m in 57.89 s[K(48 / 50): |P|=50...[K(48 / 50): |P|=50 |S|=23019...[K(48 / 50): |P|=50 |S|=23019 solving...[K[4A[1AElapsed Time:                            00:37:34[K
+Estimated Time Left:                     00:01:33[K
+Regularly Triangulatable:                [32m48[0m[K
+Triangulatable:                          [32m48[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(48 / 50): |P|=50 |S|=23019 -> [32mfound 1 regular solution(s)[0m in 83.85 s[K(49 / 50): |P|=40...[K(49 / 50): |P|=40 |S|=13316...[K(49 / 50): |P|=40 |S|=13316 solving...[K[4A[1AElapsed Time:                            00:38:00[K
+Estimated Time Left:                     00:00:46[K
+Regularly Triangulatable:                [32m49[0m[K
+Triangulatable:                          [32m49[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(49 / 50): |P|=40 |S|=13316 -> [32mfound 1 regular solution(s)[0m in 26.37 s[K(50 / 50): |P|=43...[K(50 / 50): |P|=43 |S|=16128...[K(50 / 50): |P|=43 |S|=16128 solving...[K[4A[1AElapsed Time:                            00:38:37[K
+Estimated Time Left:                     00:00:00[K
+Regularly Triangulatable:                [32m50[0m[K
+Triangulatable:                          [32m50[0m[K
+Non-Triangulatable:                      [31m0[0m[K
+(50 / 50): |P|=43 |S|=16128 -> [32mfound 1 regular solution(s)[0m in 37.08 s[K  Activating project at `~/Code/UniTriSat`
+[5A[1A[0J
+
+Run finished: 18:34:10
+
+----------------------------------------
+Run Summary
+----------------------------------------
+Total Polytopes Processed:     50
+Regularly Triangulatable:      [32m50[0m
+Triangulatable:                [32m50[0m
+Non-Triangulatable:            [31m0[0m
+Total Run Time:          00:38:37
+----------------------------------------
+Step Name                           | Total Time   | Avg Time     | Max Time     | Avg Memory   | Max Memory  
+------------------------------------------------------------------------------------------------------------
+Compute all lattice points          | 00:00:02     | 0.040 s      | 1.813 s      | 4.70 MiB     | 164.84 MiB  
+Compute unimodular simplices        | 00:00:02     | 0.048 s      | 0.790 s      | 19.07 MiB    | 30.47 MiB   
+Compute internal faces              | 00:00:01     | 0.021 s      | 0.723 s      | 2.60 MiB     | 52.91 MiB   
+Compute intersecting pairs          | 00:22:01     | 26.427 s     | 51.690 s     | 5.90 GiB     | 11.12 GiB   
+Generate face-covering clauses      | 00:00:12     | 0.255 s      | 0.590 s      | 64.82 MiB    | 130.21 MiB  
+Solve SAT problem                   | 00:14:59     | 17.981 s     | 34.612 s     | 17.78 MiB    | 87.54 MiB   
+
