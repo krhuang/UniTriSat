@@ -171,29 +171,52 @@ end
 
 function all_simplices(lattice_points::Matrix{Int}; unimodular::Bool=true)
     n, d = size(lattice_points)
-    simplex_indices = NTuple{d+1,Int}[]
+    thread_results = [NTuple{d+1,Int}[] for _ in 1:nthreads()]
+
     if n < d + 1
-        return simplex_indices
+        return reduce(vcat, thread_results)
     end
 
-    inds = collect(1:(d+1))             # initial combination
-    diffs = Matrix{Int}(undef, d, d)
+    @threads :dynamic for i in 1:(n - d)
+        tid = threadid()
+        diffs = Matrix{Int}(undef, d, d)
 
-    while true
-        idx_1 = inds[1]
-        for j in 1:d
-            idx_j = inds[j+1]
-            for i in 1:d
-                diffs[j, i] = lattice_points[idx_j, i] - lattice_points[idx_1, i]
+        pool_start = i + 1
+        pool_n = n - i
+
+        if pool_n >= d
+            c = collect(1:d)
+            while true
+                for r in 1:d
+                    p_idx = pool_start + c[r] - 1
+                    for col in 1:d
+                        diffs[r, col] = lattice_points[p_idx, col] - lattice_points[i, col]
+                    end
+                end
+
+                det_val = LinearAlgebra.det_bareiss(diffs)
+
+                if det_val != 0 && (!unimodular || abs(det_val) == 1)
+                    simplex = (i, (pool_start + x - 1 for x in c)...)
+                    push!(thread_results[tid], simplex)
+                end
+
+                k = d
+                while k > 0 && c[k] == pool_n - d + k
+                    k -= 1
+                end
+                if k == 0
+                    break
+                end
+                c[k] += 1
+                for j in k+1:d
+                    c[j] = c[j-1] + 1
+                end
             end
         end
-        det_val = LinearAlgebra.det_bareiss(diffs) # use exact integer determinant
-        if det_val != 0 && (!unimodular || abs(det_val) == 1)
-            push!(simplex_indices, Tuple(inds))
-        end
-        next_combination!(inds, n) || break
     end
-    return simplex_indices
+
+    return reduce(vcat, thread_results)
 end
 
 function rational_plane_to_integer(plane)

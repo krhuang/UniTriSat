@@ -146,6 +146,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         end
         full_msg = "[$timestamp] " * s_msg
         println(log_stream, full_msg)
+        flush(log_stream)
     end
 
     log_verbose("Processing $(dim)D Polytope #$run_idx")
