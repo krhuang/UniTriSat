@@ -370,6 +370,8 @@ function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, conf
     number_of_regular_triangulations_found = 0
 
     for solution in PicoSAT.itersolve(cnf)
+        s = " ($number_of_triangulations_found triangulations found)"
+        print(s*"\b"^(length(s)))
         sol_indices = findall(l -> l > 0, solution)
         simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
         number_of_triangulations_found += 1
@@ -630,6 +632,10 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     end
 
     while true
+        if number_of_triangulations_found%1000 == 0
+            s = " ($number_of_triangulations_found triangulations found)"
+            print(s*"\b"^(length(s)))
+        end
         res = CadicalWrapper.solve_blocking(solver)
         if res == 10 # SAT
             # Retrieve solution

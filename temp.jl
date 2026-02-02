@@ -9,7 +9,7 @@ using Polyhedra
 include("src/helpers.jl")
 using .Helpers
 
-
+d = parse(Int, ARGV[1])
 
 terminal_output = "initial, running, table, final" #initial, running, table, final
 
