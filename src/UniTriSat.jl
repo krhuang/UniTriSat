@@ -723,6 +723,24 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose("Initial vertices provided:")
     log_verbose(initial_vertices, is_display=true)
 
+    # --- Step 0: Check full-dimensionality (optional) ---
+    #
+    # Checks if our polytope is full-dimensional. When it's not, we find a dimension to project away, and try again
+
+    #=
+    if true #TODO: replace with the flag in the options?
+        log_verbose("Checking for full-dimensionality of the polytope...")
+        ambient_dim = dim # Dimension of the ambient space the polytope is embedded in
+        polytope_dim = 
+        if polytope_dim < ambient_dim
+            println("Inputted polytope is not full-dimensional. Finding a suitable lattice projection...")
+        end
+        while(polytope_dim < ambient_dim) # Dimension mismatch
+            
+        end
+    end
+    =#
+
     # --- Step 1: Lattice Points ---
     log_verbose("Step 1: Computing all lattice points...")
     timed_result_lp = @timed compute_lattice_points(initial_vertices, config)
