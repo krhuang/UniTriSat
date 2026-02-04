@@ -697,7 +697,8 @@ function triangulate(   vmatrix::Matrix{Int};
                         validate::Bool=false, 
                         plot::Bool=false, 
                         use_normaliz::Bool=false, 
-                        return_triangulations::String="first")
+                        return_triangulations::String="first",
+                        check_full_dim::Bool=true)
 
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
@@ -715,7 +716,8 @@ function triangulate(   vmatrices::Vector{Matrix{Int}};
                         validate::Bool=false, 
                         plot::Bool=false, 
                         use_normaliz::Bool=false, 
-                        return_triangulations::String="first")
+                        return_triangulations::String="first",
+                        check_full_dim::Bool=true)
 
     if intersection_backend == "gpu"
         @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
