@@ -17,11 +17,12 @@ using TOML
 using Random
 using CDDLib
 using StaticArrays
+using AbstractAlgebra
 
 # Constants for the new producer-consumer logic
-const INTERSECTION_GENERATION_CHUNK_SIZE = 10000 # Number of simplices each generator thread processes at once
-const SOLVER_UPDATE_THRESHOLD = 500000  # Number of new clauses to buffer before updating the solver
-
+const INTERSECTION_GENERATION_CHUNK_SIZE = 10000    # Number of simplices each generator thread processes at once
+const SOLVER_UPDATE_THRESHOLD = 500000              # Number of new clauses to buffer before updating the solver
+                                                    # Only relevant when using incremental solving
 # mutable flag in module scope
 const Normaliz_available = Ref(true)
 
@@ -167,7 +168,7 @@ function find_generic_point(P::Matrix{Int}, internal_faces_set, ::Val{D}) where 
             return p_vec
         end
     end
-    error("Could not find a generic point.")
+    error("Could not find a generic point. This should never happen... if you see this error please open an issue on GitHub...")
 end
 
 function is_point_in_simplex(P::Matrix{Int}, s_indices, p::Vector{Rational{BigInt}})
@@ -654,6 +655,7 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
 
             should_terminate = false
 
+            # TODO: the below needs some comments on it
             if !config.regular
                 if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
                     push!(solution_simplices, simplices)
@@ -725,21 +727,44 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     # --- Step 0: Check full-dimensionality (optional) ---
     #
-    # Checks if our polytope is full-dimensional. When it's not, we find a dimension to project away, and try again
+    # Checks if our polytope is full-dimensional. 
+    # When it's not, we compute its Hermite Normal Form and find a lattice-equivalent polytope 
+    # in a lower ambient dimension.
 
-    #=
-    if true #TODO: replace with the flag in the options?
-        log_verbose("Checking for full-dimensionality of the polytope...")
-        ambient_dim = dim # Dimension of the ambient space the polytope is embedded in
-        polytope_dim = 
-        if polytope_dim < ambient_dim
-            println("Inputted polytope is not full-dimensional. Finding a suitable lattice projection...")
-        end
-        while(polytope_dim < ambient_dim) # Dimension mismatch
-            
-        end
+    # If the flag is active and there's a dimension mismatch
+            println("got here")
+    if true && dim(polyhedron(vrep(initial_vertices)), CDDLib.Library(:exact)) < dim 
+
+        log_verbose("Finding an appropriate projection to remove excess ambient dimensions")
+        # Vertices should be integers for HNF to work correctly
+        V = hcat(initial_vertices...) 
+        n, m = size(V)
+    
+        # Shift to the origin
+        v0 = V[:, 1]
+        V_shifted = V .- v0
+    
+        # Compute HNF of the edge vectors
+        # We use the transpose because HNF usually works on rows
+        A = matrix(ZZ, V_shifted)
+        H = hnf(A) 
+    
+        # Extract non-zero columns
+        nz_cols = [c for c in 1:ncols(H) if !is_zero(H[:, c])]
+    
+        # The new vertices are the rows of the submatrix
+        projected_coords = [Vector{Int}(H[i, nz_cols]) for i in 1:nrows(H)]
+    
+        # Massaging the output
+        initial_vertices = projected_coords
+        dim = size(initial_vertices,2)
+        assert(dim==dim(polyhedron(vrep(initial_vertices)), CDD.Library(:exact)))
+
+        log_verbose("Projected vertices")
+        log_verbose(initial_vertices, is_display=true)
+
     end
-    =#
+    
 
     # --- Step 1: Lattice Points ---
     log_verbose("Step 1: Computing all lattice points...")

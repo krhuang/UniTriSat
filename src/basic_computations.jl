@@ -52,6 +52,7 @@ const CDD_LIB_EXACT = CDDLib.Library(:exact)
 
 function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
+    # TODO: write a comment here about floats??
     float_threshold = 1e-10
 
     verts = Rational{BigInt}.(vertices)
