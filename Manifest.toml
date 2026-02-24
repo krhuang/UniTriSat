@@ -2,7 +2,17 @@
 
 julia_version = "1.10.10"
 manifest_format = "2.0"
-project_hash = "d670bf927ec9c511f6fb42a5e3f37e0b9be69c80"
+project_hash = "3757d13c09910c561aef5cf0dbb535f1edc7912c"
+
+[[deps.AbstractAlgebra]]
+deps = ["LinearAlgebra", "MacroTools", "PrecompileTools", "Preferences", "Random", "RandomExtensions", "SparseArrays"]
+git-tree-sha1 = "14745b9234c1e4ea56fb13f89dd7e798ffbfd399"
+uuid = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"
+version = "0.48.4"
+weakdeps = ["Test"]
+
+    [deps.AbstractAlgebra.extensions]
+    TestExt = "Test"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -357,6 +367,12 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 [[deps.Random]]
 deps = ["SHA"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[[deps.RandomExtensions]]
+deps = ["Random", "SparseArrays"]
+git-tree-sha1 = "b8a399e95663485820000f26b6a43c794e166a49"
+uuid = "fb686558-2515-59ef-acaa-46db3789a887"
+version = "0.4.4"
 
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"

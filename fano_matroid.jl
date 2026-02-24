@@ -20,6 +20,7 @@ triangulate(
     "Polytopes/fano_matroid_base_polytope",
     terminal_output=terminal_output,
     regular=true,
-    solver="cadical"
+    solver="cadical",
+    check_full_dimensionality=true
     )
 

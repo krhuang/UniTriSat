@@ -94,6 +94,7 @@ mutable struct Config
     return_triangulations::String
     solver::String
     incremental_solving::Bool
+    check_full_dimensionality::Bool
 end
 
 mutable struct TriangulationResult
@@ -732,8 +733,9 @@ function process_polytope(  initial_vertices::Matrix{Int},
     # in a lower ambient dimension.
 
     # If the flag is active and there's a dimension mismatch
-            println("got here")
-    if true && dim(polyhedron(vrep(initial_vertices)), CDDLib.Library(:exact)) < dim 
+    v = vrep(initial_vertices)
+    poly = polyhedron(v, CDDLib.Library(:exact))
+    if config.check_full_dimensionality && Polyhedra.dim(poly) < dim 
 
         log_verbose("Finding an appropriate projection to remove excess ambient dimensions")
         # Vertices should be integers for HNF to work correctly
@@ -757,9 +759,11 @@ function process_polytope(  initial_vertices::Matrix{Int},
     
         # Massaging the output
         initial_vertices = projected_coords
-        dim = size(initial_vertices,2)
-        assert(dim==dim(polyhedron(vrep(initial_vertices)), CDD.Library(:exact)))
-
+        v = vrep(initial_vertices)
+        poly = polyhedron(v, CDDLib.Library(:exact))
+        if Polyhedra.dim(poly) != dim
+            error("Projection failed to produce a full-dimensional polytope. This should never happen... if you see this error please open an issue on GitHub...")
+        end
         log_verbose("Projected vertices")
         log_verbose(initial_vertices, is_display=true)
 
@@ -1120,7 +1124,8 @@ function setup_run( polytopes::Vector{Matrix{Int}},
                     use_normaliz::Bool=false,
                     return_triangulations::String="first",
                     solver::String="picosat",
-                    incremental_solving::Bool=false)
+                    incremental_solving::Bool=false,
+                    check_full_dimensionality::Bool=false)
 
     # Centralized validation logic
     if intersection_backend == "gpu"
@@ -1154,7 +1159,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
             """)
     end
 
-    config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving)
+    config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality)
     log_stream = nothing
     
     try
@@ -1188,7 +1193,7 @@ function triangulate(   vmatrix::Matrix{Int};
                         solver::String="picosat",
                         incremental_solving::Bool=false)
 
-     return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving)
+     return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality)
 end
 
 function triangulate(   vmatrices::Vector{Matrix{Int}};
@@ -1203,9 +1208,10 @@ function triangulate(   vmatrices::Vector{Matrix{Int}};
                         use_normaliz::Bool=false,
                         return_triangulations::String="first",
                         solver::String="picosat",
-                        incremental_solving::Bool=false)
+                        incremental_solving::Bool=false,
+                        check_full_dimensionality::Bool=false)
 
-    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving)
+    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality)
 end
 
 function triangulate(   polytope::Polyhedron;
@@ -1220,14 +1226,15 @@ function triangulate(   polytope::Polyhedron;
                         use_normaliz::Bool=false,
                         return_triangulations::String="first",
                         solver::String="picosat",
-                        incremental_solving::Bool=false)
+                        incremental_solving::Bool=false,
+                        check_full_dimensionality::Bool=false)
 
     vmatrix = _convert_polyhedron_to_vmatrix(polytope)
     if isempty(vmatrix)
         @error("Could not process a single polytope")
         return nothing
     end
-    return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving)
+    return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality)
 end
 
 function triangulate(   polytopes::Vector{Polyhedron};
@@ -1242,7 +1249,8 @@ function triangulate(   polytopes::Vector{Polyhedron};
                         use_normaliz::Bool=false,
                         return_triangulations::String="first",
                         solver::String="picosat",
-                        incremental_solving::Bool=false)
+                        incremental_solving::Bool=false,
+                        check_full_dimensionality::Bool=false)
 
     vmatrices = Matrix{Int}[]
     for p in polytopes
@@ -1258,7 +1266,7 @@ function triangulate(   polytopes::Vector{Polyhedron};
         @error("Could not porcess a single polytope.")
           return Vector{Vector{Matrix{Int}}}[]
     end
-    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving)
+    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality)
 end
 
 function triangulate(   path_to_polytopes::String;
@@ -1273,7 +1281,8 @@ function triangulate(   path_to_polytopes::String;
                         use_normaliz::Bool=false,
                         return_triangulations::String="first",
                         solver::String="picosat",
-                        incremental_solving::Bool=false)
+                        incremental_solving::Bool=false,
+                        check_full_dimensionality::Bool=false)
 
     local polytopes
     try
@@ -1283,7 +1292,7 @@ function triangulate(   path_to_polytopes::String;
         @error("Error loading polytopes from '$path_to_polytopes': '$e'")
         return Vector{Vector{Matrix{Int}}}[]
     end
-    return setup_run(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving)
+    return setup_run(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality)
 end
 
 end
