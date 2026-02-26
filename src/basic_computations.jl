@@ -6,10 +6,21 @@ using Polyhedra
 using Base.Threads
 using StaticArrays
 using CDDLib
+using AbstractAlgebra
 
 export all_simplices, internal_faces, lattice_points_via_CDDLib
 
 const CDD_LIB_EXACT = CDDLib.Library(:exact)
+
+
+# Given vertices of a lattice polytope, if it's not full-dimensional, this computes a lattice-preserving projection.
+# Here lattice-preserving means it is a lattice-bijection from the lattice points of the affine hull
+# The resulting points are the vertices of a full-dimensional lattice polytope
+function full_dimensional_lattice_projection(vertices::Matrix{Int})
+
+
+    return new_vertices
+end
 
 # Computes the lattice points of a lattice polytope, via CDDLib backend of Polyhedra
 # By default CDDLib uses Floats, but you can configure this

@@ -735,36 +735,42 @@ function process_polytope(  initial_vertices::Matrix{Int},
     # If the flag is active and there's a dimension mismatch
     v = vrep(initial_vertices)
     poly = polyhedron(v, CDDLib.Library(:exact))
-    if config.check_full_dimensionality && Polyhedra.dim(poly) < dim 
-
+    # TODO: fix this. For some reason it catches a new lattice point when inputting the Fano matroid polytope...
+    if false && Polyhedra.dim(poly) < dim 
+        display(initial_vertices)
         log_verbose("Finding an appropriate projection to remove excess ambient dimensions")
-        # Vertices should be integers for HNF to work correctly
-
-
+        # We use Hermite Normal Form to compute a lattice-equivalent polytope in a lower-dimensional space
     
         # Shift to the origin
         v0 = initial_vertices[:, 1]
         shifted_vertices = initial_vertices .- v0
     
         # Compute HNF of the edge vectors
-        # We use the transpose because HNF usually works on rows
-        shifted_vertices = Matrix(ZZ, shifted_vertices)
-        H = hnf(shifted_vertices) 
-    
+        # We transpose because HNF usually works on rows. Later we transpose it back again
+
+        M = matrix(ZZ, transpose(shifted_vertices))
+
+        H, U = hnf_with_transform(M) 
+        display(H)
         # Extract non-zero columns
-        nz_cols = [c for c in 1:ncols(H) if !is_zero(H[:, c])]
-    
+        nz_rows = [row_index for row_index in 1:nrows(H) if !is_zero(H[row_index, :])]
+        
+        println(nz_rows)    
         # The new vertices are the rows of the submatrix
-        projected_coords = [Vector{Int}(H[i, nz_cols]) for i in 1:nrows(H)]
+        projected_coords = [Int64(H[row_index, j]) for row_index in nz_rows, j in 1:size(H, 2)]
     
         # Massaging the output
-        initial_vertices = projected_coords
+        # Give new initial vertices and new dimension
+        initial_vertices = copy(transpose(projected_coords)) # Have to copy since Julia does weird things when transposing?
+        dim = size(initial_vertices,2)
+
+        println(size(initial_vertices, 1))
+
         v = vrep(initial_vertices)
         poly = polyhedron(v, CDDLib.Library(:exact))
-        println(Polyhedra.dim(poly))
-        println(size(initial_vertices,2))
+
         if Polyhedra.dim(poly) != size(initial_vertices,2)
-            error("Projection failed to produce a full-dimensional polytope. This should never happen... if you see this error please open an issue on GitHub...")
+            error("Projection failed to produce a full-dimensional polytope. This should never happen... if you see this error please open an issue on GitHub or write us some other way...")
         end
         log_verbose("Projected vertices")
         log_verbose(initial_vertices, is_display=true)
