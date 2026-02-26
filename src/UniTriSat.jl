@@ -739,17 +739,17 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
         log_verbose("Finding an appropriate projection to remove excess ambient dimensions")
         # Vertices should be integers for HNF to work correctly
-        V = hcat(initial_vertices...) 
-        n, m = size(V)
+
+
     
         # Shift to the origin
-        v0 = V[:, 1]
-        V_shifted = V .- v0
+        v0 = initial_vertices[:, 1]
+        shifted_vertices = initial_vertices .- v0
     
         # Compute HNF of the edge vectors
         # We use the transpose because HNF usually works on rows
-        A = matrix(ZZ, V_shifted)
-        H = hnf(A) 
+        shifted_vertices = Matrix(ZZ, shifted_vertices)
+        H = hnf(shifted_vertices) 
     
         # Extract non-zero columns
         nz_cols = [c for c in 1:ncols(H) if !is_zero(H[:, c])]
@@ -761,7 +761,9 @@ function process_polytope(  initial_vertices::Matrix{Int},
         initial_vertices = projected_coords
         v = vrep(initial_vertices)
         poly = polyhedron(v, CDDLib.Library(:exact))
-        if Polyhedra.dim(poly) != dim
+        println(Polyhedra.dim(poly))
+        println(size(initial_vertices,2))
+        if Polyhedra.dim(poly) != size(initial_vertices,2)
             error("Projection failed to produce a full-dimensional polytope. This should never happen... if you see this error please open an issue on GitHub...")
         end
         log_verbose("Projected vertices")
