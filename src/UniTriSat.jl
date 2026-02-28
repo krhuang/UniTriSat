@@ -23,6 +23,9 @@ using AbstractAlgebra
 const INTERSECTION_GENERATION_CHUNK_SIZE = 10000    # Number of simplices each generator thread processes at once
 const SOLVER_UPDATE_THRESHOLD = 500000              # Number of new clauses to buffer before updating the solver
                                                     # Only relevant when using incremental solving
+
+const THRESHOLD_FOR_PARALLEL_SOLVER = 1000000 # If the initial CNF has more clauses than this, we dont use parallel solving as it uses too much RAM
+
 # mutable flag in module scope
 const Normaliz_available = Ref(true)
 
@@ -691,6 +694,84 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
 end
 
+function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
+    num_threads = Threads.nthreads()
+    
+    # 1. find generic point and central simplices
+    generic_point = find_generic_point(P, internal_faces(P, size(P, 2)), Val(size(P, 2)))
+    central_indices_map = compute_central_indices(P, S_indices, generic_point)
+    
+    # 2. split central simplices into groups for each thread (round-robin)
+    central_groups = [Int[] for _ in 1:num_threads]
+    for (i, idx) in enumerate(central_indices_map)
+        push!(central_groups[mod1(i, num_threads)], idx)
+    end
+
+    # 3. prepare thread-local storage for results
+    solution_simplices_threads = [Vector{Vector{Matrix{Int}}}() for _ in 1:num_threads]
+    first_solution_threads = [Vector{Matrix{Int}}() for _ in 1:num_threads]
+    first_regular_threads = [Vector{Matrix{Int}}() for _ in 1:num_threads]
+    num_triangulations_threads = zeros(Int, num_threads)
+    num_regular_threads = zeros(Int, num_threads)
+
+    # 4. thread i solves cnf + [central_group[i]...] using the standard solver
+    # This limits thread i to solutions where a simplex from its central group is used.
+    Threads.@threads for tid in 1:num_threads
+        group = central_groups[tid]
+        
+        if isempty(group)
+            continue
+        end
+        
+        # Create a shallow copy of the CNF and add this thread's group constraint
+        local_cnf = copy(cnf)
+        push!(local_cnf, group)
+        
+        # Call the standard solving logic, suppressing live updates to avoid thread clutter
+        sol_simp, first_sol, first_reg, num_found, num_reg = solve_cadical_standard(
+            local_cnf, P, S_indices, config, false
+        )
+        
+        # Store the returned values into the isolated thread arrays
+        solution_simplices_threads[tid] = sol_simp
+        first_solution_threads[tid] = first_sol
+        first_regular_threads[tid] = first_reg
+        num_triangulations_threads[tid] = num_found
+        num_regular_threads[tid] = num_reg
+    end
+
+    # 5. aggregate the results from all threads
+    solution_simplices = Vector{Vector{Matrix{Int}}}()
+    first_solution_simplices = Vector{Matrix{Int}}()
+    first_regular_solution_simplices = Vector{Matrix{Int}}()
+    
+    number_of_triangulations_found = sum(num_triangulations_threads)
+    number_of_regular_triangulations_found = sum(num_regular_threads)
+
+    for tid in 1:num_threads
+        append!(solution_simplices, solution_simplices_threads[tid])
+        
+        if isempty(first_solution_simplices) && !isempty(first_solution_threads[tid])
+            first_solution_simplices = first_solution_threads[tid]
+        end
+        
+        if isempty(first_regular_solution_simplices) && !isempty(first_regular_threads[tid])
+            first_regular_solution_simplices = first_regular_threads[tid]
+        end
+    end
+
+    # If only the first triangulation is requested, truncate the combined list
+    if config.return_triangulations == "first" && length(solution_simplices) > 1
+        resize!(solution_simplices, 1)
+    end
+
+    # Print a final summary if requested
+    if show_running_updates
+        println("Parallel search finished: $number_of_triangulations_found triangulations found ($number_of_regular_triangulations_found regular).")
+    end
+
+    return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
+end
 
 # the main function processing a single polytope
 function process_polytope(  initial_vertices::Matrix{Int},
@@ -857,7 +938,11 @@ function process_polytope(  initial_vertices::Matrix{Int},
             if config.incremental_solving
                  solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
             else
-                 solve_cadical_standard(cnf, P, S_indices, config, show_running_updates)
+                if length(cnf) <= THRESHOLD_FOR_PARALLEL_SOLVER
+                    log_verbose("      Using parallelized Cadical solver...")
+                    solve_cadical_parallel(cnf, P, S_indices, config, show_running_updates)
+                end
+                solve_cadical_standard(cnf, P, S_indices, config, show_running_updates)
             end
         end
     end

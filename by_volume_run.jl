@@ -12,7 +12,6 @@ vols = vcat(["$i" for i in 1:33], ["34a", "34b", "35a", "35b", "36a", "36b", "36
 
 d = ARGS[1]
 n = vols[parse(Int, ARGS[2])]
-backend = ARGS[3]
 if length(ARGS)>3
     regular = true
     if ARGS[4] != "regular"
@@ -27,16 +26,15 @@ terminal_output = "initial, running, table, final" #initial, running, table, fin
 
 
 println("-")
-println(styled"{bold, blue:Test Dimension $(d), Volume $(n) on $(backend)}")
+println(styled"{bold, blue:Test Dimension $(d), Volume $(n)}")
 println("-")
 triangulate(
     "Polytopes/small-lattice-polytopes/data/$(d)-polytopes/v$(n).txt",
     terminal_output=terminal_output,
-#    log_file="logs/$(d)d/v$(n)_$(backend)",
-    intersection_backend=backend,
     regular=regular,
-    use_normaliz=true,
+    use_normaliz=false,
     return_triangulations = "",
-    solver="cadical"
+    solver="cadical",
+    find_all=true
     )
 
