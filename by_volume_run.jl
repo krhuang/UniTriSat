@@ -35,6 +35,7 @@ triangulate(
     use_normaliz=false,
     return_triangulations = "",
     solver="cadical",
-    find_all=true
+    find_all=true,
+ #   enable_parallel=false
     )
 
