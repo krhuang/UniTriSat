@@ -8,16 +8,28 @@ using StaticArrays
 using CDDLib
 using AbstractAlgebra
 
-export all_simplices, internal_faces, lattice_points_via_CDDLib
+export all_simplices, internal_faces, lattice_points_via_CDDLib, full_dimensional_lattice_projection
 
 const CDD_LIB_EXACT = CDDLib.Library(:exact)
 
 
-# Given vertices of a lattice polytope, if it's not full-dimensional, this computes a lattice-preserving projection.
+# Given vertices of a lattice polytope, this computes a lattice-preserving projection.
 # Here lattice-preserving means it is a lattice-bijection from the lattice points of the affine hull
 # The resulting points are the vertices of a full-dimensional lattice polytope
 function full_dimensional_lattice_projection(vertices::Matrix{Int})
+    # Shifted so that the origin is a vertex
+    shifted_vertices = [vertices[i,j] - vertices[1, j] for i in 1:size(vertices,1), j in 1:size(vertices,2)]
+    # Convert to a ZZ-matrix, so that we can access AbstractAlgebra's hnf function
+    shifted_vertices = matrix(ZZ, shifted_vertices)
+    # Compute the HNF of the transpose
+    hermite_normal_form = hnf(transpose(shifted_vertices))
+    # Record the indices which are non-zero
+    non_zero_row_indices = [row_index for row_index in 1:nrows(hermite_normal_form) if !is_zero(hermite_normal_form[row_index,:])]
+    # Remove excess all-zero rows and convert to Int64
+    new_vertices_transposed = [Int64(hermite_normal_form[i,j]) for i in non_zero_row_indices, j in 1:size(hermite_normal_form,2)]
 
+    # Transpose it back. Due to Julia's standards for transposing we have to take a "copy" here. 
+    new_vertices = copy(transpose(new_vertices_transposed))
 
     return new_vertices
 end
@@ -163,7 +175,7 @@ function lattice_points_via_Oscar(vertices::Matrix{Int})
     dims = size(LP)
     nrows = dims[1]
     ncols = size(LP[1])[1]
-    julia_matrix_LP = [LP[i][j] for i in 1:nrows, j in 1:ncols]
+    julia_matrix_LP = [Int64(LP[i][j]) for i in 1:nrows, j in 1:ncols]
     return julia_matrix_LP
 end
 
