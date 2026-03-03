@@ -4,7 +4,7 @@ module Helpers
 using Printf
 using Polyhedra
 
-export read_polytopes_from_file, update_line, _convert_polyhedron_to_vmatrix, format_bytes, format_duration
+export read_polytopes_from_file, _convert_polyhedron_to_vmatrix, format_bytes, format_duration
 
 
 function format_duration(total_seconds::Float64)
@@ -63,12 +63,6 @@ function _convert_polyhedron_to_vmatrix(p::Polyhedron)
         @error("Error converting Polyhedron object to Matrix{Int}: $e")
         return Matrix{Int}(undef, 0, 0) # Leere Matrix zurückgeben
     end
-end
-
-# for logs
-function update_line(message::String)
-    print(stdout, "\r" * message * "\u001b[K");
-    flush(stdout)
 end
 
 end
