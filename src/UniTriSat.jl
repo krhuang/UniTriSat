@@ -815,15 +815,14 @@ function process_polytope(  initial_vertices::Matrix{Int},
     # If the flag is active and there's a dimension mismatch
     v = vrep(initial_vertices)
     poly = polyhedron(v, CDDLib.Library(:exact))
-    # TODO: fix this. For some reason it catches a new lattice point when inputting the Fano matroid polytope...
+    # Computing a lattice-preserving projection
     if config.check_full_dimensionality && Polyhedra.dim(poly) < dim 
-        display(initial_vertices)
+        #display(initial_vertices)
         log_verbose("Finding an appropriate projection to remove excess ambient dimensions")
         # We use Hermite Normal Form to compute a lattice-equivalent polytope in a lower-dimensional space
         initial_vertices = full_dimensional_lattice_projection(initial_vertices)
 
         dim = size(initial_vertices,2)
-        println(size(initial_vertices, 1))
 
         v = vrep(initial_vertices)
         poly = polyhedron(v, CDDLib.Library(:exact))
@@ -1005,7 +1004,9 @@ function print_initial_summary(config::Config, n_polytopes::Int, stream::IO)
     println(stream, "Number of threads:                   $(nthreads())")
     println(stream, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
     println(stream, "Solver:                              $(config.solver)")
+    println(stream, "Parallel Solving                     $(config.enable_parallel)")
     println(stream, "Incremental Solving:                 $(config.incremental_solving)")
+    println(stream, "Checking for full dimensionality     $(config.check_full_dimensionality)")
     println(stream, "Intersection backend selected:       $(config.intersection_backend)")
     println(stream, "Validation enabled:                  $(config.validate)")
     println(stream, "Number of polytopes found:           $(n_polytopes)")
