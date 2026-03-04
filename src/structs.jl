@@ -17,6 +17,7 @@ mutable struct StatAggregator
     max_alloc::Int64
     count::Int
 end
+
 # Initializer for the aggregator
 StatAggregator() = StatAggregator(0.0, 0.0, 0, 0, 0)
 

@@ -14,7 +14,7 @@ using CDDLib
 using StaticArrays
 using AbstractAlgebra
 
-include("struct.jl")
+include("structs.jl")
 using .Structs
 
 # include the rest of the modules
@@ -30,20 +30,6 @@ using .Solving
 
 # Utility: remove ANSI SGR sequences (colors/formatting) from a string.
 strip_ansi(s::AbstractString) = replace(s, r"\x1b\[[0-9;]*m" => "")
-
-# prints and moves the cursor up so the next print will overwrite it
-# if the string contains newlines, then the cursor must be moved up more
-function ghost_print(msg::String)
-    
-    print("\r\u001b[K" * msg)
-    
-    # Count the number of newlines in the message to determine how many lines to move the cursor up
-    num_newlines = count(==('\n'), msg)
-    
-    if num_newlines > 0
-        print("\u001b[$(num_newlines)A") 
-    end
-end
 
 # the main function processing a single polytope
 function process_polytope(  initial_vertices::Matrix{Int},
@@ -204,7 +190,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
     # --- Step 5: Solving ---
     log_verbose("Step 5: Handing SAT problem to solver...")
     log_verbose("      Problem details: $(num_simplices) variables, $(length(cnf)) clauses.")
-    ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices solving...")
 
     # Determine solver
     active_solver = config.solver
@@ -338,6 +323,8 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         print(stdout, String(take!(term_summary_buf)))
     end
 
+    # the stats to aggregate over all polytopes
+    # i.e. triangulatable will be increased by 1 for each triangulatable polytope found
     t_start_run = time()
     triangulatable = 0
     regularly_triangulatable = 0
@@ -353,6 +340,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     for (i, P) in enumerate(polytopes)
 
+        # find results and assign to local vars
         r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
         number_of_triangulations_found = r.number_of_triangulations_found
         number_of_regular_triangulations_found = r.number_of_regular_triangulations_found
@@ -365,6 +353,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
              flush(log_stream)
         end
 
+        # adjust counts accordingly
         if number_of_triangulations_found > 0
             triangulatable += 1
         end
@@ -374,6 +363,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         total_number_of_triangulations_found += number_of_triangulations_found
         total_number_of_regular_triangulations_found += number_of_regular_triangulations_found
 
+        # update global stats with the returned step_stats results
         for stat in step_stats
             if !haskey(global_step_stats, stat.name)
                 global_step_stats[stat.name] = StatAggregator()
@@ -387,6 +377,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             agg.count += 1
         end
 
+        # print the live summary
         if show_running
             elapsed_time = time() - t_start_run
             avg_time = elapsed_time / i
@@ -394,29 +385,17 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             eta_seconds = avg_time * remaining
             eta_str = format_duration(eta_seconds)
 
-            msg_buf = IOBuffer()
-            
-            @printf(msg_buf, "%-40s %s\u001b[K\n", "Elapsed Time:", format_duration(elapsed_time))
-            @printf(msg_buf, "%-40s %s\u001b[K\n", "Estimated Time Left:", eta_str)
-            
-            if config.regular
-                @printf(msg_buf, "%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Regularly Triangulatable:", regularly_triangulatable)
-            end
-            
-            @printf(msg_buf, "%-40s \u001b[32m%d\u001b[0m\u001b[K\n", "Triangulatable:", triangulatable)
-            @printf(msg_buf, "%-40s \u001b[31m%d\u001b[0m\u001b[K\n", "Non-Triangulatable:", i - triangulatable)
-            
-            print(msg_buf, minimal_log * "\u001b[K") 
+            reg_str = config.regular ? "\nRegularly Triangulatable:     \u001b[32m$(regularly_triangulatable)\u001b[0m" : ""
+            live_summary_str = """\n
+            Elapsed Time:                 $(format_duration(elapsed_time))
+            Estimated Time Left:          $eta_str
+            Triangulatable:               \u001b[32m$triangulatable\u001b[0m$reg_str
+            Non-Triangulatable:           \u001b[31m$(i - triangulatable)\u001b[0m
+            """
 
-            ghost_print(String(take!(msg_buf)))
-            flush(stdout)
+            ghost_print(live_summary_str)
         end
         step_stats = nothing
-    end
-    if show_running
-        print(stdout, "\u001b[5A")
-        if config.regular; print(stdout, "\u001b[1A"); end
-        print(stdout, "\u001b[0J")
     end
 
     total_time_run = time() - t_start_run
@@ -455,27 +434,33 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         end
         stats_table_str = String(take!(stats_table_buf))
     end
+    println()
 
-    reg_str = config.regular ? "\nRegularly Triangulatable:      \u001b[32m$regularly_triangulatable\u001b[0m" : ""
-    summary_core_str = """
-
-    Run finished: $(Dates.format(now(), "HH:MM:SS"))
-
-    ----------------------------------------
-    Run Summary
-    ----------------------------------------
-    Total Polytopes Processed:     $(length(polytopes))$(reg_str)
-    Triangulatable:                \u001b[32m$triangulatable\u001b[0m
-    Non-Triangulatable:            \u001b[31m$(number_of_polytopes - triangulatable)\u001b[0m
-    $(avg_solutions_str)Total Run Time:          $(format_duration(total_time_run))
-    ----------------------------------------
-    """
     if show_final
-        print(stdout, summary_core_str)
+        avg_solutions_str = ""
+        if config.find_all
+            num_sol = config.regular ? total_number_of_regular_triangulations_found : total_number_of_triangulations_found
+            avg_solutions_str = @sprintf("Average Solutions/Polytope:    %.2f\n", num_sol / number_of_polytopes)
+        end
+        reg_str = config.regular ? "\nRegularly Triangulatable:      \u001b[32m$regularly_triangulatable\u001b[0m" : ""
+        summary_core_str = """
+        Run finished: $(Dates.format(now(), "HH:MM:SS"))                                      
+                                                                                          
+        ----------------------------------------                                               
+        Run Summary                                                                         
+        ----------------------------------------                                                
+        Total Polytopes Processed:     $(length(polytopes))$(reg_str)
+        Triangulatable:                \u001b[32m$triangulatable\u001b[0m
+        Non-Triangulatable:            \u001b[31m$(number_of_polytopes - triangulatable)\u001b[0m
+        $(avg_solutions_str)Total Run Time:                $(format_duration(total_time_run))
+        ----------------------------------------
+
+
+        """
+        print(summary_core_str)
     end
     if show_table
-        print(stdout, stats_table_str)
-        println(stdout)
+        print(stats_table_str)
     end
 
     if !isnothing(log_stream)
@@ -518,6 +503,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
 
     if solver!="cadical" && incremental_solving
         @warn("Incremental solving is only supported by CaDiCaL, not PicoSat")
+        incremental_solving = false
     end
 
     if use_normaliz && !Normaliz_available[]
