@@ -839,7 +839,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
         # The new vertices are the rows of the submatrix
         projected_coords = [Int64(H[row_index, j]) for row_index in nz_rows, j in 1:size(H, 2)]
     
-        # Massaging the output
+        # Massaging the output:
+        
         # Give new initial vertices and new dimension
         initial_vertices = copy(transpose(projected_coords)) # Have to copy since Julia does weird things when transposing?
         dim = size(initial_vertices,2)
