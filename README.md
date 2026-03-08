@@ -39,27 +39,35 @@ See the function `triangulate` in `src/UniTriSat.jl` to see what options the fun
 Options and return types
 ========
 The triangulate function takes the following arguments:
-```
-polytopes; 
-intersection_backend: "cpu" or "gpu", default is "cpu", 
-unimodular: flag to toggle wether to restrict to unimodular simplices, default true, 
-regular: flag to toggle wether to restrict to regular triangulations, defualt false,, 
-find_all: flag to toggle wether to find all valid triangulations, default false, 
-log_file: a path to a log file, e.g. "logs/my_run.log", leave empty for no logging 
-terminal_output: string controlling what is printed to the terminal, any subset of "initial,running,table,final" is accepted
-      initial: prints an initial summary of the run parameters
-      running: prints intermediate results about the polytopes which are already done
-      table: prints a table summarizing run times and memory usage split by the different operations (like SAT solving, generating intersection clauses ets.)
-      final: prints a final summary of the resuls 
-validate: NOT YET IMPLEMENTED, flag to toggle wether the triangulations found should be checked by some other algorithm, 
-plot: flag to toggle wether the triangulations found should be printed. If find_all is true, then the first found triangulation is plotted.
-      In higher dimensions, the projection of the triangulation to the 3-faces of the polytopes are plotted
-use_normaliz: flag to toggle wether to use Normaliz to compute interior lattice points. Normaliz is faster, but we encountered stability issues, 
-return_triangulations: string to controll what to return
-      "all": return all found triangulations
-      "first": return the first triangulations
-      "": dont return triangulations
-```
+### Basic Parameters & Flags
+
+| Argument | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| **`polytopes`** | Input | - | The target polytopes to be processed by the function. This can be a matrix encoding the vertices of the polytope, a Polyhedron object, a Vector containing multiple of the previous, or a path to a file. |
+| **`intersection_backend`** | String | `"cpu"` | The computing backend to use (`"cpu"` or `"gpu"`). |
+| **`unimodular`** | Boolean | `true` | Restricts the output to unimodular simplices. |
+| **`regular`** | Boolean | `false` | Restricts the output to regular triangulations. |
+| **`find_all`** | Boolean | `false` | Toggles whether to find all valid triangulations. |
+| **`log_file`** | String | Empty | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
+| **`validate`** | Boolean | `false` | **[NOT YET IMPLEMENTED]** Toggles secondary algorithm validation. |
+| **`plot`** | Boolean | `false` | Toggles plotting. Projects to 3-faces in higher dimensions. Plots only the first result if `find_all` is `true`. |
+| **`use_normaliz`** | Boolean | `false` | Uses Normaliz for interior lattice points (faster, but potentially unstable). |
+| **`return_triangulations`** | String | `false` | Controls wether to return all, the first, or none of the found triangulations. |
+
+### Output & Return Configurations
+
+**`terminal_output`**
+A string controlling what is printed to the terminal. It accepts any subset or combination of the following values:
+* `"initial"`: Prints an initial summary of the run parameters.
+* `"running"`: Prints intermediate results about the polytopes that are already done.
+* `"table"`: Prints a table summarizing run times and memory usage split by operations (e.g., SAT solving etc.).
+* `"final"`: Prints a final summary of the results.
+
+**`return_triangulations`**
+A string dictating what triangulations the function should return at the end of its run:
+* `"all"`: Returns all found triangulations.
+* `"first"`: Returns only the first found triangulation.
+* `""` *(Empty string)*: Does not return any triangulations.
 
 The results are returned as a RunResult struct which countains many TriangulationsResult structs, as follows:
 ```
@@ -67,9 +75,9 @@ mutable struct TriangulationResult
     solution_simplices::Vector{Vector{Matrix{Int}}}
     number_of_triangulations_found::Int
     number_of_regular_triangulations_found::Int
-    minimal_log::String
+    minimal_log::String                                 # used for printing live summary               
     total_time::Float64
-    step_stats::Vector{StepStat}
+    step_stats::Vector{StepStat}                        # time and memory information for the summary table
 end
 
 mutable struct RunResult
