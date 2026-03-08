@@ -61,8 +61,9 @@ function run_test(test::Test)
                             terminal_output=terminal_output,
                             intersection_backend=backend,
                             return_triangulations="",
-                            regular=regular
-                            )
+                            regular=regular,
+                            solver=solver,
+                            incremental_solving=incremental)
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
     time = format_duration(result.total_time)
@@ -89,20 +90,29 @@ using ArgParse
 s = ArgParseSettings()
 @add_arg_table s begin
   "--backend"
-    help = "intersection backend"
+    help = "intersection backend, cpu or gpu"
     arg_type = String
     default = "cpu"
+  "--solver"
+    help = "sat solver, picosat or cadical"
+    arg_type = String
+    default = "picosat"
   "--regular"
     help = "find regular triangulations"
     action = :store_true
   "--plot"
     help = "produce plots"
     action = :store_true
+  "--incremental"
+    help = "use incremental solving (cadical only)"
+    action = :store_true
 end
 parsed = parse_args(s)
 backend = parsed["backend"]
+solver = parsed["solver"]
 regular = parsed["regular"]
 plot = parsed["plot"]
+incremental = parsed["incremental"]
 reg_str = regular ? ", regular" : ""
 
 test_data = [   (3, 8, 125, 125),
@@ -123,10 +133,12 @@ if plot
     println("-")
     triangulate("Polytopes/Big3D", 
                 plot=true,
-                log_file = "cnf",
+ #               log_file = "cnf",
                 return_triangulations="",
                 intersection_backend=backend,
-                terminal_output=terminal_output)
+                terminal_output=terminal_output,
+                solver=solver,
+                incremental_solving=incremental)
 end
 
 for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)

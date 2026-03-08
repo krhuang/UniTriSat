@@ -1,0 +1,15 @@
+-
+Hypercube Dimension 6
+-
+Run started at:                      20:57:11
+Number of threads:                   32
+Solve mode:                          Find First
+Solver:                              cadical
+Intersection backend selected:       cpu
+Validation enabled:                  false
+Number of polytopes found:           1
+Restricting to unimodular simplices: true
+Looking for regular triangulations:  false
+Using Normaliz:                      false
+
+(1 / 1): |P|=64...[K(1 / 1): |P|=64 |S|=234667968...[Kslurmstepd: error: *** JOB 30856 ON node810 CANCELLED AT 2025-12-08T20:56:53 DUE TO TIME LIMIT ***

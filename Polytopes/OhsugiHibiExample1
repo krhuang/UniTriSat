@@ -3,6 +3,7 @@
 # The resulting polytope has 15 vertices and is 9-dimensional
 # It has a unimodular triangulation but no regular one
 # See Example 3.1 of Ohsugi, Hibi - "Normal Polytopes without Unimodular Regular Triangulation"
+<<<<<<< HEAD
 1 0 0 0 0 0 0 0 0 1
 1 1 0 0 0 0 0 0 0 0
 0 1 1 0 0 0 0 0 0 0
@@ -18,3 +19,20 @@
 0 0 0 0 0 0 0 1 1 0
 0 0 0 0 0 0 0 1 0 1
 0 0 0 0 0 0 0 0 1 1
+=======
+1 0 0 0 0 0 0 0 0
+1 1 0 0 0 0 0 0 0
+0 1 1 0 0 0 0 0 0
+0 1 0 0 0 0 0 0 0
+0 1 0 1 0 0 0 0 0
+0 0 1 1 0 0 0 0 0
+0 0 0 1 1 0 0 0 0
+0 0 0 1 0 1 0 0 0
+0 0 0 0 1 1 0 0 0
+0 0 0 0 0 1 1 0 0
+0 0 0 0 0 1 0 1 0
+0 0 0 0 0 0 1 1 0
+0 0 0 0 0 0 0 1 1
+0 0 0 0 0 0 0 1 0
+0 0 0 0 0 0 0 0 1
+>>>>>>> new_sat_formula_actual_implementation
