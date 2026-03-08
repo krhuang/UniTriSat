@@ -17,6 +17,9 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
+[compat]
+AbstractAlgebra = "0.48.4"
+
 [extras]
 Git = "d7ba0133-e1db-5d97-8f8c-041e4b3a1eb2"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"

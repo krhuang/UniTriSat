@@ -4,7 +4,7 @@ module Helpers
 using Printf
 using Polyhedra
 
-export read_polytopes_from_file, update_line, _convert_polyhedron_to_vmatrix, format_bytes, format_duration
+export read_polytopes_from_file, _convert_polyhedron_to_vmatrix, format_bytes, format_duration, ghost_print
 
 
 function format_duration(total_seconds::Float64)
@@ -65,10 +65,19 @@ function _convert_polyhedron_to_vmatrix(p::Polyhedron)
     end
 end
 
-# for logs
-function update_line(message::String)
-    print(stdout, "\r" * message * "\u001b[K");
-    flush(stdout)
+# prints and moves the cursor up so the next print will overwrite it
+# if the string contains newlines, then the cursor must be moved up more
+function ghost_print(msg::String)
+    
+    #moves cursor to the front of the line
+    print("\r\u001b[K" * msg)
+    
+    # Count the number of newlines in the message to determine how many lines to move the cursor up
+    num_newlines = count(==('\n'), msg)
+    
+    if num_newlines > 0
+        print("\u001b[$(num_newlines)A") 
+    end
 end
 
 end
