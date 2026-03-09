@@ -240,46 +240,47 @@ end
 
 function all_simplices(lattice_points::Matrix{Int}; unimodular::Bool=true)
     n, d = size(lattice_points)
-    thread_results = [NTuple{d+1,Int}[] for _ in 1:nthreads()]
-
     if n < d + 1
-        return reduce(vcat, thread_results)
+        return NTuple{d+1, Int}[]
     end
 
-    @threads :dynamic for i in 1:(n - d)
-        tid = threadid()
+    thread_results = [NTuple{d+1, Int}[] for _ in 1:nthreads()]
+
+    @threads for tid in 1:nthreads()
         diffs = Matrix{Int}(undef, d, d)
 
-        pool_start = i + 1
-        pool_n = n - i
+        for i in tid:nthreads():(n - d)
+            pool_start = i + 1
+            pool_n = n - i
 
-        if pool_n >= d
-            c = collect(1:d)
-            while true
-                for r in 1:d
-                    p_idx = pool_start + c[r] - 1
-                    for col in 1:d
-                        diffs[r, col] = lattice_points[p_idx, col] - lattice_points[i, col]
+            if pool_n >= d
+                c = collect(1:d)
+                while true
+                    for r in 1:d
+                        p_idx = pool_start + c[r] - 1
+                        for col in 1:d
+                            diffs[r, col] = lattice_points[p_idx, col] - lattice_points[i, col]
+                        end
                     end
-                end
 
-                det_val = LinearAlgebra.det_bareiss(diffs)
+                    # Use exact integer arithmetic.
+                    det_val = LinearAlgebra.det_bareiss(diffs)
 
-                if det_val != 0 && (!unimodular || abs(det_val) == 1)
-                    simplex = (i, (pool_start + x - 1 for x in c)...)
-                    push!(thread_results[tid], simplex)
-                end
+                    if det_val != 0 && (!unimodular || abs(det_val) == 1)
+                        simplex = ntuple(j -> j == 1 ? i : pool_start + c[j-1] - 1, d + 1)
+                        push!(thread_results[tid], simplex)
+                    end
 
-                k = d
-                while k > 0 && c[k] == pool_n - d + k
-                    k -= 1
-                end
-                if k == 0
-                    break
-                end
-                c[k] += 1
-                for j in k+1:d
-                    c[j] = c[j-1] + 1
+                    k = d
+                    while k > 0 && c[k] == pool_n - d + k
+                        k -= 1
+                    end
+                    k == 0 && break
+
+                    c[k] += 1
+                    for j in k+1:d
+                        c[j] = c[k] + (j - k)
+                    end
                 end
             end
         end
