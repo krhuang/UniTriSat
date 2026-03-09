@@ -20,6 +20,7 @@ using .SubdivisionRegularity
 using ..Structs
 using ..Helpers
 using ..BasicComputations
+using Base.Threads
 
 export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_cadical_parallel
 
@@ -277,7 +278,8 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
     return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
 end
 
-function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
+function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool,
+                                stop_signal::Threads.Atomic{Bool})
     solution_simplices = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
     first_regular_solution_simplices = Vector{Matrix{Int}}()
@@ -291,6 +293,9 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     end
 
     while true
+        if stop_signal[]
+            break
+        end
         if number_of_triangulations_found%1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
             ghost_print(" ($number_of_triangulations_found triangulations found)")
         end
@@ -334,6 +339,7 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
             end
 
             if should_terminate
+                Threads.atomic_cas!(stop_signal, false, true)
                 break
             else
                 CadicalWrapper.add_clause(solver, [-solution_vector...])
@@ -367,6 +373,8 @@ function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     num_triangulations_threads = zeros(Int, num_threads)
     num_regular_threads = zeros(Int, num_threads)
 
+    found_solution = Atomic{Bool}(false)
+
     # 4. thread i solves cnf + [central_group[i]...] using the standard solver
     # This limits thread i to solutions where a simplex from its central group is used.
     Threads.@threads for tid in 1:num_threads
@@ -382,7 +390,7 @@ function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
         
         # Call the standard solving logic, suppressing live updates to avoid thread clutter
         sol_simp, first_sol, first_reg, num_found, num_reg = solve_cadical_standard(
-            local_cnf, P, S_indices, config, false
+            local_cnf, P, S_indices, config, false, found_solution
         )
         
         # Store the returned values into the isolated thread arrays

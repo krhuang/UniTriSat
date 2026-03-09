@@ -203,7 +203,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
             if config.incremental_solving
                  solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
             else
-                if config.find_all && config.enable_parallel
+                if config.enable_parallel
                     log_verbose("      Using parallelized Cadical solver...")
                     solve_cadical_parallel(cnf, P, S_indices, config, show_running_updates)
                 else
