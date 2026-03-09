@@ -78,49 +78,13 @@ function process_polytope(  initial_vertices::Matrix{Int},
         v = vrep(initial_vertices)
         poly = polyhedron(v, CDDLib.Library(:exact))
         dim_poly = Polyhedra.dim(poly)
-        # TODO: why is this here? Is it excess? 
-        if false && dim_poly < dim 
-            log_verbose("Polytope is not full-dimensional. Original dimension: $dim, polytope dimension: $dim_poly")
-            display(initial_vertices)
-            log_verbose("Finding an appropriate projection to remove excess ambient dimensions")
-            # We use Hermite Normal Form to compute a lattice-equivalent polytope in a lower-dimensional space
-        
-            # Shift to the origin
-            v0 = initial_vertices[:, 1]
-            shifted_vertices = initial_vertices .- v0
-        
-            # Compute HNF of the edge vectors
-            # We transpose because HNF usually works on rows. Later we transpose it back again
-
-            M = matrix(ZZ, transpose(shifted_vertices))
-
-            H, U = hnf_with_transform(M) 
-            display(H)
-            # Extract non-zero columns
-            nz_rows = [row_index for row_index in 1:nrows(H) if !is_zero(H[row_index, :])]
-            
-            println(nz_rows)    
-            # The new vertices are the rows of the submatrix
-            projected_coords = [Int64(H[row_index, j]) for row_index in nz_rows, j in 1:size(H, 2)]
-        
-            # Massaging the output
-            # Give new initial vertices and new dimension
-            initial_vertices = copy(transpose(projected_coords)) # Have to copy since Julia does weird things when transposing?
-            dim = size(initial_vertices,2)
-
-            println(size(initial_vertices, 1))
-
-            v = vrep(initial_vertices)
-            poly = polyhedron(v, CDDLib.Library(:exact))
-
-            if Polyhedra.dim(poly) != size(initial_vertices,2)
-                error("Projection failed to produce a full-dimensional polytope. This should never happen... if you see this error please open an issue on GitHub or write us some other way...")
-            end
-            log_verbose("Projected vertices")
-            log_verbose(initial_vertices, is_display=true)
-        else 
-            log_verbose("Polytope is full-dimensional. Continuing with original vertices.")
+        if Polyhedra.dim(poly) != size(initial_vertices,2)
+            error("Projection failed to produce a full-dimensional polytope. This should never happen... if you see this error please open an issue on GitHub or write us some other way...")
         end
+        log_verbose("Projected vertices")
+        log_verbose(initial_vertices, is_display=true)
+    else 
+        log_verbose("Polytope is full-dimensional. Continuing with original vertices.")
     end
     
 
