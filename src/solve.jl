@@ -15,8 +15,11 @@ using .CadicalWrapper
 include("subdivision_regularity.jl")
 using .SubdivisionRegularity
 
+
+
 using ..Structs
 using ..Helpers
+using ..BasicComputations
 
 export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_cadical_parallel
 
@@ -28,8 +31,9 @@ function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, conf
     number_of_regular_triangulations_found = 0
 
     for solution in PicoSAT.itersolve(cnf)
-        s = " ($number_of_triangulations_found triangulations found)"
-        print(s*"\b"^(length(s)))
+        if number_of_triangulations_found%1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
+            ghost_print(" ($number_of_triangulations_found triangulations found)")
+        end
         sol_indices = findall(l -> l > 0, solution)
         simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
         number_of_triangulations_found += 1
@@ -54,8 +58,7 @@ function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, conf
                 end
                 if !config.find_all; break; end
             elseif show_running_updates
-                s = " ($number_of_triangulations_found non-regular triangulations found)"
-                print(s*"\b"^(length(s)))
+                ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
             end
         end
     end
@@ -194,8 +197,7 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
                         end
                     else
                         if show_running_updates
-                            s = " ($number_of_triangulations_found non-regular triangulations found)"
-                            print(s*"\b"^(length(s)))
+                            ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
                         end
                         # Valid but not regular -> continue search
                     end
@@ -240,8 +242,7 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
         # Only interrupt if the task is NOT done. If it is done, we loop around to 'A' to handle result first.
         if should_update && !istaskdone(task)
             number_of_clauses_added += length(new_clauses_buffer)
-            s = "   Number of clauses added: $number_of_clauses_added"
-            print("$s"*"\b"^length(s))
+            ghost_print("   Number of clauses added: $number_of_clauses_added")
             
             CadicalWrapper.interrupt(solver)
             
@@ -290,9 +291,8 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     end
 
     while true
-        if number_of_triangulations_found%1000 == 0 && show_running_updates
-            s = " ($number_of_triangulations_found triangulations found)"
-            print(s*"\b"^(length(s)))
+        if number_of_triangulations_found%1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
+            ghost_print(" ($number_of_triangulations_found triangulations found)")
         end
         res = CadicalWrapper.solve_blocking(solver)
         if res == 10 # SAT
@@ -329,7 +329,7 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
                     end
                     if !config.find_all; should_terminate = true; end
                 elseif show_running_updates
-                    s = " ($number_of_triangulations_found non-regular triangulations found)"
+                    ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
                 end
             end
 
@@ -420,7 +420,7 @@ function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
 
     # Print a final summary if requested
     if show_running_updates
-        print("Parallel search finished: $number_of_triangulations_found triangulations found ($number_of_regular_triangulations_found regular).")
+        ghost_print("Parallel search finished: $number_of_triangulations_found triangulations found ($number_of_regular_triangulations_found regular).")
     end
 
     return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found

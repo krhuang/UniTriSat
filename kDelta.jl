@@ -13,8 +13,12 @@ end
 
 s = ArgParseSettings()
 @add_arg_table s begin
-    "n"
-        help = "dimension of the cube"
+    "d"
+        help = "dimension of the simplex"
+        arg_type = Int
+        required = true
+    "k"
+        help = "scaling factor for the simplex"
         arg_type = Int
         required = true
     "--regular"
@@ -32,7 +36,8 @@ end
 
 parsed = parse_args(s)
 
-n = parsed["n"]
+d = parsed["d"]
+k = parsed["k"]
 regular = parsed["regular"]
 backend = parsed["backend"]
 solver = parsed["solver"]
@@ -43,11 +48,10 @@ reg_str = regular ? ", regular" : ""
 
 
 triangulate(
-    polyhedron(vrep([[0,0], [n,0], [0,n]])),
+    polyhedron(vrep([[i == j ? k : 0 for j in 1:d] for i in 1:d+1])),
     terminal_output=terminal_output,
     intersection_backend=backend,
     regular=regular,
     solver=solver,
     find_all=true,
-    # enable_parallel=false
 )

@@ -28,6 +28,9 @@ s = ArgParseSettings()
     "--regular"
         help = "find regular triangulations"
         action = :store_true
+    "--all"
+        help = "find all triangulations"
+        action = :store_true
     "--backend"
         help = "intersection backend, cpu or gpu"
         arg_type = String
@@ -44,13 +47,15 @@ n = parsed["n"]
 regular = parsed["regular"]
 backend = parsed["backend"]
 solver = parsed["solver"]
+all = parsed["all"]
 
 # Display Setup
 terminal_output = "initial, running, table, final"
 reg_str = regular ? ", regular" : ""
+all_str = all ? ", all triangulations" : ""
 
 println("-")
-println(styled"{bold, blue:Hypercube Dimension $n$reg_str}")
+println(styled"{bold, blue:Hypercube Dimension $n$reg_str$all_str}")
 println("-")
 
 # Ausführung der Triangulierung auf lokal generierten Vertices
@@ -59,5 +64,6 @@ triangulate(
     terminal_output=terminal_output,
     intersection_backend=backend,
     regular=regular,
-    solver=solver
+    solver=solver,
+    find_all=all
 )

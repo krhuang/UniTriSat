@@ -48,9 +48,12 @@ export all_simplices,
     compute_lattice_points,
     compute_simplices,
     compute_internal_faces,
+    internal_faces,
     compute_intersections_incremental,
     compute_intersections_standard,
-    compute_face_clauses
+    compute_face_clauses,
+    find_generic_point,
+    compute_central_indices
 
 const CDD_LIB_EXACT = CDDLib.Library(:exact)
 
