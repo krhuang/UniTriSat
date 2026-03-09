@@ -118,9 +118,11 @@ end
 #     end
 # end
 
+
+# This function uses floats, but it has a safety exact-check implemented
+# So it cannot suffer from floating-point imprecision
 function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
-    # TODO: write a comment here about floats??
     float_threshold = 1e-10
 
     verts = Rational{BigInt}.(vertices)
