@@ -28,6 +28,14 @@ using .Plot
 include("solve.jl")
 using .Solving
 
+# Terminal message when a user writes "Using UniTriSat"
+function __init__()
+    @info "UniTriSat: Unimodular Triangulations via SATISFIABILITY")
+    @info "See the QuickStart Guide at https://github.com/krhuang/UniTriSat")
+    @info "This package is provided with no warranty or guarantee.")
+    @info "Please write us on GitHub if you encounter any issues. ")
+end
+
 # Utility: remove ANSI SGR sequences (colors/formatting) from a string.
 strip_ansi(s::AbstractString) = replace(s, r"\x1b\[[0-9;]*m" => "")
 
