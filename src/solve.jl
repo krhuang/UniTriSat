@@ -12,6 +12,9 @@ using PicoSAT
 include("CadicalWrapper.jl")
 using .CadicalWrapper
 
+include("TrisatWrapper.jl")
+using .TrisatWrapper
+
 include("subdivision_regularity.jl")
 using .SubdivisionRegularity
 

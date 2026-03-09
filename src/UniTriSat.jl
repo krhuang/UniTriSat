@@ -197,7 +197,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose("      Using solver: $active_solver")
 
     timed_solve_result = @timed begin
-        if active_solver == "picosat"
+        if active_solver in ["picosat"]
              solve_picosat(cnf, P, S_indices, config, show_running_updates)
         else
             if config.incremental_solving
@@ -496,12 +496,12 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         return RunResult(Vector{TriangulationResult}(), 0, 0, 0, 0, 0.0)
     end
 
-    if solver!="cadical" && !Sys.islinux()
+    if solver in ["cadical"] && !Sys.islinux()
         @warn("CaDiCaL is only available on Linux atm. Falling back to PicoSat")
         solver="picosat"
     end
 
-    if solver!="cadical" && incremental_solving
+    if solver in ["cadical"] && incremental_solving
         @warn("Incremental solving is only supported by CaDiCaL, not PicoSat")
         incremental_solving = false
     end
