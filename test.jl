@@ -63,7 +63,8 @@ function run_test(test::Test)
                             return_triangulations="",
                             regular=regular,
                             solver=solver,
-                            incremental_solving=incremental)
+                            incremental_solving=incremental,
+                            enable_parallel=enable_parallel)
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
     time = format_duration(result.total_time)
@@ -106,6 +107,12 @@ s = ArgParseSettings()
   "--incremental"
     help = "use incremental solving (cadical only)"
     action = :store_true
+  "--parallel-solving"
+    help = "use parallel solving"
+    action = :store_true
+  "--big"
+    help = "run on the 2 big 3D polytopes, but without plotting"
+    action = :store_true
 end
 parsed = parse_args(s)
 backend = parsed["backend"]
@@ -113,6 +120,8 @@ solver = parsed["solver"]
 regular = parsed["regular"]
 plot = parsed["plot"]
 incremental = parsed["incremental"]
+enable_parallel = parsed["parallel-solving"]
+big = parsed["big"]
 reg_str = regular ? ", regular" : ""
 
 test_data = [   (3, 8, 125, 125),
@@ -127,18 +136,19 @@ test_data = [   (3, 8, 125, 125),
 terminal_output = "running, table, final" #initial, running, table, final
 test_results = Vector{TestResult}()
 
-if plot 
+if plot || big
     println("-")
-    println(styled"{bold, blue:Test plotting on two big 3D Polytopes}")
+    println(styled"{bold, blue:Test two big 3D Polytopes, plot = $plot}")
     println("-")
     triangulate("Polytopes/Big3D", 
-                plot=true,
+                plot=plot,
  #               log_file = "cnf",
                 return_triangulations="",
                 intersection_backend=backend,
                 terminal_output=terminal_output,
                 solver=solver,
-                incremental_solving=incremental)
+                incremental_solving=incremental,
+                enable_parallel=enable_parallel)
 end
 
 for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)

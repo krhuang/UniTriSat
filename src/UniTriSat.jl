@@ -227,7 +227,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         log_verbose("\n$(number_of_regular_triangulations_found) valid regular triangulation(s) found.")
     end
 
-    if !isempty(first_solution_simplices) && number_of_regular_triangulations_found > 0
+    if !isempty(first_solution_simplices) && config.regular
         log_verbose("\nDisplaying first valid triangulation:")
         for s in first_solution_simplices
             log_verbose(s, is_display=true)
@@ -238,6 +238,15 @@ function process_polytope(  initial_vertices::Matrix{Int},
         for s in first_regular_solution_simplices
             log_verbose(s, is_display=true)
         end
+    end
+    if isempty(first_solution_simplices)
+        log_verbose("\nNo triangulation found for this polytope.")
+    end
+    if config.regular && isempty(first_regular_solution_simplices)
+        log_verbose("\nNo regular triangulation found for this polytope.")
+    end
+    if config.regular && !isempty(first_solution_simplices) && isempty(first_regular_solution_simplices)
+        log_verbose("\nHowever, a non-regular triangulation was found.")
     end
 
     # --- Step 6: Plotting ---
