@@ -30,11 +30,11 @@ using .Solving
 
 # Terminal message when a user writes "Using UniTriSat"
 function __init__()
-    @info "UniTriSat: Unimodular Triangulations via SATISFIABILITY")
+    @info "UniTriSat: Unimodular Triangulations via SATISFIABILITY"
     @info "Written by Kyle Huang, Robert Lauff, and Charles Zhang."
-    @info "See the QuickStart Guide at https://github.com/krhuang/UniTriSat")
-    @info "This package is provided with no warranty or guarantees.")
-    @info "Please write us on GitHub if you encounter any issues. ")
+    @info "See the QuickStart Guide at https://github.com/krhuang/UniTriSat"
+    @info "This package is provided with no warranty or guarantees."
+    @info "Please write us on GitHub if you encounter any issues. "
 end
 
 # Utility: remove ANSI SGR sequences (colors/formatting) from a string.
