@@ -64,7 +64,7 @@ function run_test(test::Test)
         reason *= " Expected $(test.exp_reg) regularly triangulatable, got $num_reg_triangulatable."
         pass = false
     end
-    return TestResult(name, pass, reason, time)
+    return TestResult("", pass, reason, time)
 end
 test_data = [   (3, 8, 125, 125),
                 (3, 16, 3288, 3288),
