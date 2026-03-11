@@ -123,7 +123,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
             log_verbose("Polytope is full-dimensional. Continuing with original vertices.")
         end
     end
-    
 
     # --- Step 1: Lattice Points ---
     log_verbose("Step 1: Computing all lattice points...")
@@ -310,7 +309,7 @@ function print_initial_summary(config::Config, n_polytopes::Int, stream::IO)
     println(stream, "Incremental Solving:                 $(config.incremental_solving)")
     println(stream, "Checking for full dimensionality:    $(config.check_full_dimensionality)")
     println(stream, "Intersection backend selected:       $(config.intersection_backend)")
-    println(stream, "Validation enabled:                  $(config.validate)")
+#    println(stream, "Validation enabled:                  $(config.validate)")
     println(stream, "Number of polytopes found:           $(n_polytopes)")
     println(stream, "Restricting to unimodular simplices: $(config.unimodular)")
     println(stream, "Looking for regular triangulations:  $(config.regular)")
@@ -511,9 +510,13 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         solver="picosat"
     end
 
+    if solver == "d4" && !Sys.islinux()
+        @warn("d4 is only available on Linux. Falling back to PicoSat")
+        solver="picosat"
+    end
+
     if solver in ["picosat", "d4"] && incremental_solving
-        @warn("Incremental solving is only supported by CaDiCaL, not PicoSat or d4. Falling back to non-incremental solving.")
-        incremental_solving = false
+        @warn("Incremental solving is only supported by CaDiCaL, not PicoSat or d4. We keep incremental solving true. The solver will be passed the simplified formula, but no further clauses will be added.")
     end
 
     if solver == "d4" && !find_all
