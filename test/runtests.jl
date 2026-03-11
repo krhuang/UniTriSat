@@ -67,7 +67,7 @@ function run_test(test::Test)
         if (regular || num_reg_triangulatable == test.exp_reg)
             reason *= " Expected $(test.exp_reg) regularly triangulatable, got $num_reg_triangulatable."
         end
-        @error(styled"{bold, red:failed}, $reason")
+        @error("$reason")
         pass = false
     end
     return TestResult(name, pass, reason, time)
@@ -86,10 +86,6 @@ for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)
 end
 
 if true
-    name = "Regularity of the \"Mother of all Examples\""
-    println("-")
-    println(styled"{bold, blue:Test $name. Expect non-regular}")
-    println("-")
 
     # Define triangulation directly as a vector of matrices of integer coordinates
     triangulation_nonreg = [
