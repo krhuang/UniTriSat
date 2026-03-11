@@ -63,5 +63,7 @@ triangulate(
     intersection_backend=backend,
     regular=regular,
     solver=solver,
-    find_all=true,
+    find_all=all,
+    incremental_solving=incremental,
+    enable_parallel=enable_parallel,
 )
