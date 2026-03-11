@@ -55,18 +55,13 @@ function run_test(test::Test)
                             enable_parallel=false)
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
-    if  num_triangulatable == test.exp && (!regular || num_reg_triangulatable == test.exp_reg)
+    if  num_triangulatable == test.exp && num_reg_triangulatable == test.exp_reg
         pass = true
         reason = ""
     else
         reason = ""
-        if num_triangulatable != test.exp
-            reason *= "Expected $(test.exp) triangulatable, got $num_triangulatable."
-        end
-        if (regular || num_reg_triangulatable == test.exp_reg)
-            reason *= " Expected $(test.exp_reg) regularly triangulatable, got $num_reg_triangulatable."
-        end
-        @error("$reason")
+        reason *= "Expected $(test.exp) triangulatable, got $num_triangulatable."
+        reason *= " Expected $(test.exp_reg) regularly triangulatable, got $num_reg_triangulatable."
         pass = false
     end
     return TestResult(name, pass, reason, time)
