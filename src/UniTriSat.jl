@@ -132,7 +132,9 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
-    ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points...")
+    if show_running
+        ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points...")
+    end
 
     # --- Step 2: Simplices ---
     simplex_search_type = config.unimodular ? "unimodular" : "non-degenerate"
@@ -146,7 +148,9 @@ function process_polytope(  initial_vertices::Matrix{Int},
     cnf = Vector{Vector{Int}}()
     push!(cnf, collect(1:num_simplices))
     log_verbose("-> Found $num_simplices simplices. Step 2 complete.\n")
-    ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices...")
+    if show_running 
+        ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices...")
+    end
 
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
@@ -295,7 +299,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices, result_str)
 
     empty!(cnf)
-    cnf = Vector{Vector{Int}}()
 
     return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, minimal_log, total_time, step_stats)
 end
@@ -341,8 +344,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     total_number_of_triangulations_found = 0
     total_number_of_regular_triangulations_found = 0
 
-    is_first_single_line_update = true
-
     global_step_stats = Dict{String, StatAggregator}()
     step_order = String[]
     all_results = Vector{TriangulationResult}()
@@ -353,7 +354,6 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
         number_of_triangulations_found = r.number_of_triangulations_found
         number_of_regular_triangulations_found = r.number_of_regular_triangulations_found
-        minimal_log = r.minimal_log
         step_stats = r.step_stats
 
         push!(all_results, r)

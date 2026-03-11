@@ -56,15 +56,13 @@ function run_test(test::Test)
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
     if  num_triangulatable == test.exp && num_reg_triangulatable == test.exp_reg
-        pass = true
         reason = ""
     else
         reason = ""
         reason *= "Expected $(test.exp) triangulatable, got $num_triangulatable."
         reason *= " Expected $(test.exp_reg) regularly triangulatable, got $num_reg_triangulatable."
-        pass = false
+        @error("Test $(test.id) failed: $reason")
     end
-    return TestResult("", pass, reason, time)
 end
 test_data = [   (3, 8, 125, 125),
                 (3, 16, 3288, 3288),
