@@ -1,9 +1,7 @@
 
 using UniTriSat
 
-include("src/helpers.jl")
-using .Helpers
-include("src/subdivision_regularity.jl")
+include("../src/subdivision_regularity.jl")
 using .SubdivisionRegularity
 
 if !isdir("Polytopes/small-lattice-polytopes")
