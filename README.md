@@ -49,7 +49,6 @@ The triangulate function takes the following arguments:
 | **`regular`** | Boolean | `false` | Restricts the output to regular triangulations. |
 | **`find_all`** | Boolean | `false` | Toggles whether to find all valid triangulations. |
 | **`log_file`** | String | Empty | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
-| **`validate`** | Boolean | `false` | **[NOT YET IMPLEMENTED]** Toggles secondary algorithm validation. |
 | **`plot`** | Boolean | `false` | Toggles plotting. Projects to 3-faces in higher dimensions. Plots only the first result if `find_all` is `true`. |
 | **`use_normaliz`** | Boolean | `false` | Uses Normaliz for interior lattice points (faster, but potentially unstable). |
 | **`return_triangulations`** | String | `false` | Controls wether to return all, the first, or none of the found triangulations. |
