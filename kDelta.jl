@@ -21,10 +21,7 @@ s = ArgParseSettings()
         help = "scaling factor for the simplex"
         arg_type = Int
         required = true
-    "--regular"
-        help = "find regular triangulations"
-        action = :store_true
-    "--backend"
+   "--backend"
         help = "intersection backend, cpu or gpu"
         arg_type = String
         default = "cpu"
@@ -32,15 +29,28 @@ s = ArgParseSettings()
         help = "sat solver, picosat or cadical"
         arg_type = String
         default = "picosat"
+    "--regular"
+        help = "find regular triangulations"
+        action = :store_true
+    "--incremental"
+        help = "use incremental solving (cadical only)"
+        action = :store_true
+    "--parallel-solving"
+        help = "use parallel solving"
+        action = :store_true
+    "--all"
+        help = "find all triangulations"
+        action = :store_true
 end
-
 parsed = parse_args(s)
-
-d = parsed["d"]
-k = parsed["k"]
-regular = parsed["regular"]
 backend = parsed["backend"]
 solver = parsed["solver"]
+regular = parsed["regular"]
+incremental = parsed["incremental"]
+enable_parallel = parsed["parallel-solving"]
+all = parsed["all"]
+d = parsed["d"]
+k = parsed["k"]
 
 # Display Setup
 terminal_output = "initial, running, table, final"

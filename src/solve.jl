@@ -12,19 +12,20 @@ using PicoSAT
 include("CadicalWrapper.jl")
 using .CadicalWrapper
 
+include("d4Wrapper.jl")
+using .D4AllSat
+
 include("subdivision_regularity.jl")
 using .SubdivisionRegularity
-
-
 
 using ..Structs
 using ..Helpers
 using ..BasicComputations
 using Base.Threads
 
-export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_cadical_parallel
+export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_parallel, find_all_d4
 
-function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
+function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool, stop_signal::Threads.Atomic{Bool})
     solution_simplices = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
     first_regular_solution_simplices = Vector{Matrix{Int}}()
@@ -353,13 +354,22 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
 end
 
-function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
+function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
+
     num_threads = Threads.nthreads()
-    
+
     # 1. find generic point and central simplices
     generic_point = find_generic_point(P, internal_faces(P, size(P, 2)), Val(size(P, 2)))
     central_indices_map = compute_central_indices(P, S_indices, generic_point)
-    
+    solve_function = Nothing
+    if config.solver == "cadical"
+        solve_function = solve_cadical_standard
+    elseif config.solver == "picosat"
+        solve_function = solve_picosat
+    else
+        error("Unsupported solver for parallel execution: $(config.solver)")
+    end
+
     # 2. split central simplices into groups for each thread (round-robin)
     central_groups = [Int[] for _ in 1:num_threads]
     for (i, idx) in enumerate(central_indices_map)
@@ -372,28 +382,25 @@ function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     first_regular_threads = [Vector{Matrix{Int}}() for _ in 1:num_threads]
     num_triangulations_threads = zeros(Int, num_threads)
     num_regular_threads = zeros(Int, num_threads)
-
     found_solution = Atomic{Bool}(false)
 
     # 4. thread i solves cnf + [central_group[i]...] using the standard solver
     # This limits thread i to solutions where a simplex from its central group is used.
     Threads.@threads for tid in 1:num_threads
         group = central_groups[tid]
-        
         if isempty(group)
             continue
         end
-        
+
         # Create a shallow copy of the CNF and add this thread's group constraint
         local_cnf = copy(cnf)
         push!(local_cnf, group)
-        
+
         # Call the standard solving logic, suppressing live updates to avoid thread clutter
-        sol_simp, first_sol, first_reg, num_found, num_reg = solve_cadical_standard(
-            local_cnf, P, S_indices, config, false, found_solution
-        )
-        
+        sol_simp, first_sol, first_reg, num_found, num_reg = solve_function(local_cnf, P, S_indices, config, false, found_solution)
+
         # Store the returned values into the isolated thread arrays
+
         solution_simplices_threads[tid] = sol_simp
         first_solution_threads[tid] = first_sol
         first_regular_threads[tid] = first_reg
@@ -401,36 +408,96 @@ function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
         num_regular_threads[tid] = num_reg
     end
 
+
     # 5. aggregate the results from all threads
+
     solution_simplices = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
     first_regular_solution_simplices = Vector{Matrix{Int}}()
-    
     number_of_triangulations_found = sum(num_triangulations_threads)
     number_of_regular_triangulations_found = sum(num_regular_threads)
 
+
     for tid in 1:num_threads
         append!(solution_simplices, solution_simplices_threads[tid])
-        
         if isempty(first_solution_simplices) && !isempty(first_solution_threads[tid])
             first_solution_simplices = first_solution_threads[tid]
         end
-        
         if isempty(first_regular_solution_simplices) && !isempty(first_regular_threads[tid])
             first_regular_solution_simplices = first_regular_threads[tid]
         end
     end
 
-    # If only the first triangulation is requested, truncate the combined list
+
+# If only the first triangulation is requested, truncate the combined list
+
     if config.return_triangulations == "first" && length(solution_simplices) > 1
         resize!(solution_simplices, 1)
     end
+
 
     # Print a final summary if requested
     if show_running_updates
         ghost_print("Parallel search finished: $number_of_triangulations_found triangulations found ($number_of_regular_triangulations_found regular).")
     end
 
+    return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
+
+end
+
+function find_all_d4(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config, show_running_updates::Bool)
+    num_threads = Threads.nthreads()
+
+    # 1. Find generic point and central simplices
+    generic_point = find_generic_point(P, internal_faces(P, size(P, 2)), Val(size(P, 2)))
+    central_indices_map = compute_central_indices(P, S_indices, generic_point)
+
+    # 2. Split central simplices into groups for each thread (round-robin)
+    central_groups = [Int[] for _ in 1:num_threads]
+    for (i, idx) in enumerate(central_indices_map)
+        push!(central_groups[mod1(i, num_threads)], idx)
+    end
+
+    # 3. Standard thread-agnostic state variables
+    solution_simplices = Vector{Vector{Matrix{Int}}}()
+    first_solution_simplices = Vector{Matrix{Int}}()
+    first_regular_solution_simplices = Vector{Matrix{Int}}()
+    number_of_triangulations_found = 0
+    number_of_regular_triangulations_found = 0
+
+    # 4. Consume the safely merged stream of solutions
+    for solution in d4_itersolve(cnf, central_groups)
+        if number_of_triangulations_found % 1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
+            ghost_print(" ($number_of_triangulations_found triangulations found)")
+        end
+        
+        sol_indices = findall(l -> l > 0, solution)
+        simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
+        number_of_triangulations_found += 1
+        
+        if isempty(first_solution_simplices)
+            first_solution_simplices = simplices
+        end
+        
+        if !config.regular
+            if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                push!(solution_simplices, simplices)
+            end
+        else
+            if is_regular(simplices)
+                if isempty(first_regular_solution_simplices)
+                    first_regular_solution_simplices = simplices
+                end
+                number_of_regular_triangulations_found += 1
+                if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                    push!(solution_simplices, simplices)
+                end
+            elseif show_running_updates
+                ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
+            end
+        end
+    end
+    
     return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
 end
 

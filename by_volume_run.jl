@@ -23,12 +23,6 @@ s = ArgParseSettings()
         help = "volume"
         arg_type = Int
         required = true
-    "--regular"
-        help = "find regular triangulations"
-        action = :store_true
-    "--all"
-        help = "find all triangulations"
-        action = :store_true
     "--backend"
         help = "intersection backend, cpu or gpu"
         arg_type = String
@@ -37,13 +31,25 @@ s = ArgParseSettings()
         help = "sat solver, picosat or cadical"
         arg_type = String
         default = "picosat"
+    "--regular"
+        help = "find regular triangulations"
+        action = :store_true
+    "--incremental"
+        help = "use incremental solving (cadical only)"
+        action = :store_true
+    "--parallel-solving"
+        help = "use parallel solving"
+        action = :store_true
+    "--all"
+        help = "find all triangulations"
+        action = :store_true
 end
-
 parsed = parse_args(s)
-
-regular = parsed["regular"]
 backend = parsed["backend"]
 solver = parsed["solver"]
+regular = parsed["regular"]
+incremental = parsed["incremental"]
+enable_parallel = parsed["parallel-solving"]
 all = parsed["all"]
 d = parsed["d"]
 n = parsed["n"]
@@ -62,7 +68,8 @@ triangulate(
     intersection_backend=backend,
     solver=solver,
     return_triangulations = "",
+    incremental_solving=incremental,
+    enable_parallel=enable_parallel,
     find_all=all,
- #   enable_parallel=false
     )
 

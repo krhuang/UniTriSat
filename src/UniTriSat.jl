@@ -197,18 +197,19 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose("      Using solver: $active_solver")
 
     timed_solve_result = @timed begin
-        if active_solver in ["picosat"]
-             solve_picosat(cnf, P, S_indices, config, show_running_updates)
+        if config.enable_parallel
+            log_verbose("      Parallel solving enabled with $(nthreads()) threads.")
+            log_verbose("      Solver is $(active_solver)")
+            solve_parallel(cnf, P, S_indices, config, show_running_updates)
         else
-            if config.incremental_solving
-                 solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
+            if active_solver == "picosat"
+                solve_picosat(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
+            elseif active_solver == "d4"
+                find_all_d4(cnf, P, S_indices, config, show_running_updates)
+            elseif config.incremental_solving
+                solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
             else
-                if config.enable_parallel
-                    log_verbose("      Using parallelized Cadical solver...")
-                    solve_cadical_parallel(cnf, P, S_indices, config, show_running_updates)
-                else
-                    solve_cadical_standard(cnf, P, S_indices, config, show_running_updates)
-                end
+                solve_cadical_standard(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
             end
         end
     end
@@ -505,14 +506,19 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         return RunResult(Vector{TriangulationResult}(), 0, 0, 0, 0, 0.0)
     end
 
-    if solver in ["cadical"] && !Sys.islinux()
-        @warn("CaDiCaL is only available on Linux atm. Falling back to PicoSat")
+    if solver in ["cadical"] && (!Sys.islinux() && !Sys.isapple())
+        @warn("CaDiCaL is only available on Linux and Mac atm. Falling back to PicoSat")
         solver="picosat"
     end
 
-    if solver in ["cadical"] && incremental_solving
-        @warn("Incremental solving is only supported by CaDiCaL, not PicoSat")
+    if solver in ["picosat", "d4"] && incremental_solving
+        @warn("Incremental solving is only supported by CaDiCaL, not PicoSat or d4. Falling back to non-incremental solving.")
         incremental_solving = false
+    end
+
+    if solver == "d4" && !config.find_all
+        @warn("The d4 solver only supports finding all triangulations, but the find_all flag is not set. Falling back to PicoSat.")
+        solver = "picosat"
     end
 
     if use_normaliz && !Normaliz_available[]
