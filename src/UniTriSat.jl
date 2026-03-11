@@ -197,15 +197,15 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose("      Using solver: $active_solver")
 
     timed_solve_result = @timed begin
-        if config.enable_parallel
+        if active_solver == "d4"
+            find_all_d4(cnf, P, S_indices, config, show_running_updates)
+        elseif config.enable_parallel
             log_verbose("      Parallel solving enabled with $(nthreads()) threads.")
             log_verbose("      Solver is $(active_solver)")
             solve_parallel(cnf, P, S_indices, config, show_running_updates)
         else
             if active_solver == "picosat"
                 solve_picosat(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
-            elseif active_solver == "d4"
-                find_all_d4(cnf, P, S_indices, config, show_running_updates)
             elseif config.incremental_solving
                 solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
             else
@@ -307,7 +307,7 @@ function print_initial_summary(config::Config, n_polytopes::Int, stream::IO)
     println(stream, "Solve mode:                          $(config.find_all ? "Find All" : "Find First")")
     println(stream, "Solver:                              $(config.solver)")
     println(stream, "Parallel Solving:                    $(config.enable_parallel)")
-    println(stream, "Incremental Solving:                 $(config.incremental_solving)") # TODO: this should reflect if find_all is true or not
+    println(stream, "Incremental Solving:                 $(config.incremental_solving)")
     println(stream, "Checking for full dimensionality:    $(config.check_full_dimensionality)")
     println(stream, "Intersection backend selected:       $(config.intersection_backend)")
     println(stream, "Validation enabled:                  $(config.validate)")
@@ -334,7 +334,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     end
 
     # the stats to aggregate over all polytopes
-    # i.e. triangulatable will be increased by 1 for each triangulatable polytope found
+    # i.e. triangulatable will be increased by 1 for each triangulatable polytope found etc.
     t_start_run = time()
     triangulatable = 0
     regularly_triangulatable = 0
@@ -516,7 +516,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         incremental_solving = false
     end
 
-    if solver == "d4" && !config.find_all
+    if solver == "d4" && !find_all
         @warn("The d4 solver only supports finding all triangulations, but the find_all flag is not set. Falling back to PicoSat.")
         solver = "picosat"
     end
