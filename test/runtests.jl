@@ -55,7 +55,6 @@ function run_test(test::Test)
                             enable_parallel=false)
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
-    time = format_duration(result.total_time)
     if  num_triangulatable == test.exp && (!regular || num_reg_triangulatable == test.exp_reg)
         pass = true
         reason = ""
