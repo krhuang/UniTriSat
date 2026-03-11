@@ -132,7 +132,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     num_lattice_points = size(P, 1)
     log_verbose("-> Found $num_lattice_points lattice points. Step 1 complete.\n")
-    if show_running
+    if show_running_updates
         ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points...")
     end
 
@@ -148,7 +148,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     cnf = Vector{Vector{Int}}()
     push!(cnf, collect(1:num_simplices))
     log_verbose("-> Found $num_simplices simplices. Step 2 complete.\n")
-    if show_running 
+    if show_running_updates
         ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices...")
     end
 
