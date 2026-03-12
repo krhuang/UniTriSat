@@ -51,7 +51,7 @@ The triangulate function takes the following arguments:
 | **`log_file`** | String | Empty | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
 | **`plot`** | Boolean | `false` | Toggles plotting. Projects to 3-faces in higher dimensions. Plots only the first result if `find_all` is `true`. |
 | **`use_normaliz`** | Boolean | `false` | Uses Normaliz for interior lattice points (faster, but potentially unstable). |
-| **`return_triangulations`** | String | `false` | Controls wether to return all, the first, or none of the found triangulations. |
+| **`return_triangulations`** | String | `false` | Controls whether to return all, the first, or none of the found triangulations. |
 
 ### Output & Return Configurations
 
