@@ -43,15 +43,19 @@ The triangulate function takes the following arguments:
 
 | Argument | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| **`polytopes`** | Input | - | The target polytopes to be processed by the function. This can be a matrix encoding the vertices of the polytope, a Polyhedron object, a Vector containing multiple of the previous, or a path to a file. |
+| **`polytopes`** | | - | The target polytopes to be processed by the function. This can be a matrix encoding the vertices of the polytope, a Polyhedron object, a Vector containing multiple of the previous, or a path to a file. |
 | **`intersection_backend`** | String | `"cpu"` | The computing backend to use (`"cpu"` or `"gpu"`). |
 | **`unimodular`** | Boolean | `true` | Restricts the output to unimodular simplices. |
 | **`regular`** | Boolean | `false` | Restricts the output to regular triangulations. |
 | **`find_all`** | Boolean | `false` | Toggles whether to find all valid triangulations. |
-| **`log_file`** | String | Empty | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
+| **`log_file`** | String | `""` | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
+| **`terminal_output`** | String | `"final"` | Controlls orinting to the terminal. See below for details. |
 | **`plot`** | Boolean | `false` | Toggles plotting. Projects to 3-faces in higher dimensions. Plots only the first result if `find_all` is `true`. |
 | **`use_normaliz`** | Boolean | `false` | Uses Normaliz for interior lattice points (faster, but potentially unstable). |
-| **`return_triangulations`** | String | `"first"` | Controls whether to return all, the first, or none of the found triangulations. |
+| **`return_triangulations`** | String | `"first"` | Controls whether to return all, the first, or none of the found triangulations. See below for details. |
+| **`solver`** | String | `"picosat"` | Decides the solver. `"picosat"` or `"cadical"` in general. `"d4"` for finding all solutions. |
+| **`incremental_solving`** | Bool | `false` | Experimental: Use incremental solving. Only available with CaDiCaL. |
+| **`enable_parallel`** | Bool | `true` | Enable parallel solving. |
 
 ### Output & Return Configurations
 
@@ -94,5 +98,5 @@ Tests
 
 You can run a tests set by doing `julia test.jl`.
 
-We are in need of non-regular unimodular triangulations for our unit testing. If you know of any, other than the "mother of all examples" please write us. 
+We are in need of polytopes which have a unimodular, but no regular unimodular triangulation for our unit testing. If you know of any, other than the "mother of all examples" please write us. 
 
