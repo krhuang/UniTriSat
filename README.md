@@ -51,7 +51,7 @@ The triangulate function takes the following arguments:
 | **`log_file`** | String | Empty | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
 | **`plot`** | Boolean | `false` | Toggles plotting. Projects to 3-faces in higher dimensions. Plots only the first result if `find_all` is `true`. |
 | **`use_normaliz`** | Boolean | `false` | Uses Normaliz for interior lattice points (faster, but potentially unstable). |
-| **`return_triangulations`** | String | `false` | Controls whether to return all, the first, or none of the found triangulations. |
+| **`return_triangulations`** | String | `"first"` | Controls whether to return all, the first, or none of the found triangulations. |
 
 ### Output & Return Configurations
 
@@ -68,7 +68,7 @@ A string dictating what triangulations the function should return at the end of 
 * `"first"`: Returns only the first found triangulation.
 * `""` *(Empty string)*: Does not return any triangulations.
 
-The results are returned as a RunResult struct which countains many TriangulationsResult structs, as follows:
+The results are returned as a RunResult struct which countains many TriangulationResult structs, as follows:
 ```
 mutable struct TriangulationResult
     solution_simplices::Vector{Vector{Matrix{Int}}}
