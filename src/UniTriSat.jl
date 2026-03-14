@@ -216,6 +216,10 @@ function process_polytope(  initial_vertices::Matrix{Int},
             end
         end
     end
+
+    if show_running_updates
+        ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices... solving...")
+    end
     
     solution_simplices, 
     first_solution_simplices, 
