@@ -122,11 +122,7 @@ weakdeps = ["StaticArrays"]
 [[deps.GMP_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "781609d7-10c4-51f6-84f2-b8444358ff6d"
-<<<<<<< HEAD
-version = "6.3.0+2"
-=======
 version = "6.2.1+6"
->>>>>>> 5c26e82d7eb35bda630868b9c1ded07f84fa1849
 
 [[deps.GenericLinearAlgebra]]
 deps = ["LinearAlgebra", "Printf", "Random", "libblastrampoline_jll"]
