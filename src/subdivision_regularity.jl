@@ -1,4 +1,4 @@
-module SubdivisionRegularity
+
 export is_regular
 
 using Combinatorics

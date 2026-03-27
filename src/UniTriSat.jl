@@ -1,4 +1,4 @@
-module UniTriSat
+
 
 export triangulate
 

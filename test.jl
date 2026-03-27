@@ -11,11 +11,6 @@ using .Helpers
 include("src/subdivision_regularity.jl")
 using .SubdivisionRegularity
 
-if !isdir("Polytopes/small-lattice-polytopes")
-    using Git
-    run(`$(git()) clone https://github.com/gabrieleballetti/small-lattice-polytopes Polytopes/small-lattice-polytopes`)
-end
-
 # mutable struct TriangulationResult
 #     solution_simplices::Vector{Vector{Matrix{Int}}}
 #     number_of_triangulations_found::Int
