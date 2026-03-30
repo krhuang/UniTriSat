@@ -1,4 +1,4 @@
-Finding unimodular triangulations and regular unimodular triangulations of lattice polytopes, via conversion to a SAT equation. `UniTriSat` can handle larger examples than were previously possible--it finds a unimodular triangulation of a 3-polytope with 50 lattice points in about 2 seconds. 
+Finding unimodular triangulations and regular unimodular triangulations of lattice polytopes, via conversion to a SAT equation. `UniTriSat` can handle larger examples than were previously possible--it finds a unimodular triangulation of a 3-polytope with 50 lattice points in about 30 seconds. 
 
 **UniTriSat is still under active development. An upcoming future version will be substantially faster, especially for finding regular unimodular triangulations. If it fails for a particularly large example of yours, please email us at krhuang5@gmail.com**
 
@@ -49,7 +49,7 @@ The triangulate function takes the following arguments:
 | **`regular`** | Boolean | `false` | Restricts the output to regular triangulations. |
 | **`find_all`** | Boolean | `false` | Toggles whether to find all valid triangulations. |
 | **`log_file`** | String | `""` | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
-| **`terminal_output`** | String | `"final"` | Controlls orinting to the terminal. See below for details. |
+| **`terminal_output`** | String | `"final"` | Controls printing to the terminal. See below for details. |
 | **`plot`** | Boolean | `false` | Toggles plotting. Projects to 3-faces in higher dimensions. Plots only the first result if `find_all` is `true`. |
 | **`use_normaliz`** | Boolean | `false` | Uses Normaliz for interior lattice points (faster, but potentially unstable). |
 | **`return_triangulations`** | String | `"first"` | Controls whether to return all, the first, or none of the found triangulations. See below for details. |
