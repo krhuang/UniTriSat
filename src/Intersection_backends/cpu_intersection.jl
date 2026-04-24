@@ -381,6 +381,39 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
     return true
 end
 
+# This function imitates simplices_intersect_sat_cpu except allows for non-Simplex struct input. 
+# It first computes that data and then calls the optimized SAT solver.
+function simplices_intersect_sat_cpu_alt_input(s1::Matrix{Int}, s2::Matrix{Int})
+    # 1. Determine dimension D and number of vertices V
+    # Rows are typically vertices, columns are coordinates
+    v1, d1 = size(s1)
+    v2, d2 = size(s2)
+
+    @assert d1 == d2 "Simplices must exist in the same dimensional space"
+    @assert v1 == d1 + 1 && v2 == d2 + 1 "Inputs must be simplices (D+1 vertices for D dimensions)"
+
+    D = d1
+    V = D + 1
+
+    # 2. Convert raw matrices to SVector of SVectors
+    # We use a helper to wrap the conversion logic
+    function to_static_verts(mat, ::Val{_D}, ::Val{_V}) where {_D, _V}
+        return SVector{_V, SVector{_D, Int64}}(
+            SVector{_D, Int64}(mat[i, :]) for i in 1:_V
+        )
+    end
+
+    sv1 = to_static_verts(s1, Val(D), Val(V))
+    sv2 = to_static_verts(s2, Val(D), Val(V))
+
+    # 3. Compute the auxiliary data (normals, edge spans) required for SAT
+    simplex1 = compute_simplex_data(sv1)
+    simplex2 = compute_simplex_data(sv2)
+
+    # 4. Dispatch to the optimized SAT intersection function
+    return simplices_intersect_sat_cpu(simplex1, simplex2)
+end
+
 # Compute facet normals and edge vectors for a single simplex
 function compute_simplex_data(verts::SVector{V, SVector{D, Int64}}) where {V, D}
     num_verts = D + 1

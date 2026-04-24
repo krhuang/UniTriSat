@@ -35,6 +35,7 @@ mutable struct Config
     incremental_solving::Bool
     check_full_dimensionality::Bool
     enable_parallel::Bool
+    known_simplices::Vector{Matrix{Int}}
 end
 
 mutable struct TriangulationResult

@@ -240,17 +240,25 @@ function next_combination!(inds::Vector{Int}, n::Int)
     return false  # no next combination
 end
 
-function all_simplices(lattice_points::Matrix{Int}; unimodular::Bool=true)
+# Extracts all the indices of the simplices given by lattice points of our input matrix
+# By default, it only outputs the unimodular ones
+# Can be configured to ignore ones intersecting one of the known_simplices
+function all_simplices(lattice_points::Matrix{Int}; unimodular::Bool=true, known_simplices::Vector{Matrix{Int}}=Matrix{Int}[])
     n, d = size(lattice_points)
-    simplex_indices = NTuple{d+1,Int}[]
+    simplex_indices = NTuple{d+1, Int}[]
     if n < d + 1
         return simplex_indices
     end
 
-    inds = collect(1:(d+1))             # initial combination
+    # Pre-sort known simplices by vertex rows to make equality checks reliable
+    # (Optional, but ensures mat1 == mat2 works regardless of row order)
+    sorted_known = [sortslices(ks, dims=1) for ks in known_simplices]
+
+    inds = collect(1:(d+1)) 
     diffs = Matrix{Int}(undef, d, d)
 
     while true
+        # 1. Determinant / Unimodularity check
         idx_1 = inds[1]
         for j in 1:d
             idx_j = inds[j+1]
@@ -258,10 +266,37 @@ function all_simplices(lattice_points::Matrix{Int}; unimodular::Bool=true)
                 diffs[j, i] = lattice_points[idx_j, i] - lattice_points[idx_1, i]
             end
         end
-        det_val = LinearAlgebra.det_bareiss(diffs) # use exact integer determinant
+        
+        det_val = det_bareiss(diffs) 
+        
         if det_val != 0 && (!unimodular || abs(det_val) == 1)
-            push!(simplex_indices, Tuple(inds))
+            current_simplex = lattice_points[inds, :]
+            # Sort rows of current candidate for a robust equality check
+            current_sorted = sortslices(current_simplex, dims=1)
+            
+            intersects_known_flag = false
+            is_identical = false
+
+            for i in eachindex(sorted_known)
+                # FIRST: Check for exact equality
+                if current_sorted == sorted_known[i]
+                    is_identical = true
+                    break # It's a match, no need to check intersections
+                end
+
+                # SECOND: If not identical, check for intersection
+                if simplices_intersect_sat_cpu_aux(known_simplices[i], current_simplex)
+                    intersects_known_flag = true
+                    break
+                end 
+            end 
+            
+            # Logic: Add to list if it's identical OR if it doesn't intersect anything
+            if is_identical || !intersects_known_flag
+                push!(simplex_indices, Tuple(inds))
+            end
         end
+        
         next_combination!(inds, n) || break
     end
     return simplex_indices
@@ -417,6 +452,7 @@ end
 # Computes all lattice points via Normaliz or CDDLib
 function compute_lattice_points(initial_vertices::Matrix{Int}, config::Config)
     if Normaliz_available[] && config.use_normaliz
+        # We generally don't really use this
         return lattice_points_via_Normaliz(initial_vertices)
     else
         return lattice_points_via_CDDLib(initial_vertices)
@@ -425,7 +461,7 @@ end
 
 # Generates all possible simplices
 function compute_simplices(P::Matrix{Int}, config::Config)
-    return all_simplices(P, unimodular=config.unimodular)
+    return all_simplices(P, unimodular=config.unimodular, known_simplices=config.known_simplices)
 end
 
 # Generates internal faces

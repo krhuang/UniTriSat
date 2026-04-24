@@ -527,7 +527,8 @@ function triangulate(   vmatrix::Matrix{Int};
                         solver::String="picosat",
                         incremental_solving::Bool=false,
                         check_full_dimensionality::Bool=false,
-                        parallel_solving::Bool=true)
+                        parallel_solving::Bool=true,
+                        known_simplices::Vector{Matrix{Int}}=[])
 
      return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, parallel_solving)
 end
@@ -546,7 +547,8 @@ function triangulate(   vmatrices::Vector{Matrix{Int}};
                         solver::String="picosat",
                         incremental_solving::Bool=false,
                         check_full_dimensionality::Bool=false,
-                        parallel_solving::Bool=true)
+                        parallel_solving::Bool=true,
+                        known_simplices::Vector{Matrix{Int}}=[])
 
     return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, parallel_solving)
 end
@@ -565,7 +567,8 @@ function triangulate(   polytope::Polyhedron;
                         solver::String="picosat",
                         incremental_solving::Bool=false,
                         check_full_dimensionality::Bool=false,
-                        parallel_solving::Bool=true)
+                        parallel_solving::Bool=true,
+                        known_simplices::Vector{Matrix{Int}}=[])
 
     vmatrix = _convert_polyhedron_to_vmatrix(polytope)
     if isempty(vmatrix)
@@ -589,7 +592,8 @@ function triangulate(   polytopes::Vector{Polyhedron};
                         solver::String="picosat",
                         incremental_solving::Bool=false,
                         check_full_dimensionality::Bool=false,
-                        parallel_solving::Bool=true)
+                        parallel_solving::Bool=true,
+                        known_simplices::Vector{Matrix{Int}}=[])
 
     vmatrices = Matrix{Int}[]
     for p in polytopes
@@ -622,7 +626,8 @@ function triangulate(   path_to_polytopes::String;
                         solver::String="picosat",
                         incremental_solving::Bool=false,
                         check_full_dimensionality::Bool=false,
-                        parallel_solving::Bool=true)
+                        parallel_solving::Bool=true,
+                        known_simplices::Vector{Matrix{Int}}=[])
 
     local polytopes
     try
