@@ -1,3 +1,4 @@
+module SubdivisionRegularity
 
 export is_regular
 
