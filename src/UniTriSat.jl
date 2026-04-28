@@ -201,9 +201,9 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose("      Using solver: $active_solver")
 
     timed_solve_result = @timed begin
-        if active_solver == "d4"
-            find_all_d4(cnf, P, S_indices, config, show_running_updates)
-        elseif config.enable_parallel
+        #if active_solver == "d4" # We got rid of d4 as a solver
+        #    find_all_d4(cnf, P, S_indices, config, show_running_updates)
+        if config.enable_parallel
             log_verbose("      Parallel solving enabled with $(nthreads()) threads.")
             log_verbose("      Solver is $(active_solver)")
             solve_parallel(cnf, P, S_indices, config, show_running_updates)
@@ -515,6 +515,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         solver="picosat"
     end
 
+    #= We got rid of d4 because we don't need it
     if solver == "d4" && !Sys.islinux()
         @warn("d4 is only available on Linux. Falling back to PicoSat")
         solver="picosat"
@@ -528,7 +529,12 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         @warn("The d4 solver only supports finding all triangulations, but the find_all flag is not set. Falling back to PicoSat.")
         solver = "picosat"
     end
-
+    
+    if solver == "picosat" && incremental_solving
+    	@warn("Incremental solving is only supported by CaDiCaL, not PicoSat or d4. We keep incremental solving true. The solver will be passed the simplified formula, but no further clauses will be added.")
+	end
+    =#
+    
     if use_normaliz && !Normaliz_available[]
         @warn(
             """

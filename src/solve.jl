@@ -12,9 +12,10 @@ using PicoSAT
 include("CadicalWrapper.jl")
 using .CadicalWrapper
 
+#= No longer using d4
 include("d4Wrapper.jl")
 using .D4AllSat
-
+=# 
 include("subdivision_regularity.jl")
 using .SubdivisionRegularity
 
@@ -23,7 +24,7 @@ using ..Helpers
 using ..BasicComputations
 using Base.Threads
 
-export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_parallel, find_all_d4
+export solve_picosat, solve_cadical_incremental, solve_cadical_standard #, solve_parallel, find_all_d4 # No longer using d4
 
 function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool, stop_signal::Threads.Atomic{Bool})
     solution_simplices = Vector{Vector{Matrix{Int}}}()
@@ -445,6 +446,7 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
 
 end
 
+#= No longer using d4
 function find_all_d4(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config, show_running_updates::Bool)
     num_threads = Threads.nthreads()
 
@@ -500,5 +502,5 @@ function find_all_d4(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config
     
     return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
 end
-
+=#
 end
