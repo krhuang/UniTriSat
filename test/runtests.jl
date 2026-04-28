@@ -1,6 +1,7 @@
 
 using UniTriSat
 using Test
+using Pkg
 
 include("../src/subdivision_regularity.jl")
 using .SubdivisionRegularity
@@ -30,10 +31,9 @@ end
 #     total_time::Float
 # end
 
-# 1. Use pkgdir to fix the pathing issue once
+# Constant directory where the polytopes are stored. We append to this later 
 const DATA_DIR = joinpath(pkgdir(UniTriSat), "Polytopes", "small-lattice-polytopes", "data")
 
-# 2. Wrap everything in a testset for nice output
 @testset "UniTriSat Full Suite" begin
 
     @testset "Polytopes Tests" begin
