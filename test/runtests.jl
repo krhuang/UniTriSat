@@ -1,5 +1,6 @@
 
 using UniTriSat
+using Test
 
 include("../src/subdivision_regularity.jl")
 using .SubdivisionRegularity
@@ -29,81 +30,52 @@ end
 #     total_time::Float
 # end
 
-struct TestResult 
-    name::String
-    pass::Bool
-    reason::String
-    time::String
-end
+# 1. Use pkgdir to fix the pathing issue once
+const DATA_DIR = joinpath(pkgdir(UniTriSat), "Polytopes", "small-lattice-polytopes", "data")
 
-struct Test
-    id::Int
-    dim::Int
-    vol::Int
-    exp::Int
-    exp_reg::Int
-end
+# 2. Wrap everything in a testset for nice output
+@testset "UniTriSat Full Suite" begin
 
-function run_test(test::Test)
-    path = "Polytopes/small-lattice-polytopes/data/$(test.dim)-polytopes/v$(test.vol).txt"
-    result  = triangulate(
-                            path,
-                            terminal_output="",
-                            intersection_backend="cpu",
-                            return_triangulations="",
-                            regular=true,
-                            solver="picosat",
-                            incremental_solving=false,
-                            enable_parallel=false)
-    num_triangulatable = result.number_triangulatable
-    num_reg_triangulatable = result.number_regularly_triangulatable
-    if  num_triangulatable == test.exp && num_reg_triangulatable == test.exp_reg
-        reason = ""
-    else
-        reason = ""
-        reason *= "Expected $(test.exp) triangulatable, got $num_triangulatable."
-        reason *= " Expected $(test.exp_reg) regularly triangulatable, got $num_reg_triangulatable."
-        @error("Test $(test.id) failed: $reason")
-    end
-end
-test_data = [   (3, 8, 125, 125),
-                (3, 16, 3288, 3288),
-                (3, 17, 3784, 3783),
-                (3, 19, 7771, 7769),
-                (4, 13, 1760, 1760),
-                (5, 11, 869, 869),
-                (6, 9, 392, 392)]
+    @testset "Polytopes Tests" begin
+        test_data = [
+            (3, 8, 125, 125),
+            (3, 16, 3288, 3288),
+            (3, 17, 3784, 3783),
+            (3, 19, 7771, 7769),
+            (4, 13, 1760, 1760),
+            (5, 11, 869, 869),
+            (6, 9, 392, 392)
+        ]
 
-for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)
-    test = Test(i, dim, vol, exp, exp_reg)
-    res = run_test(test)
-end
+        for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)
+            # Anchor path to package root
+            path = joinpath(DATA_DIR, "$dim-polytopes", "v$vol.txt")
+            
+            result = triangulate(path;
+                        terminal_output="",
+                        intersection_backend="cpu",
+                        return_triangulations="",
+                        regular=true,
+                        solver="picosat",
+                        enable_parallel=false)
 
-if true
-
-    # Define triangulation directly as a vector of matrices of integer coordinates
-    triangulation_nonreg = [
-        [0 0; 0 1; 1 1],
-        [0 0; 1 1; 2 1],
-        [0 0; 1 0; 2 1],
-        [1 0; 2 0; 2 1],
-        [2 0; 3 0; 2 1],
-        [3 0; 4 0; 2 1],
-        [4 0; 2 1; 1 2],
-        [4 0; 3 1; 1 2],
-        [0 1; 1 1; 0 2],
-        [1 1; 0 2; 1 3],
-        [1 1; 1 3; 0 4],
-        [1 1; 1 2; 0 4],
-        [1 1; 2 1; 1 2],
-        [3 1; 1 2; 2 2],
-        [1 2; 2 2; 1 3],
-        [1 2; 1 3; 0 4]
-    ]
-
-    elapsed_time = @elapsed begin
-        if is_regular(triangulation_nonreg)
-            @error("Falsely found that the Mother of all Examples is regular")
+            # The @test macro tracks and reports the success
+            @test result.number_triangulatable == exp
+            @test result.number_regularly_triangulatable == exp_reg
         end
+    end
+
+    @testset "Regularity Check" begin
+        triangulation_nonreg = [
+            [0 0; 0 1; 1 1], [0 0; 1 1; 2 1], [0 0; 1 0; 2 1],
+            [1 0; 2 0; 2 1], [2 0; 3 0; 2 1], [3 0; 4 0; 2 1],
+            [4 0; 2 1; 1 2], [4 0; 3 1; 1 2], [0 1; 1 1; 0 2],
+            [1 1; 0 2; 1 3], [1 1; 1 3; 0 4], [1 1; 1 2; 0 4],
+            [1 1; 2 1; 1 2], [3 1; 1 2; 2 2], [1 2; 2 2; 1 3],
+            [1 2; 1 3; 0 4]
+        ]
+        
+        # Test that it is NOT regular
+        @test is_regular(triangulation_nonreg) == false
     end
 end
