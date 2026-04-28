@@ -4,10 +4,12 @@ using UniTriSat
 include("../src/subdivision_regularity.jl")
 using .SubdivisionRegularity
 
+#= We now include this directly in the GH repository, with permission from Gabriele Balletti
 if !isdir("Polytopes/small-lattice-polytopes")
     using Git
     run(`$(git()) clone https://github.com/gabrieleballetti/small-lattice-polytopes Polytopes/small-lattice-polytopes`)
 end
+=#
 
 # mutable struct TriangulationResult
 #     solution_simplices::Vector{Vector{Matrix{Int}}}
