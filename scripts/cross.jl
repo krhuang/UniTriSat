@@ -6,7 +6,7 @@ using Printf
 using UniTriSat
 using Polyhedra
 
-include("src/helpers.jl")
+include("../src/helpers.jl")
 using .Helpers
 
 

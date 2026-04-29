@@ -6,7 +6,7 @@ using Printf
 using UniTriSat
 using Polyhedra
 
-include("src/helpers.jl")
+include("../src/helpers.jl")
 using .Helpers
 
 
@@ -17,7 +17,7 @@ println("-")
 println(styled"{bold, blue:OhsugiHibiExample 1}")
 println("-")
 triangulate(
-    "Polytopes/OhsugiHibiExample1",
+    "../Polytopes/OhsugiHibiExample1",
     terminal_output=terminal_output,
     regular=true,
     solver="cadical"

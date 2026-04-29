@@ -6,7 +6,7 @@ using Printf
 using UniTriSat
 using Polyhedra
 
-include("src/helpers.jl")
+include("../src/helpers.jl")
 using .Helpers
 
 
@@ -17,7 +17,7 @@ println("-")
 println(styled"{bold, blue:Fano Matroid}")
 println("-")
 triangulate(
-    "Polytopes/fano_matroid_base_polytope",
+    "../Polytopes/fano_matroid_base_polytope",
     terminal_output=terminal_output,
     regular=true,
     solver="cadical",

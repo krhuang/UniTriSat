@@ -6,8 +6,8 @@ using UniTriSat
 using Polyhedra
 using ArgParse
 
-if isfile("src/helpers.jl")
-    include("src/helpers.jl")
+if isfile("../src/helpers.jl")
+    include("../src/helpers.jl")
     using .Helpers
 end
 

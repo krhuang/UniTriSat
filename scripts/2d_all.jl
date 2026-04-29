@@ -8,8 +8,8 @@ using ArgParse
 
 # Import von Helpers, um den Stil von test.jl beizubehalten
 # (Geht davon aus, dass die Ordnerstruktur identisch ist)
-if isfile("src/helpers.jl")
-    include("src/helpers.jl")
+if isfile("../src/helpers.jl")
+    include("../src/helpers.jl")
     using .Helpers
 end
 

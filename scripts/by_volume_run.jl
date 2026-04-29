@@ -7,7 +7,7 @@ using Printf
 using UniTriSat
 
 using ArgParse
-include("src/helpers.jl")
+include("../src/helpers.jl")
 using .Helpers
 
 vols = vcat(["$i" for i in 1:33], ["34a", "34b", "35a", "35b", "36a", "36b", "36c"])
@@ -61,7 +61,7 @@ println("-")
 println(styled"{bold, blue:Test Dimension $(d), Volume $(n)}")
 println("-")
 triangulate(
-    "Polytopes/small-lattice-polytopes/data/$(d)-polytopes/v$(n).txt",
+    "../Polytopes/small-lattice-polytopes/data/$(d)-polytopes/v$(n).txt",
     terminal_output=terminal_output,
     regular=regular,
     use_normaliz=false,

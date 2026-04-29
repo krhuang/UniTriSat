@@ -1,4 +1,4 @@
-# 1. Matrix Construction (Unchanged)
+# 1. Matrix Construction
 function generate_matrix(s::Vector{Int})
     d = length(s)
     M = zeros(Int, d + 1, d)

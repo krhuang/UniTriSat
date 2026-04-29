@@ -6,7 +6,7 @@ using Printf
 using UniTriSat
 using Polyhedra
 
-include("src/helpers.jl")
+include("../src/helpers.jl")
 using .Helpers
 
 d = parse(Int, ARGS[1])
@@ -26,7 +26,7 @@ println("-")
 println(styled"{bold, blue: Hall Simplices Dimension $(d), sum <= $(file_names_suffixes[d-2])}")
 println("-")
 triangulate(
-    "Polytopes/Hall/$(file_name)",
+    "../Polytopes/Hall/$(file_name)",
     terminal_output=terminal_output,
     log_file="logs/Hall_$(d)Dim",
     intersection_backend=backend,
