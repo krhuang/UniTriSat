@@ -1,11 +1,16 @@
-Finding unimodular triangulations and regular unimodular triangulations of lattice polytopes, via conversion to a SAT equation. `UniTriSat` can handle larger examples than were previously possible--it finds a unimodular triangulation of a 3-polytope with 50 lattice points in about 30 seconds. 
+UniTriSat: Unimodular Triangulations via SATISFIABILITY
+=================
 
-**UniTriSat is still under active development. An upcoming future version will be substantially faster, especially for finding regular unimodular triangulations. If it fails for a particularly large example of yours, please email us at krhuang5@gmail.com**
+A novel algorithm for finding (regular) unimodular triangulations of lattice polytopes, via conversion to a SAT equation. `UniTriSat` can handle larger examples than were previously possible with [TOPCOM](https://www.wm.uni-bayreuth.de/de/team/rambau_joerg/TOPCOM/index.html) or [mptopcom](https://polymake.org/doku.php/mptopcom)--it finds a unimodular triangulation of a 3-polytope with 50 lattice points in about 30 seconds. 
+
+This is project of [Kyle Huang](https://krhuang.github.io/), [Robert Lauff](https://page.math.tu-berlin.de/~lauff/), and Charles Zhang. 
+
+**UniTriSat is still under active development. If it fails for a particular example of yours, please email us at krhuang5@gmail.com**
 
 Quick Start Guide
 =================
 
-**1)** Install Julia (e.g. via juliaup)
+**1)** Install Julia (e.g. via [juliaup](https://github.com/JuliaLang/juliaup))
 
 **2)** Add the package via Julia's package manager: 
 
@@ -30,8 +35,13 @@ Once this is done, you can run the code via the `triangulate` entry point functi
 ```
 using UniTriSat
 
-triangulate(
-    "Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt")
+triangulate("Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt")
+```
+
+You can also use Julia's package manager to run the test suite:
+
+```
+Pkg.test("UniTriSat")
 ```
 
 See the function `triangulate` in `src/UniTriSat.jl` to see what options the function takes.
@@ -96,7 +106,7 @@ end
 Tests
 =============
 
-You can run a tests set by doing `julia test.jl`.
+After cloning the repository, you can run the test suite by doing `julia -t auto test.jl`. It takes about 15 minutes on a laptop. 
 
 We are in need of polytopes which have a unimodular, but no regular unimodular triangulation for our unit testing. If you know of any, other than the "mother of all examples" please write us. 
 
