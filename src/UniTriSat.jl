@@ -66,11 +66,10 @@ function process_polytope(  initial_vertices::Matrix{Int},
     # When it's not, we compute its Hermite Normal Form and find a lattice-equivalent polytope 
     # in a lower ambient dimension.
 
-    # If the flag is active and there's a dimension mismatch
+    
     v = vrep(initial_vertices)
     poly = polyhedron(v, CDDLib.Library(:exact))
-    # Computing a lattice-preserving projection
-    if config.check_full_dimensionality && Polyhedra.dim(poly) < dim 
+    if config.check_full_dimensionality && Polyhedra.dim(poly) < dim # If the flag is active and there's a dimension mismatch
         #display(initial_vertices)
         log_verbose("Finding an appropriate projection to remove excess ambient dimensions")
         # We use Hermite Normal Form to compute a lattice-equivalent polytope in a lower-dimensional space

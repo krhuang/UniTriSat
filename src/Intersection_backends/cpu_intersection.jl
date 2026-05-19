@@ -245,7 +245,6 @@ function _generalized_cross_product(vectors::MVector{N, SVector{D, Int64}}) wher
     return normal
 end
 
-# --- NEW FUNCTION START ---
 # Exposes the generalized cross product to the outside world for hyperplane computation
 function compute_face_normal(face_verts::Vector{Vector{Int}}, ::Val{D}) where D
     # The generalized cross product takes d-1 vectors (edges of the face)
@@ -259,7 +258,6 @@ function compute_face_normal(face_verts::Vector{Vector{Int}}, ::Val{D}) where D
     )
     return _generalized_cross_product(span)
 end
-# --- NEW FUNCTION END ---
 
 struct Simplex{V, D}
     verts::SVector{V, SVector{D, Int64}}         # (num_verts) x d

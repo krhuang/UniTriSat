@@ -130,7 +130,7 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
     num_hyperplanes = length(all_halfspaces)
 
     if num_hyperplanes == 0
-        @warn "Polytop hat keine Hyperebenen-Repräsentation."
+        @warn "Polytope has no H-representation"
         return lattice_points_via_CDDLib(vertices)
     end
 
@@ -459,7 +459,8 @@ end
 function compute_intersections_incremental(P::Matrix{Int}, S_indices, internal_faces_set, dim::Int, num_lattice_points::Int)
     local_clauses = Vector{Vector{Int}}()
 
-    # 4a. Find Generic Point
+    # 4a. Find & Assign a generic point
+    # TODO: Could there be a "smart" choice of this generic point??
     generic_point = find_generic_point(P, internal_faces_set, Val(dim))
     
     # 4b. Identify Central Simplices & Compute Full Intersections for them
@@ -467,7 +468,7 @@ function compute_intersections_incremental(P::Matrix{Int}, S_indices, internal_f
 
     if !isempty(central_indices_map)
         central_S_indices = S_indices[central_indices_map]
-        # all simplices containing the generic point intersect with each other
+        # All simplices containing the generic point intersect with each other
         central_clauses = [[-i, -j] for i in 1:length(central_S_indices) for j in (i+1):length(central_S_indices)]
         for c in central_clauses
             mapped_clause = [x < 0 ? -central_indices_map[abs(x)] : central_indices_map[abs(x)] for x in c]
