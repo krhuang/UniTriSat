@@ -24,7 +24,7 @@ using ..Helpers
 using ..BasicComputations
 using Base.Threads
 
-export solve_picosat, solve_cadical_incremental, solve_cadical_standard #, solve_parallel, find_all_d4 # No longer using d4
+export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_parallel# , find_all_d4 # No longer using d4
 
 function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool, stop_signal::Threads.Atomic{Bool})
     solution_simplices = Vector{Vector{Matrix{Int}}}()
