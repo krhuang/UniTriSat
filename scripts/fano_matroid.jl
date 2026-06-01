@@ -17,10 +17,11 @@ println("-")
 println(styled"{bold, blue:Fano Matroid}")
 println("-")
 triangulate(
-    "../Polytopes/fano_matroid_base_polytope",
+    "Polytopes/fano_matroid_base_polytope",
     terminal_output=terminal_output,
-    regular=true,
-    solver="cadical",
-    check_full_dimensionality=true
+    regular=false,
+    log_file="logs/fano_matroid_run",
+    solver="cadical"#,
+    #check_full_dimensionality=true
     )
 

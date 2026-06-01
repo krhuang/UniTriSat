@@ -653,13 +653,19 @@ function triangulate(   path_to_polytopes::String;
                         enable_parallel::Bool=true)
 
     local polytopes
+    full_path = abspath(joinpath(@__DIR__, "..", path_to_polytopes))
+
     try
-        # Fixes the input path to read from within the package
-        full_path = joinpath(pkgdir(@__MODULE__), path_to_polytopes)
-        polytopes = read_polytopes_from_file(full_path) # Tries to read the polytopes from the file
-        if isempty(polytopes); @error("Error: No polytopes loaded from '$full_path'."); return Vector{Vector{Matrix{Int}}}[]; end
-        catch e
-        @error("Error loading polytopes from '$full_path': '$e'") # Error throwing in case no polytopes are read
+        # Try to read the polytopes using the now-accessible path
+        polytopes = read_polytopes_from_file(full_path) 
+        
+        if isempty(polytopes)
+            @error("Error: No polytopes loaded from '$full_path'.")
+            return Vector{Vector{Matrix{Int}}}[]
+        end
+        
+    catch e
+        @error("Error loading polytopes from '$full_path': '$e'") 
         return Vector{Vector{Matrix{Int}}}[]
     end
     return setup_run(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
