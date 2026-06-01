@@ -53,31 +53,48 @@ export all_simplices,
     compute_intersections_standard,
     compute_face_clauses,
     find_generic_point,
-    compute_central_indices
+    compute_central_indices,
+    full_dimensional_lattice_projection
+
 
 const CDD_LIB_EXACT = CDDLib.Library(:exact)
 
 
-# Given vertices of a lattice polytope, this computes a lattice-preserving projection.
-# Here lattice-preserving means it is a lattice-bijection from the lattice points of the affine hull
-# The resulting points are the vertices of a full-dimensional lattice polytope
-function full_dimensional_lattice_projection(vertices::Matrix{Int})
-    # Shifted so that the origin is a vertex
-    shifted_vertices = [vertices[i,j] - vertices[1, j] for i in 1:size(vertices,1), j in 1:size(vertices,2)]
-    # Convert to a ZZ-matrix, so that we can access AbstractAlgebra's hnf function
-    shifted_vertices = matrix(ZZ, shifted_vertices)
-    # Compute the HNF of the transpose
-    hermite_normal_form = hnf(transpose(shifted_vertices))
-    # Record the indices which are non-zero
-    non_zero_row_indices = [row_index for row_index in 1:nrows(hermite_normal_form) if !is_zero(hermite_normal_form[row_index,:])]
-    # Remove excess all-zero rows and convert to Int64
-    new_vertices_transposed = [Int64(hermite_normal_form[i,j]) for i in non_zero_row_indices, j in 1:size(hermite_normal_form,2)]
-
-    # Transpose it back. Due to Julia's standards for transposing we have to take a "copy" here. 
-    new_vertices = copy(transpose(new_vertices_transposed))
-
-    return new_vertices
+# ====================================================================
+# HELPER: Full Dimensional Lattice Projection via HNF
+# ====================================================================
+function full_dimensional_lattice_projection(initial_vertices::Matrix{Int64})
+    # Shift to the origin using the first vertex as an anchor
+    v0 = initial_vertices[1, :] # Assuming vertices are rows (N x dim)
+    shifted_vertices = initial_vertices .- transpose(v0)
+    
+    # Convert to AbstractAlgebra/Nemo integer matrix
+    # We want to eliminate dependent ambient dimensions (columns).
+    # HNF clears rows, so we transpose: rows become ambient dimensions.
+    M = matrix(ZZ, Matrix(transpose(shifted_vertices)))
+    
+    H = hnf(M) # We don't even need the transform matrix U for just coordinates!
+    
+    # Identify non-zero coordinate rows in the HNF matrix
+    # The zero-rows at the bottom represent the redundant ambient dimensions.
+    nz_row_indices = Int64[]
+    for r in 1:nrows(H)
+        if !is_zero(H[r, :])
+            push!(nz_row_indices, r)
+        end
+    end
+    
+    # Extract the valid lower-dimensional lattice coordinates
+    # H[nz_row_indices, :] gives us a (new_dim x N) matrix.
+    H_clean = [Int64(H[r, c]) for r in nz_row_indices, c in 1:ncols(H)]
+    
+    # Shift back if needed, and transpose back to (N x new_dim)
+    # We must explicitly convert out of the lazy transpose wrapper for CDDLib safety
+    projected_vertices = Matrix(transpose(H_clean))
+    
+    return projected_vertices
 end
+
 
 # Computes the lattice points of a lattice polytope, via CDDLib backend of Polyhedra
 # By default CDDLib uses Floats, but you can configure this
