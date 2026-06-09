@@ -124,4 +124,118 @@ function is_regular(triangulation::Vector{Matrix{Int}})
 
     return !isempty(poly)
 end
+
+# Recursive implementation of the Bron-Kerbosch algorithm with pivoting.
+# This algorithm finds all maximal cliques in an undirected graph.
+# 
+# Arguments:
+#   R: The current clique being grown.
+#   P: The set of prospective vertices that can be added to the clique.
+#   X: The set of vertices already processed (used to prevent duplicate cliques).
+#   graph: The adjacency list representation of the 1-skeleton.
+#   cliques: The collection where discovered maximal cliques are stored.
+function bron_kerbosch!(R::Vector{Int}, P::Set{Int}, X::Set{Int}, graph::Dict{Int, Set{Int}}, cliques::Vector{Vector{Int}})
+    # Base case: If there are no more candidates to consider and no excluded 
+    # vertices that could form a larger clique, R is a maximal clique.
+    if isempty(P) && isempty(X)
+        push!(cliques, copy(R))
+        return
+    end
+    
+    # Choose a pivot vertex to minimize the number of recursive branches.
+    # The pivot is chosen from P or X. We then only need to test vertices in P 
+    # that are NOT neighbors of the pivot.
+    pivot = isempty(P) ? first(X) : first(P)
+    P_without_N_pivot = collect(setdiff(P, get(graph, pivot, Set{Int}())))
+    
+    for v in P_without_N_pivot
+        N_v = get(graph, v, Set{Int}())
+        
+        push!(R, v)
+        # Recursively search with the intersection of candidates/excluded sets 
+        # and the neighbors of the current vertex v.
+        bron_kerbosch!(R, intersect(P, N_v), intersect(X, N_v), graph, cliques)
+        pop!(R)
+        
+        # Move v from prospective to excluded to prevent finding the same clique again.
+        delete!(P, v)
+        push!(X, v)
+    end
+end
+
+# Checks if a pure simplicial complex (like a subdivision of a polytope) 
+# is a flag complex. A complex is flag if its minimal non-faces are exclusively edges.
+
+# Checking if a complex is flag is essentially a consequence of its 1-skeleton.
+function is_flag_triangulation(triangulation::Vector{Matrix{Int}})
+    if isempty(triangulation)
+        error("Flag-checking function was given an empty triangulation?")
+    end
+
+    # standardize_input is expected to return the mapped points and the list 
+    # of simplices represented by their vertex indices.
+    pts_int, simplices_idx = standardize_input(triangulation)
+    
+    # Since the input is a pure subdivision, all provided simplices are guaranteed 
+    # to be maximal. We store them in a Set for rapid O(1) membership checking later.
+    maximal_simplices = Set{Vector{Int}}(simplices_idx)
+    
+    # In a pure complex, every maximal simplex has the same number of vertices (d + 1).
+    # We read this target size from the first simplex.
+    target_clique_size = length(first(simplices_idx)) 
+
+    # Construct the 1-skeleton (adjacency graph) of the triangulation.
+    # Vertices are connected by an edge if they appear together in any maximal simplex.
+    graph = Dict{Int, Set{Int}}()
+    vertices = Set{Int}()
+    
+    for s in simplices_idx
+        # Safety check: Ensure the complex is genuinely pure.
+        if length(s) != target_clique_size
+            error("Triangulation is not pure: found simplices of varying sizes.")
+        end
+        
+        for i in 1:length(s)
+            push!(vertices, s[i])
+            if !haskey(graph, s[i])
+                graph[s[i]] = Set{Int}()
+            end
+            
+            # Connect the current vertex to all subsequent vertices in the simplex
+            for j in (i+1):length(s)
+                push!(graph[s[i]], s[j])
+                
+                # Ensure the graph remains undirected/symmetric
+                if !haskey(graph, s[j])
+                    graph[s[j]] = Set{Int}()
+                end
+                push!(graph[s[j]], s[i])
+            end
+        end
+    end
+
+    # Discover all maximal cliques formed by the 1-skeleton.
+    cliques = Vector{Vector{Int}}()
+    bron_kerbosch!(Int[], vertices, Set{Int}(), graph, cliques)
+
+    # Verify the flag condition: the complex is flag if and only if the clique 
+    # complex of its 1-skeleton is identical to the original simplicial complex.
+    for clique in cliques
+        # If the 1-skeleton forms a maximal clique that doesn't match the expected 
+        # dimension of the pure complex, it represents a missing or non-realizable face.
+        if length(clique) != target_clique_size
+            return false
+        end
+        
+        # Every clique found in the graph must perfectly match one of our original 
+        # maximal simplices. If it doesn't, there is a "hollow" void in the complex.
+        sort!(clique)
+        if !(clique in maximal_simplices)
+            return false 
+        end
+    end
+
+    return true
+end
+
 end
