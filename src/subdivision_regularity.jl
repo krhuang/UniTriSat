@@ -166,7 +166,7 @@ end
 # Checks if a pure simplicial complex (like a subdivision of a polytope) 
 # is a flag complex. A complex is flag if its minimal non-faces are exclusively edges.
 
-# Checking if a complex is flag is essentially a consequence of its 1-skeleton.
+# (Checking if a complex is flag is essentially a consequence of its 1-skeleton.)
 function is_flag_triangulation(triangulation::Vector{Matrix{Int}})
     if isempty(triangulation)
         error("Flag-checking function was given an empty triangulation?")
