@@ -1,6 +1,6 @@
 module SubdivisionRegularity
 
-export is_regular
+export is_regular, is_flag_triangulation
 
 using Combinatorics
 using LinearAlgebra
