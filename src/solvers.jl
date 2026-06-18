@@ -262,10 +262,13 @@ end
 
 function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
     solution_simplices = Vector{Vector{Matrix{Int}}}()
-    first_solution_simplices = Vector{Matrix{Int}}()
-    first_regular_solution_simplices = Vector{Matrix{Int}}()
+    first_solution_simplices = Vector{Matrix{Int}}() # Recording the first solution of the desired type (flag, regular)
+
     number_of_triangulations_found = 0
     number_of_regular_triangulations_found = 0
+    number_of_flag_triangulations_found = 0
+    number_of_quadratic_triangulations_found = 0
+    # number_of_non_flag_regular_triangulations_found = 0 The user can easily compute this number from the previous infos given
     num_simplices = length(S_indices)
 
     solver = CadicalWrapper.Solver()
@@ -275,11 +278,11 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
 
     while true
         if number_of_triangulations_found%1000 == 0 && show_running_updates
-            s = " ($number_of_triangulations_found triangulations found)"
+            s = " ($number_of_triangulations_found triangulations found...)"
             print(s*"\b"^(length(s)))
         end
         res = CadicalWrapper.solve_blocking(solver)
-        if res == 10 # SAT
+        if res == 10 # SATISFIABLE
             # Retrieve solution
             solution_vector = Int[]
             for i in 1:num_simplices
@@ -287,23 +290,76 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
                     push!(solution_vector, i)
                 end
             end
-            simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector]
+            simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector] # Convert solution vector into a triangulation
             
             number_of_triangulations_found += 1
-            if isempty(first_solution_simplices)
-                first_solution_simplices = simplices
-            end
 
             should_terminate = false
 
-            # TODO: the below needs some comments on it
+            # Logic gates for config settings w.r.t. regularity, flag, find_all
+
+            if !config.regular 
+                if config.flag_triangulation
+                    if is_flag_triangulation(simplices) # Check if solution is flag
+                        if isempty(first_flag_solution_simplices)
+                            first_solution_simplices = simplices 
+                        end 
+                        number_of_flag_triangulations_found += 1
+                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                            push!(solution_simplices, simplices)
+                        end
+                        if !config.find_all
+                            should_terminate = true 
+                        end
+                    end
+                else # When config.flag_triangulation == false 
+                    if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                        push!(solution_simplices, simplices)
+                    end
+                    if !config.find_all
+                        should_terminate = true
+                    end
+                end
+            else 
+                if is_regular(simplices)
+                    number_of_regular_triangulations_found += 1
+                    if config.flag_triangulation # Looking for quadratic triangulations
+                        if is_flag_triangulation(simplices)
+                            number_of_quadratic_triangulations_found += 1
+                            if isempty(first_solution_simplices)
+                                first_solution_simplices = simplices # Maybe this should be "first_quadratic_solution_simplices"
+                            end 
+
+                            number_of_quadratic_triangulations_found += 1
+                            if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                                push!(solution_simplices, simplices)
+                            end
+                            if !config.find_all 
+                                should_terminate = true 
+                            end
+                        end
+
+                    else # Only looking for regular unimodular triangulations
+                        if isempty(first_solution_simplices)
+                                first_solution_simplices = simplices
+                        end 
+                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                                push!(solution_simplices, simplices)
+                        end
+                        if !config.find_all 
+                            should_terminate = true 
+                        end
+                    end
+                end 
+            end 
+            #= Old logic without the flag condition
             if !config.regular
                 if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
                     push!(solution_simplices, simplices)
                 end
                 if !config.find_all; should_terminate = true; end
             else
-                 if is_regular(simplices)
+                if is_regular(simplices)
                     if isempty(first_regular_solution_simplices)
                         first_regular_solution_simplices = simplices
                     end
@@ -312,15 +368,13 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
                         push!(solution_simplices, simplices)
                     end
                     if !config.find_all; should_terminate = true; end
-                elseif show_running_updates
-                    s = " ($number_of_triangulations_found non-regular triangulations found)"
                 end
-            end
+            end=#
 
             if should_terminate
                 break
             else
-                CadicalWrapper.add_clause(solver, [-solution_vector...])
+                CadicalWrapper.add_clause(solver, [-solution_vector...]) # Block the clause corresponding to our found solution
             end
         else # UNSAT or Unknown
             break
@@ -328,7 +382,7 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     end
     CadicalWrapper.release(solver)
 
-    return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
+    return solution_simplices, first_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, number_of_flag_triangulations_found, number_of_quadratic_triangulations_found
 end
 
 function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)

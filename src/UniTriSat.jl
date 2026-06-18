@@ -192,9 +192,10 @@ function process_polytope(  initial_vertices::Matrix{Int},
     
     solution_simplices, 
     first_solution_simplices, 
-    first_regular_solution_simplices, 
     number_of_triangulations_found, 
-    number_of_regular_triangulations_found = timed_solve_result.value
+    number_of_regular_triangulations_found,
+    number_of_flag_triangulations_found,
+    number_of_quadratic_triangulations_found = timed_solve_result.value
 
     push!(step_stats, StepStat("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
@@ -202,45 +203,34 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose("\n$(number_of_triangulations_found) valid triangulation(s) found.")
     if config.regular
         log_verbose("\n$(number_of_regular_triangulations_found) valid regular triangulation(s) found.")
+        if config.flag_triangulation
+            log_verbose("\n$(number_of_quadratic_triangulations_found) valid quadratic triangulation(s) found.")
+        else 
+    elseif config.flag_triangulation
+        log_verbose("\n$(number_of_flag_triangulations_found) valid flag triangulation(s) found.")
     end
 
-    if !isempty(first_solution_simplices) && config.regular
-        log_verbose("\nDisplaying first valid triangulation:")
+    if !isempty(first_solution_simplices)
+        log_verbose("\nDisplaying first solution:")
         for s in first_solution_simplices
             log_verbose(s, is_display=true)
         end
     end
-    if !isempty(first_regular_solution_simplices)
-        log_verbose("\nDisplaying first valid regular triangulation:")
-        for s in first_regular_solution_simplices
-            log_verbose(s, is_display=true)
-        end
-    end
+
     if isempty(first_solution_simplices)
         log_verbose("\nNo triangulation found for this polytope.")
     end
-    if config.regular && isempty(first_regular_solution_simplices)
-        log_verbose("\nNo regular triangulation found for this polytope.")
-    end
-    if config.regular && !isempty(first_solution_simplices) && isempty(first_regular_solution_simplices)
-        log_verbose("\nHowever, a non-regular triangulation was found.")
-    end
 
     # --- Step 6: Plotting ---
+    # Invoked by setting 
+    #       plot = true
     if config.plot
         log_verbose("\nStep 6: Plotting result..")
-        if config.regular
-            if isempty(first_regular_solution_simplices)
-                @error("Cannot plot, no regular triangulation found")
-             else
-                plot(initial_vertices, dim, first_regular_solution_simplices)
-            end
+
+        if isempty(first_solution_simplices)
+            @error("Cannot plot, no triangulation found")
         else
-            if isempty(first_solution_simplices)
-                @error("Cannot plot, no triangulation found")
-            else
-                 plot(initial_vertices, dim, first_solution_simplices)
-            end
+             plot(initial_vertices, dim, first_solution_simplices)
         end
         log_verbose("-> Plotting complete. Step 6 complete.")
     end
@@ -262,8 +252,12 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose(String(take!(summary_buf)))
 
     result_str = ""
-    if number_of_regular_triangulations_found > 0
-        result_str = @sprintf("\u001b[32mfound %d regular solution(s)\u001b[0m in %.2f s", number_of_regular_triangulations_found, total_time)
+    if number_of_quadratic_triangulations_found > 0
+        result_str = @sprintf("\u001b[32mfound %d quadratic triangulation(s)\u001b[0m in %.2f s", number_of_quadratic_triangulations_found)
+    elseif number_of_flag_triangulations_found > 0
+        result_str = @sprintf("\u001b[32mfound %d flag triangulation(s)\u001b[0m in %.2f s", number_of_flag_triangulations_found, total_time)
+    elseif number_of_regular_triangulations_found > 0
+        result_str = @sprintf("\u001b[32mfound %d regular triangulation(s)\u001b[0m in %.2f s", number_of_flag_triangulations_found, total_time)
     elseif number_of_triangulations_found > 0
         result_str = @sprintf("\u001b[32mfound %d solution(s)\u001b[0m in %.2f s", number_of_triangulations_found, total_time)
     else
@@ -273,7 +267,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     empty!(cnf)
 
-    return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, minimal_log, total_time, step_stats)
+    return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, number_of_flag_triangulations_found, number_of_quadratic_triangulations_found, minimal_log, total_time, step_stats)
 end
 
 function print_initial_summary(config::Config, n_polytopes::Int, stream::IO)
@@ -289,6 +283,7 @@ function print_initial_summary(config::Config, n_polytopes::Int, stream::IO)
     println(stream, "Number of polytopes found:           $(n_polytopes)")
     println(stream, "Restricting to unimodular simplices: $(config.unimodular)")
     println(stream, "Looking for regular triangulations:  $(config.regular)")
+    println(stream, "Looking for flag triangulations:     $(config.flag_triangulation)")
     println(stream, "Using Normaliz:                      $(config.use_normaliz)")
     println(stream, "")
 end
@@ -327,6 +322,8 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
         number_of_triangulations_found = r.number_of_triangulations_found
         number_of_regular_triangulations_found = r.number_of_regular_triangulations_found
+        number_of_flag_triangulations_found = r.number_of_flag_triangulations_found
+        number_of_quadratic_triangulations_found = r.number_of_quadratic_triangulations_found
         step_stats = r.step_stats
 
         push!(all_results, r)
@@ -342,6 +339,13 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         if number_of_regular_triangulations_found > 0
             regularly_triangulatable += 1
         end
+        if number_of_flag_triangulations_found > 0  
+            flag_triangulatable += 1  
+        end 
+        if number_of_quadratic_triangulations_found > 0  
+            flag_triangulatable += 1 
+        end 
+        # TODO: here downwards needs the flag_triangulation_true logic. 
         total_number_of_triangulations_found += number_of_triangulations_found
         total_number_of_regular_triangulations_found += number_of_regular_triangulations_found
 
@@ -456,7 +460,7 @@ end
 
 function setup_run( polytopes::Vector{Matrix{Int}},
                     intersection_backend::String="cpu",
-                    unimodular::Bool=true, regular::Bool=false,
+                    unimodular::Bool=true, regular::Bool=false, flag_triangulation::Bool=false,
                     find_all::Bool=false, log_file::String="",
                     terminal_output::String="final",
                     validate::Bool=false,
@@ -516,7 +520,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
             """)
     end
 
-    config = Config(terminal_output, unimodular, intersection_backend, regular, find_all, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
+    config = Config(terminal_output, unimodular, intersection_backend, regular, flag_triangulation, find_all, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
     log_stream = nothing
     
     try
@@ -545,6 +549,7 @@ function triangulate(   vmatrix::Matrix{Int};
                         intersection_backend::String="cpu",
                         unimodular::Bool=true,
                         regular::Bool=false,
+                        flag_triangulation::Bool=false,
                         find_all::Bool=false,
                         log_file::String="",
                         terminal_output::String="final",
@@ -557,13 +562,14 @@ function triangulate(   vmatrix::Matrix{Int};
                         check_full_dimensionality::Bool=false,
                         enable_parallel::Bool=true)
 
-     return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
+     return setup_run([vmatrix], intersection_backend, unimodular, regular, flag_triangulation, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
 end
 
 function triangulate(   vmatrices::Vector{Matrix{Int}};
                         intersection_backend::String="cpu",
                         unimodular::Bool=true,
                         regular::Bool=false,
+                        flag_triangulation::Bool=false,
                         find_all::Bool=false,
                         log_file::String="",
                         terminal_output::String="final",
@@ -576,13 +582,14 @@ function triangulate(   vmatrices::Vector{Matrix{Int}};
                         check_full_dimensionality::Bool=false,
                         enable_parallel::Bool=true)
 
-    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
+    return setup_run(vmatrices, intersection_backend, unimodular, regular, flag_triangulation, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
 end
 
 function triangulate(   polytope::Polyhedron;
                         intersection_backend::String="cpu",
                         unimodular::Bool=true,
                         regular::Bool=false,
+                        flag_triangulation::Bool=false,
                         find_all::Bool=false,
                         log_file::String="",
                         terminal_output::String="final",
@@ -600,13 +607,14 @@ function triangulate(   polytope::Polyhedron;
         @error("Could not process a single polytope")
         return nothing
     end
-    return setup_run([vmatrix], intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
+    return setup_run([vmatrix], intersection_backend, unimodular, regular, flag_triangulation, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
 end
 
 function triangulate(   polytopes::Vector{Polyhedron};
                         intersection_backend::String="cpu",
                         unimodular::Bool=true,
                         regular::Bool=false,
+                        flag_triangulation::Bool=false,
                         find_all::Bool=false,
                         log_file::String="",
                         terminal_output::String="final",
@@ -633,13 +641,14 @@ function triangulate(   polytopes::Vector{Polyhedron};
         @error("Could not porcess a single polytope.")
           return Vector{Vector{Matrix{Int}}}[]
     end
-    return setup_run(vmatrices, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
+    return setup_run(vmatrices, intersection_backend, unimodular, regular, flag_triangulation, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
 end
 
 function triangulate(   path_to_polytopes::String;
                         intersection_backend::String="cpu",
                         unimodular::Bool=true,
                         regular::Bool=false,
+                        flag_triangulation::Bool=false,
                         find_all::Bool=false,
                         log_file::String="",
                         terminal_output::String="final",
@@ -668,7 +677,7 @@ function triangulate(   path_to_polytopes::String;
         @error("Error loading polytopes from '$full_path': '$e'") 
         return Vector{Vector{Matrix{Int}}}[]
     end
-    return setup_run(polytopes, intersection_backend, unimodular, regular, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
+    return setup_run(polytopes, intersection_backend, unimodular, regular, flag_triangulation, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, check_full_dimensionality, enable_parallel)
 end
 
 end

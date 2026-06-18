@@ -26,6 +26,7 @@ mutable struct Config
     unimodular::Bool
     intersection_backend::String
     regular::Bool
+    flag_triangulation::Bool
     find_all::Bool
     validate::Bool
     plot::Bool
@@ -41,6 +42,8 @@ mutable struct TriangulationResult
     solution_simplices::Vector{Vector{Matrix{Int}}}
     number_of_triangulations_found::Int
     number_of_regular_triangulations_found::Int
+    number_of_flag_triangulations_found::Int
+    number_of_quadratic_triangulations_found::Int
     minimal_log::String
     total_time::Float64
     step_stats::Vector{StepStat}
@@ -52,6 +55,7 @@ mutable struct RunResult
     number_regularly_triangulatable::Int
     total_number_of_triangulations_found::Int
     total_number_of_regular_triangulations_found::Int
+    total_number_of_flag_triangulations_found::Int
     total_time::Float64
 end
 
