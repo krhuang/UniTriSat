@@ -205,7 +205,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         log_verbose("\n$(number_of_regular_triangulations_found) valid regular triangulation(s) found.")
         if config.flag_triangulation
             log_verbose("\n$(number_of_quadratic_triangulations_found) valid quadratic triangulation(s) found.")
-        else 
+        end
     elseif config.flag_triangulation
         log_verbose("\n$(number_of_flag_triangulations_found) valid flag triangulation(s) found.")
     end
