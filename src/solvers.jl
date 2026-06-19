@@ -377,6 +377,9 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
                 CadicalWrapper.add_clause(solver, [-solution_vector...]) # Block the clause corresponding to our found solution
             end
         else # UNSAT or Unknown
+            if config.flag_triangulation #TODO this is a temporary fix to aviod the return logic
+                error("Found an UNSAT instance when searching for flag triangulations. Throwing this error is a temporary fix for now.. ")
+            end
             break
         end
     end
