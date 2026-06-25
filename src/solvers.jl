@@ -261,6 +261,7 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
 end
 
 function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
+    println("entering cadical standard function?")
     solution_simplices = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}() # Recording the first solution of the desired type (flag, regular)
 
