@@ -186,16 +186,22 @@ function process_polytope(  initial_vertices::Matrix{Int},
         end
     end
 
+    println("debug code A")
+
     if show_running_updates
         ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices... solving...")
     end
     
+    println("debug code C")
+
     solution_simplices, 
     first_solution_simplices, 
     number_of_triangulations_found, 
     number_of_regular_triangulations_found,
     number_of_flag_triangulations_found,
     number_of_quadratic_triangulations_found = timed_solve_result.value
+
+    println("debug code B")
 
     push!(step_stats, StepStat("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
