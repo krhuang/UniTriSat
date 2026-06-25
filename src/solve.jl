@@ -284,7 +284,6 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
                                 stop_signal::Threads.Atomic{Bool})
     solution_simplices = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
-    first_regular_solution_simplices = Vector{Matrix{Int}}()
     
     number_of_triangulations_found = 0
     number_of_regular_triangulations_found = 0
@@ -343,8 +342,8 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
                 end
             else # config.regular == true
                 if is_regular(simplices)
-                    if isempty(first_regular_solution_simplices)
-                        first_regular_solution_simplices = simplices
+                    if isempty(first_solution_simplices)
+                        first_solution_simplices = simplices
                     end
                     number_of_regular_triangulations_found += 1
                     
@@ -392,13 +391,13 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
 end
 
 function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
-
     num_threads = Threads.nthreads()
 
     # 1. find generic point and central simplices
     generic_point = find_generic_point(P, internal_faces(P, size(P, 2)), Val(size(P, 2)))
     central_indices_map = compute_central_indices(P, S_indices, generic_point)
-    solve_function = Nothing
+    
+    solve_function = nothing
     if config.solver == "cadical"
         solve_function = solve_cadical_standard
     elseif config.solver == "picosat"
@@ -415,11 +414,16 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
 
     # 3. prepare thread-local storage for results
     solution_simplices_threads = [Vector{Vector{Matrix{Int}}}() for _ in 1:num_threads]
-    first_solution_threads = [Vector{Matrix{Int}}() for _ in 1:num_threads]
-    first_regular_threads = [Vector{Matrix{Int}}() for _ in 1:num_threads]
+    first_solution_threads     = [Vector{Matrix{Int}}() for _ in 1:num_threads]
+    
+    # Thread-isolated quantitative tracking
     num_triangulations_threads = zeros(Int, num_threads)
-    num_regular_threads = zeros(Int, num_threads)
-    found_solution = Atomic{Bool}(false)
+    num_regular_threads        = zeros(Int, num_threads)
+    num_flag_threads           = zeros(Int, num_threads)
+    num_quadratic_threads      = zeros(Int, num_threads)
+    
+    # Shared stop signal for early termination across all threads
+    found_solution = Threads.Atomic{Bool}(false)
 
     # 4. thread i solves cnf + [central_group[i]...] using the standard solver
     # This limits thread i to solutions where a simplex from its central group is used.
@@ -434,52 +438,60 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
         push!(local_cnf, group)
 
         # Call the standard solving logic, suppressing live updates to avoid thread clutter
-        sol_simp, first_sol, first_reg, num_found, num_reg = solve_function(local_cnf, P, S_indices, config, false, found_solution)
+        sol_simp, first_sol, num_found, num_reg, num_flag, num_quad = solve_function(
+            local_cnf, P, S_indices, config, false, found_solution
+        )
 
         # Store the returned values into the isolated thread arrays
-
         solution_simplices_threads[tid] = sol_simp
-        first_solution_threads[tid] = first_sol
-        first_regular_threads[tid] = first_reg
+        first_solution_threads[tid]     = first_sol
+        
         num_triangulations_threads[tid] = num_found
-        num_regular_threads[tid] = num_reg
+        num_regular_threads[tid]        = num_reg
+        num_flag_threads[tid]           = num_flag
+        num_quadratic_threads[tid]      = num_quad
     end
 
-
     # 5. aggregate the results from all threads
-
-    solution_simplices = Vector{Vector{Matrix{Int}}}()
+    solution_simplices       = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
-    first_regular_solution_simplices = Vector{Matrix{Int}}()
-    number_of_triangulations_found = sum(num_triangulations_threads)
-    number_of_regular_triangulations_found = sum(num_regular_threads)
-
+    
+    # Compute totals
+    number_of_triangulations_found           = sum(num_triangulations_threads)
+    number_of_regular_triangulations_found   = sum(num_regular_threads)
+    number_of_flag_triangulations_found      = sum(num_flag_threads)
+    number_of_quadratic_triangulations_found = sum(num_quadratic_threads)
 
     for tid in 1:num_threads
         append!(solution_simplices, solution_simplices_threads[tid])
+        
+        # Capture the very first valid solution found across threads
         if isempty(first_solution_simplices) && !isempty(first_solution_threads[tid])
             first_solution_simplices = first_solution_threads[tid]
         end
-        if isempty(first_regular_solution_simplices) && !isempty(first_regular_threads[tid])
-            first_regular_solution_simplices = first_regular_threads[tid]
-        end
     end
 
-
-# If only the first triangulation is requested, truncate the combined list
-
+    # If only the first triangulation is requested, truncate the combined list
     if config.return_triangulations == "first" && length(solution_simplices) > 1
         resize!(solution_simplices, 1)
     end
 
-
     # Print a final summary if requested
     if show_running_updates
-        ghost_print("Parallel search finished: $number_of_triangulations_found triangulations found ($number_of_regular_triangulations_found regular).")
+        ghost_print("Parallel search finished: $number_of_triangulations_found triangulations found " *
+                    "($number_of_regular_triangulations_found regular, " *
+                    "$number_of_flag_triangulations_found flag, " *
+                    "$number_of_quadratic_triangulations_found quadratic).")
     end
 
-    return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
-
+    return (
+        solution_simplices, 
+        first_solution_simplices, 
+        number_of_triangulations_found, 
+        number_of_regular_triangulations_found,
+        number_of_flag_triangulations_found,
+        number_of_quadratic_triangulations_found
+    )
 end
 
 #= No longer using d4

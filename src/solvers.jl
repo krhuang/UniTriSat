@@ -390,80 +390,104 @@ end
 function solve_cadical_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
     num_threads = Threads.nthreads()
     
-    # 1. find generic point and central simplices
+    # 1. Spatial Partitioning Setup
+    # Find a generic point and identify central simplices to partition the solution space.
     generic_point = find_generic_point(P, internal_faces(P, size(P, 2)), Val(size(P, 2)))
     central_indices_map = compute_central_indices(P, S_indices, generic_point)
     
-    # 2. split central simplices into groups for each thread (round-robin)
+    # 2. Workload Distribution
+    # Split central simplices into groups for each thread using a round-robin distribution strategy.
     central_groups = [Int[] for _ in 1:num_threads]
     for (i, idx) in enumerate(central_indices_map)
         push!(central_groups[mod1(i, num_threads)], idx)
     end
 
-    # 3. prepare thread-local storage for results
+    # 3. Thread-Local Storage (TLS) Allocation
+    # Isolated structures to avoid data races when tracking solutions and properties across threads.
     solution_simplices_threads = [Vector{Vector{Matrix{Int}}}() for _ in 1:num_threads]
-    first_solution_threads = [Vector{Matrix{Int}}() for _ in 1:num_threads]
-    first_regular_threads = [Vector{Matrix{Int}}() for _ in 1:num_threads]
+    first_solution_threads     = [Vector{Matrix{Int}}() for _ in 1:num_threads]
+    first_regular_threads      = [Vector{Matrix{Int}}() for _ in 1:num_threads]
+    
+    # Multi-category quantitative total tallies partitioned by thread IDs
     num_triangulations_threads = zeros(Int, num_threads)
-    num_regular_threads = zeros(Int, num_threads)
+    num_regular_threads        = zeros(Int, num_threads)
+    num_flag_threads           = zeros(Int, num_threads)
+    num_quadratic_threads      = zeros(Int, num_threads)
 
-    # 4. thread i solves cnf + [central_group[i]...] using the standard solver
-    # This limits thread i to solutions where a simplex from its central group is used.
+    # 4. Multi-threaded SAT Execution Pipeline
+    # Each thread solves the original CNF augmented with its uniquely designated spatial constraint.
+    # This limits thread `tid` to solutions containing a simplex from its specific central group.
     Threads.@threads for tid in 1:num_threads
         group = central_groups[tid]
+        if isempty(group); continue; end
         
-        if isempty(group)
-            continue
-        end
-        
-        # Create a shallow copy of the CNF and add this thread's group constraint
+        # Create a shallow copy of the base CNF formulas and append this thread's partition constraint
         local_cnf = copy(cnf)
         push!(local_cnf, group)
         
-        # Call the standard solving logic, suppressing live updates to avoid thread clutter
-        sol_simp, first_sol, first_reg, num_found, num_reg = solve_cadical_standard(
+        # Invoke standard solver; suppress intermediate updates to prevent asynchronous terminal garbage
+        (sol_simp, first_sol, first_reg, num_found, num_reg, num_flag, num_quad) = solve_cadical_standard(
             local_cnf, P, S_indices, config, false
         )
         
-        # Store the returned values into the isolated thread arrays
+        # Write back localized structural outputs to data-isolated thread slots
         solution_simplices_threads[tid] = sol_simp
-        first_solution_threads[tid] = first_sol
-        first_regular_threads[tid] = first_reg
+        first_solution_threads[tid]     = first_sol
+        first_regular_threads[tid]      = first_reg
+        
+        # Write back numeric aggregations
         num_triangulations_threads[tid] = num_found
-        num_regular_threads[tid] = num_reg
+        num_regular_threads[tid]        = num_reg
+        num_flag_threads[tid]           = num_flag
+        num_quadratic_threads[tid]      = num_quad
     end
 
-    # 5. aggregate the results from all threads
-    solution_simplices = Vector{Vector{Matrix{Int}}}()
-    first_solution_simplices = Vector{Matrix{Int}}()
+    # 5. Thread Reduction & Result Consolidation
+    solution_simplices               = Vector{Vector{Matrix{Int}}}()
+    first_solution_simplices         = Vector{Matrix{Int}}()
     first_regular_solution_simplices = Vector{Matrix{Int}}()
     
-    number_of_triangulations_found = sum(num_triangulations_threads)
-    number_of_regular_triangulations_found = sum(num_regular_threads)
+    # Compute mathematical reductions via summations across isolated thread columns
+    number_of_triangulations_found                 = sum(num_triangulations_threads)
+    number_of_regular_triangulations_found         = sum(num_regular_threads)
+    number_of_flag_triangulations_found            = sum(num_flag_threads)
+    number_of_quadratic_triangulations_found       = sum(num_quadratic_threads)
 
     for tid in 1:num_threads
         append!(solution_simplices, solution_simplices_threads[tid])
         
+        # Capture the chronologically earliest solution instances registered across execution timelines
         if isempty(first_solution_simplices) && !isempty(first_solution_threads[tid])
             first_solution_simplices = first_solution_threads[tid]
         end
-        
         if isempty(first_regular_solution_simplices) && !isempty(first_regular_threads[tid])
             first_regular_solution_simplices = first_regular_threads[tid]
         end
     end
 
-    # If only the first triangulation is requested, truncate the combined list
+    # If only the first valid global triangulation is desired, trim down the accumulated container
     if config.return_triangulations == "first" && length(solution_simplices) > 1
         resize!(solution_simplices, 1)
     end
 
-    # Print a final summary if requested
+    # 6. Diagnostics Logging Outputs
     if show_running_updates
-        print("Parallel search finished: $number_of_triangulations_found triangulations found ($number_of_regular_triangulations_found regular).")
+        msg = "Parallel search finished: $number_of_triangulations_found triangulations found " *
+              "($number_of_regular_triangulations_found regular, " *
+              "$number_of_flag_triangulations_found flag, " *
+              "$number_of_quadratic_triangulations_found quadratic)."
+        print(msg)
     end
 
-    return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
+    return (
+        solution_simplices, 
+        first_solution_simplices, 
+        first_regular_solution_simplices, 
+        number_of_triangulations_found, 
+        number_of_regular_triangulations_found,
+        number_of_flag_triangulations_found,
+        number_of_quadratic_triangulations_found
+    )
 end
 
 end
