@@ -384,7 +384,7 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
         end
     end
     CadicalWrapper.release(solver)
-
+    println("returning solver result?")
     return solution_simplices, first_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, number_of_flag_triangulations_found, number_of_quadratic_triangulations_found
 end
 
