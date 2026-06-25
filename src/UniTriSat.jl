@@ -183,6 +183,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
             elseif config.incremental_solving
                 solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
             else
+                println("entering solve cadical standard function")
                 solve_cadical_standard(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
             end
         end
