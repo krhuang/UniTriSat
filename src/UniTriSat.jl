@@ -189,13 +189,9 @@ function process_polytope(  initial_vertices::Matrix{Int},
         end
     end
 
-    println("debug code A")
-
     if show_running_updates
         ghost_print("($(@sprintf("%d / %d", run_idx, total_in_run))): |P|=$num_lattice_points |S|=$num_simplices... solving...")
     end
-    
-    println("debug code C")
 
     solution_simplices, 
     first_solution_simplices, 
@@ -203,8 +199,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
     number_of_regular_triangulations_found,
     number_of_flag_triangulations_found,
     number_of_quadratic_triangulations_found = timed_solve_result.value
-
-    println("debug code B")
 
     push!(step_stats, StepStat("Solve SAT problem", timed_solve_result.time, timed_solve_result.bytes))
     log_verbose("-> SAT solver finished. Step 5 complete.")
@@ -259,10 +253,10 @@ function process_polytope(  initial_vertices::Matrix{Int},
     peak_ram_bytes = Sys.maxrss()
     println(summary_buf, @sprintf("%-45s: %.2f MiB", "Peak memory usage (Max RSS)", peak_ram_bytes / 1024^2))
     log_verbose(String(take!(summary_buf)))
-
+    println("debug A")
     result_str = ""
     if number_of_quadratic_triangulations_found > 0
-        result_str = @sprintf("\u001b[32mfound %d quadratic triangulation(s)\u001b[0m in %.2f s", number_of_quadratic_triangulations_found)
+        result_str = @sprintf("\u001b[32mfound %d quadratic triangulation(s)\u001b[0m in %.2f s", number_of_quadratic_triangulations_found, total_time)
     elseif number_of_flag_triangulations_found > 0
         result_str = @sprintf("\u001b[32mfound %d flag triangulation(s)\u001b[0m in %.2f s", number_of_flag_triangulations_found, total_time)
     elseif number_of_regular_triangulations_found > 0
@@ -274,6 +268,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     end
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices, result_str)
 
+    println("debug B")
     empty!(cnf)
 
     return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, number_of_flag_triangulations_found, number_of_quadratic_triangulations_found, minimal_log, total_time, step_stats)
