@@ -53,9 +53,12 @@ mutable struct RunResult
     triangulation_results::Vector{TriangulationResult}
     number_triangulatable::Int
     number_regularly_triangulatable::Int
+    number_flag_triangulatable::Int
+    number_quadratic_triangulatable::Int
     total_number_of_triangulations_found::Int
     total_number_of_regular_triangulations_found::Int
     total_number_of_flag_triangulations_found::Int
+    total_number_of_quadratic_triangulations_found::Int
     total_time::Float64
 end
 

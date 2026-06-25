@@ -295,8 +295,8 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     show_initial = occursin("initial", components_str) || occursin("all", components_str)
     show_running = occursin("running", components_str) || occursin("all", components_str)
-    show_table = occursin("table", components_str) || occursin("all", components_str)
-    show_final = occursin("final", components_str) || occursin("all", components_str)
+    show_table   = occursin("table", components_str)   || occursin("all", components_str)
+    show_final   = occursin("final", components_str)   || occursin("all", components_str)
 
     if show_initial && isnothing(log_stream)
         term_summary_buf = IOBuffer()
@@ -304,8 +304,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         print(stdout, String(take!(term_summary_buf)))
     end
 
-    # the stats to aggregate over all polytopes
-    # i.e. triangulatable will be increased by 1 for each triangulatable polytope found etc.
+    # Aggregate counters across all polytopes
     t_start_run = time()
     triangulatable = 0
     regularly_triangulatable = 0
@@ -314,151 +313,138 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
 
     total_number_of_triangulations_found = 0
     total_number_of_regular_triangulations_found = 0
+    total_number_of_flag_triangulations_found = 0
+    total_number_of_quadratic_triangulations_found = 0
 
     global_step_stats = Dict{String, StatAggregator}()
     step_order = String[]
     all_results = Vector{TriangulationResult}()
 
     for (i, P) in enumerate(polytopes)
-
-        # find results and assign to local vars
-        r = process_polytope(P, i, length(polytopes), config, show_running, log_stream)
-        number_of_triangulations_found = r.number_of_triangulations_found
-        number_of_regular_triangulations_found = r.number_of_regular_triangulations_found
-        number_of_flag_triangulations_found = r.number_of_flag_triangulations_found
-        number_of_quadratic_triangulations_found = r.number_of_quadratic_triangulations_found
-        step_stats = r.step_stats
-
+        r = process_polytope(P, i, number_of_polytopes, config, show_running, log_stream)
         push!(all_results, r)
 
-        if !isnothing(log_stream)
-             flush(log_stream)
-        end
+        if !isnothing(log_stream); flush(log_stream); end
 
-        # adjust counts accordingly
-        if number_of_triangulations_found > 0
-            triangulatable += 1
-        end
-        if number_of_regular_triangulations_found > 0
-            regularly_triangulatable += 1
-        end
-        if number_of_flag_triangulations_found > 0  
-            flag_triangulatable += 1  
-        end 
-        if number_of_quadratic_triangulations_found > 0  
-            quadratic_triangulatable += 1 
-        end 
-        # TODO: here downwards needs the flag_triangulation_true logic. 
-        total_number_of_triangulations_found += number_of_triangulations_found
-        total_number_of_regular_triangulations_found += number_of_regular_triangulations_found
+        # Aggregate logical classification properties
+        if r.number_of_triangulations_found > 0;         triangulatable += 1; end
+        if r.number_of_regular_triangulations_found > 0; regularly_triangulatable += 1; end
+        if r.number_of_flag_triangulations_found > 0;    flag_triangulatable += 1; end
+        if r.number_of_quadratic_triangulations_found > 0; quadratic_triangulatable += 1; end
 
-        # update global stats with the returned step_stats results
-        for stat in step_stats
-            if !haskey(global_step_stats, stat.name)
-                global_step_stats[stat.name] = StatAggregator()
+        # Aggregate quantitative total tallies
+        total_number_of_triangulations_found           += r.number_of_triangulations_found
+        total_number_of_regular_triangulations_found   += r.number_of_regular_triangulations_found
+        total_number_of_flag_triangulations_found      += r.number_of_flag_triangulations_found
+        total_number_of_quadratic_triangulations_found += r.number_of_quadratic_triangulations_found
+
+        # Update profiling analytics maps
+        for stat in r.step_stats
+            agg = get!(global_step_stats, stat.name) do
                 push!(step_order, stat.name)
+                StatAggregator()
             end
-            agg = global_step_stats[stat.name]
-            agg.total_time += stat.duration_s
-            agg.max_time = max(agg.max_time, stat.duration_s)
+            agg.total_time  += stat.duration_s
+            agg.max_time     = max(agg.max_time, stat.duration_s)
             agg.total_alloc += stat.alloc_bytes
-            agg.max_alloc = max(agg.max_alloc, stat.alloc_bytes)
-            agg.count += 1
+            agg.max_alloc    = max(agg.max_alloc, stat.alloc_bytes)
+            agg.count       += 1
         end
 
-        # print the live summary
         if show_running
             elapsed_time = time() - t_start_run
-            avg_time = elapsed_time / i
-            remaining = number_of_polytopes - i
-            eta_seconds = avg_time * remaining
-            eta_str = format_duration(eta_seconds)
+            eta_str = format_duration((elapsed_time / i) * (number_of_polytopes - i))
+            
+            # Dynamic suffix showing flag/regular stats depending on configuration settings
+            sub_type_str = config.regular ? "\nRegularly Triangulatable:      \u001b[32m$(regularly_triangulatable)\u001b[0m" : ""
+            if config.flag_triangulation
+                sub_type_str *= "\nFlag Triangulatable:           \u001b[32m$(flag_triangulatable)\u001b[0m"
+                if config.regular
+                    sub_type_str *= "\nQuadratic Triangulatable:      \u001b[32m$(quadratic_triangulatable)\u001b[0m"
+                end
+            end
 
-            reg_str = config.regular ? "\nRegularly Triangulatable:     \u001b[32m$(regularly_triangulatable)\u001b[0m" : ""
-            live_summary_str = """\n
+            ghost_print("""\n
             Elapsed Time:                 $(format_duration(elapsed_time))
             Estimated Time Left:          $eta_str
-            Triangulatable:               \u001b[32m$triangulatable\u001b[0m$reg_str
+            Triangulatable:               \u001b[32m$triangulatable\u001b[0m$sub_type_str
             Non-Triangulatable:           \u001b[31m$(i - triangulatable)\u001b[0m
-            """
-
-            ghost_print(live_summary_str)
+            """)
         end
-        step_stats = nothing
     end
 
     total_time_run = time() - t_start_run
 
-    avg_solutions_str = ""
-    if config.find_all
-        num_sol = config.regular ? total_number_of_regular_triangulations_found : total_number_of_triangulations_found
-        avg_solutions_str = @sprintf("Average Solutions/Polytope:    %.2f\n", num_sol / number_of_polytopes)
-    end
+    # Generate analytical tables and final diagnostic summaries
     stats_table_str = ""
-    if show_table
-        stats_table_buf = IOBuffer()
-        if !isempty(global_step_stats)
-            println()
-            println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
-                                                "Step Name", "Total Time", "Avg Time", "Max Time", "Avg Memory", "Max Memory"))
-            println(stats_table_buf, "-"^108)
-
-            for step_name in step_order
-                if !haskey(global_step_stats, step_name); continue; end
-                stat = global_step_stats[step_name]
-
-                total_time = stat.total_time
-                max_time = stat.max_time
-                avg_time = total_time / stat.count
-                avg_mem = stat.total_alloc / stat.count
-
-                println(stats_table_buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
-                                                step_name,
-                                                format_duration(total_time),
-                                                @sprintf("%.3f s", avg_time),
-                                                @sprintf("%.3f s", max_time),
-                                                format_bytes(avg_mem),
-                                                format_bytes(stat.max_alloc)))
-            end
-        end
-        stats_table_str = String(take!(stats_table_buf))
+    if show_table && !isempty(global_step_stats)
+        buf = IOBuffer()
+        print_stats_table!(buf, global_step_stats, step_order)
+        stats_table_str = String(take!(buf))
     end
-    println()
 
     if show_final
         avg_solutions_str = ""
         if config.find_all
-            num_sol = config.regular ? total_number_of_regular_triangulations_found : total_number_of_triangulations_found
-            avg_solutions_str = @sprintf("Average Solutions/Polytope:    %.2f\n", num_sol / number_of_polytopes)
+            # Calculate the target numerical output matching requested settings
+            num_sol = config.regular ? 
+                     (config.flag_triangulation ? total_number_of_quadratic_triangulations_found : total_number_of_regular_triangulations_found) : 
+                     (config.flag_triangulation ? total_number_of_flag_triangulations_found : total_number_of_triangulations_found)
+            avg_solutions_str = @sprintf("Average Target Solutions/Poly: %.2f\n", num_sol / number_of_polytopes)
         end
-        reg_str = config.regular ? "\nRegularly Triangulatable:      \u001b[32m$regularly_triangulatable\u001b[0m" : ""
+        
+        reg_str  = config.regular ? "\nRegularly Triangulatable:       \u001b[32m$regularly_triangulatable\u001b[0m" : ""
+        flag_str = config.flag_triangulation ? "\nFlag Triangulatable:            \u001b[32m$flag_triangulatable\u001b[0m" : ""
+        quad_str = (config.regular && config.flag_triangulation) ? "\nQuadratic Triangulatable:       \u001b[32m$quadratic_triangulatable\u001b[0m" : ""
+
         summary_core_str = """
         Run finished: $(Dates.format(now(), "HH:MM:SS"))                                      
-                                                                                          
+                                                                                               
         ----------------------------------------                                               
-        Run Summary                                                                         
-        ----------------------------------------                                                
-        Total Polytopes Processed:     $(length(polytopes))$(reg_str)
+        Run Summary                                                                           
+        ----------------------------------------                                               
+        Total Polytopes Processed:     $number_of_polytopes$reg_str$flag_str$quad_str
         Triangulatable:                \u001b[32m$triangulatable\u001b[0m
         Non-Triangulatable:            \u001b[31m$(number_of_polytopes - triangulatable)\u001b[0m
-        $(avg_solutions_str)Total Run Time:                $(format_duration(total_time_run))
+        $(avg_solutions_str)Total Run Time:                 $(format_duration(total_time_run))
         ----------------------------------------
-
-
-        """
+        \n"""
+        
         print(summary_core_str)
-    end
-    if show_table
-        print(stats_table_str)
+        if show_table; print(stats_table_str); end
+
+        if !isnothing(log_stream)
+            print(log_stream, strip_ansi(summary_core_str))
+            if show_table; print(log_stream, strip_ansi(stats_table_str)); end
+            flush(log_stream)
+        end
     end
 
-    if !isnothing(log_stream)
-        print(log_stream, strip_ansi(summary_core_str))
-        print(log_stream, strip_ansi(stats_table_str))
-        flush(log_stream)
-    end
+    return RunResult(
+        all_results, 
+        triangulatable, 
+        regularly_triangulatable, 
+        flag_triangulatable, 
+        quadratic_triangulatable,
+        total_number_of_triangulations_found, 
+        total_number_of_regular_triangulations_found,
+        total_number_of_flag_triangulations_found,
+        total_number_of_quadratic_triangulations_found,
+        total_time_run
+    )
+end
 
-    return RunResult(all_results, triangulatable, regularly_triangulatable, total_number_of_triangulations_found, total_number_of_regular_triangulations_found, time()-t_start_run)
+# Private helper to decouple large tabular printing tasks from core processing control-flow
+function print_stats_table!(buf::IOBuffer, global_step_stats::Dict{String, StatAggregator}, step_order::Vector{String})
+    println(buf, "\n", @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
+                    "Step Name", "Total Time", "Avg Time", "Max Time", "Avg Memory", "Max Memory"))
+    println(buf, "-"^108)
+    for name in step_order
+        stat = global_step_stats[name]
+        println(buf, @sprintf("%-35s | %-12s | %-12s | %-12s | %-12s | %-12s",
+                    name, format_duration(stat.total_time), @sprintf("%.3f s", stat.total_time / stat.count),
+                    @sprintf("%.3f s", stat.max_time), format_bytes(stat.total_alloc / stat.count), format_bytes(stat.max_alloc)))
+    end
 end
 
 function setup_run( polytopes::Vector{Matrix{Int}},
