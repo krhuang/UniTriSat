@@ -124,7 +124,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
         minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> No simplices found", run_idx, total_in_run, num_lattice_points, num_simplices)
-        return TriangulationResult([], 0, 0, minimal_log, time()-t_start_total, step_stats)
+        return TriangulationResult([], 0, 0, 0, 0, minimal_log, time()-t_start_total, step_stats)
     end
 
     # --- Step 3: Internal Faces ---
@@ -183,7 +183,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
             elseif config.incremental_solving
                 solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
             else
-                println("entering solve cadical standard function")
                 solve_cadical_standard(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
             end
         end
@@ -253,7 +252,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
     peak_ram_bytes = Sys.maxrss()
     println(summary_buf, @sprintf("%-45s: %.2f MiB", "Peak memory usage (Max RSS)", peak_ram_bytes / 1024^2))
     log_verbose(String(take!(summary_buf)))
-    println("debug A")
     result_str = ""
     if number_of_quadratic_triangulations_found > 0
         result_str = @sprintf("\u001b[32mfound %d quadratic triangulation(s)\u001b[0m in %.2f s", number_of_quadratic_triangulations_found, total_time)
@@ -268,7 +266,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
     end
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices, result_str)
 
-    println("debug B")
     empty!(cnf)
 
     return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, number_of_flag_triangulations_found, number_of_quadratic_triangulations_found, minimal_log, total_time, step_stats)
@@ -312,6 +309,8 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     t_start_run = time()
     triangulatable = 0
     regularly_triangulatable = 0
+    flag_triangulatable = 0
+    quadratic_triangulatable = 0
 
     total_number_of_triangulations_found = 0
     total_number_of_regular_triangulations_found = 0
@@ -347,7 +346,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             flag_triangulatable += 1  
         end 
         if number_of_quadratic_triangulations_found > 0  
-            flag_triangulatable += 1 
+            quadratic_triangulatable += 1 
         end 
         # TODO: here downwards needs the flag_triangulation_true logic. 
         total_number_of_triangulations_found += number_of_triangulations_found

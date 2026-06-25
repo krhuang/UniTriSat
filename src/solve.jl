@@ -384,7 +384,6 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
     return (
         solution_simplices, 
         first_solution_simplices, 
-        first_regular_solution_simplices, 
         number_of_triangulations_found, 
         number_of_regular_triangulations_found, 
         number_of_flag_triangulations_found, 
