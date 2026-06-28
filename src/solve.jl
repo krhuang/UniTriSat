@@ -29,43 +29,90 @@ export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_p
 function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool, stop_signal::Threads.Atomic{Bool})
     solution_simplices = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
-    first_regular_solution_simplices = Vector{Matrix{Int}}()
+    
     number_of_triangulations_found = 0
     number_of_regular_triangulations_found = 0
+    number_of_flag_triangulations_found = 0
+    number_of_quadratic_triangulations_found = 0
 
     for solution in PicoSAT.itersolve(cnf)
-        if number_of_triangulations_found%1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
+        # Check if another thread has already signaled to stop
+        if stop_signal[]
+            break
+        end
+
+        if number_of_triangulations_found % 1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
             ghost_print(" ($number_of_triangulations_found triangulations found)")
         end
+        
         sol_indices = findall(l -> l > 0, solution)
         simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
+        
         number_of_triangulations_found += 1
         
         if isempty(first_solution_simplices)
             first_solution_simplices = simplices
         end
-        
+
+        should_terminate = false
+
+        # --- Logic gates for config settings w.r.t regularity, flags, and termination ---
         if !config.regular
-            if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                push!(solution_simplices, simplices)
-            end
-            if !config.find_all; break; end
-        else
-            if is_regular(simplices)
-                if isempty(first_regular_solution_simplices)
-                    first_regular_solution_simplices = simplices
+            if config.flag_triangulation
+                if is_flag_triangulation(simplices)
+                    number_of_flag_triangulations_found += 1
+                    if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                        push!(solution_simplices, simplices)
+                    end
+                    if !config.find_all; should_terminate = true; end
+                elseif show_running_updates
+                    ghost_print(" ($number_of_triangulations_found non-flag triangulations found)")
                 end
-                number_of_regular_triangulations_found += 1
+            else # !config.flag_triangulation
                 if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
                     push!(solution_simplices, simplices)
                 end
-                if !config.find_all; break; end
+                if !config.find_all; should_terminate = true; end
+            end
+        else # config.regular == true
+            if is_regular(simplices)
+                number_of_regular_triangulations_found += 1
+                
+                if config.flag_triangulation # Looking for quadratic (regular + flag) triangulations
+                    if is_flag_triangulation(simplices)
+                        number_of_quadratic_triangulations_found += 1
+                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                            push!(solution_simplices, simplices)
+                        end
+                        if !config.find_all; should_terminate = true; end
+                    elseif show_running_updates
+                        ghost_print(" ($number_of_triangulations_found regular non-flag triangulations found)")
+                    end
+                else # Regular, but not filtering for flags
+                    if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
+                        push!(solution_simplices, simplices)
+                    end
+                    if !config.find_all; should_terminate = true; end
+                end
             elseif show_running_updates
                 ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
             end
         end
+
+        if should_terminate
+            Threads.atomic_cas!(stop_signal, false, true)
+            break
+        end
     end
-    return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
+
+    return (
+        solution_simplices, 
+        first_solution_simplices, 
+        number_of_triangulations_found, 
+        number_of_regular_triangulations_found,
+        number_of_flag_triangulations_found,
+        number_of_quadratic_triangulations_found
+    )
 end
 
 function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, dim::Int, config::Config, show_running_updates::Bool, log_verbose::Function)

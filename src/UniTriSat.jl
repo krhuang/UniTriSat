@@ -174,11 +174,9 @@ function process_polytope(  initial_vertices::Matrix{Int},
         if config.enable_parallel
             log_verbose("      Parallel solving enabled with $(nthreads()) threads.")
             log_verbose("      Solver is $(active_solver)")
-            error("Parallel solving temporarily disabled... sorry") #TODO: fix this lol
             solve_parallel(cnf, P, S_indices, config, show_running_updates)
         else
-            if active_solver == "picosat"
-                error("Picosat temporarily disabled... sorry") #TODO: fix this (what it returns)
+            if active_solver == "picosat" #PicoSAT should be working again
                 solve_picosat(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
             elseif config.incremental_solving
                 solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
