@@ -57,6 +57,7 @@ The triangulate function takes the following arguments:
 | **`intersection_backend`** | String | `"cpu"` | The computing backend to use (`"cpu"` or `"gpu"`). |
 | **`unimodular`** | Boolean | `true` | Restricts the output to unimodular simplices. |
 | **`regular`** | Boolean | `false` | Restricts the output to regular triangulations. |
+| **`flag_triangulation`** | Boolean | `false` | Restricts the output to flag triangulations. |
 | **`find_all`** | Boolean | `false` | Toggles whether to find all valid triangulations. |
 | **`log_file`** | String | `""` | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
 | **`terminal_output`** | String | `"final"` | Controls printing to the terminal. See below for details. |
@@ -88,17 +89,23 @@ mutable struct TriangulationResult
     solution_simplices::Vector{Vector{Matrix{Int}}}
     number_of_triangulations_found::Int
     number_of_regular_triangulations_found::Int
-    minimal_log::String                                 # used for printing live summary               
+    number_of_flag_triangulations_found::Int
+    number_of_quadratic_triangulations_found::Int
+    minimal_log::String
     total_time::Float64
-    step_stats::Vector{StepStat}                        # time and memory information for the summary table
+    step_stats::Vector{StepStat}
 end
 
 mutable struct RunResult
     triangulation_results::Vector{TriangulationResult}
     number_triangulatable::Int
     number_regularly_triangulatable::Int
+    number_flag_triangulatable::Int
+    number_quadratic_triangulatable::Int
     total_number_of_triangulations_found::Int
     total_number_of_regular_triangulations_found::Int
+    total_number_of_flag_triangulations_found::Int
+    total_number_of_quadratic_triangulations_found::Int
     total_time::Float64
 end
 ```
@@ -106,7 +113,5 @@ end
 Tests
 =============
 
-After cloning the repository, you can run the test suite by doing `julia -t auto test.jl`. It takes about 15 minutes on a laptop. 
-
-We are in need of polytopes which have a unimodular, but no regular unimodular triangulation for our unit testing. If you know of any, other than the "mother of all examples" please write us. 
+After cloning the repository, you can run the test suite by doing `julia -t auto test.jl`. Or you can test it in the package manager via `Pkg.test("UniTriSat")`. It takes about 15 minutes on a laptop. 
 
