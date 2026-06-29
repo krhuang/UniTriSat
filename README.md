@@ -1,7 +1,7 @@
 UniTriSat: Unimodular Triangulations via SATISFIABILITY
 =================
 
-A novel algorithm for finding (regular) unimodular triangulations of lattice polytopes, via conversion to a SAT equation. `UniTriSat` can handle larger examples than were previously possible with [TOPCOM](https://www.wm.uni-bayreuth.de/de/team/rambau_joerg/TOPCOM/index.html) or [mptopcom](https://polymake.org/doku.php/mptopcom)--it finds a unimodular triangulation of a 3-polytope with 50 lattice points in about 30 seconds. 
+A novel algorithm for finding (regular, flag) unimodular triangulations of lattice polytopes, via conversion to a SAT equation. `UniTriSat` can handle larger examples than were previously possible with [TOPCOM](https://www.wm.uni-bayreuth.de/de/team/rambau_joerg/TOPCOM/index.html) or [mptopcom](https://polymake.org/doku.php/mptopcom)--it finds a unimodular triangulation of a 3-polytope with 50 lattice points in about 30 seconds. 
 
 This is project of [Kyle Huang](https://krhuang.github.io/), [Robert Lauff](https://page.math.tu-berlin.de/~lauff/), and Charles Zhang. 
 
@@ -113,5 +113,5 @@ end
 Tests
 =============
 
-After cloning the repository, you can run the test suite by doing `julia -t auto test.jl`. Or you can test it in the package manager via `Pkg.test("UniTriSat")`. It takes about 15 minutes on a laptop. 
+After cloning the repository, you can run the test suite by doing `julia -t auto test.jl`, or you can test it in the package manager via `Pkg.test("UniTriSat")` in a `julia` terminal. It takes about 15 minutes on a laptop. 
 
