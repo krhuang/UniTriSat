@@ -46,7 +46,7 @@ end
 
 function run_test(test::Test)
     exp_reg_str = regular ? " and $(test.exp_reg) regularly triangulatable polytopes" : ""
-    path = "Polytopes/small-lattice-polytopes/data/$(test.dim)-polytopes/v$(test.vol).txt"
+    path = abspath(joinpath(@__DIR__, "..", "Polytopes/small-lattice-polytopes/data/$(test.dim)-polytopes/v$(test.vol).txt")) # Since the files are in the package
     name = "$(test.dim)D Vol $(test.vol)$reg_str"
     println("-")
     println(styled"{bold, blue:Test $(test.id): $name. Expect $(test.exp) triangulatable polytopes$exp_reg_str}")

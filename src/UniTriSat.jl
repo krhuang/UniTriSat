@@ -649,7 +649,7 @@ function triangulate(   path_to_polytopes::String;
                         enable_parallel::Bool=true)
 
     local polytopes
-    full_path = abspath(joinpath(@__DIR__, "..", path_to_polytopes))
+    full_path = abspath(path_to_polytopes)
 
     try
         # Try to read the polytopes using the now-accessible path
