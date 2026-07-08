@@ -80,6 +80,7 @@ function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, conf
                 
                 if config.flag_triangulation # Looking for quadratic (regular + flag) triangulations
                     if is_flag_triangulation(simplices)
+                        number_of_flag_triangulations_found += 1
                         number_of_quadratic_triangulations_found += 1
                         if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
                             push!(solution_simplices, simplices)
@@ -397,6 +398,7 @@ function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indi
                     if config.flag_triangulation # Looking for quadratic (regular + flag) triangulations
                         if is_flag_triangulation(simplices)
                             number_of_quadratic_triangulations_found += 1
+                            number_of_flag_triangulations_found += 1
                             if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
                                 push!(solution_simplices, simplices)
                             end
