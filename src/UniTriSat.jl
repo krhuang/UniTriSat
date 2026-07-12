@@ -354,11 +354,11 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             eta_str = format_duration((elapsed_time / i) * (number_of_polytopes - i))
             
             # Dynamic suffix showing flag/regular stats depending on configuration settings
-            sub_type_str = config.regular ? "\nRegularly Triangulatable:     \u001b[32m$(regularly_triangulatable)\u001b[0m" : ""
+            sub_type_str = config.regular ? "\nRegularly Triangulatable:    \u001b[32m$(regularly_triangulatable)\u001b[0m" : ""
             if config.flag_triangulation
-                sub_type_str *= "\nFlag Triangulatable:          \u001b[32m$(flag_triangulatable)\u001b[0m"
+                sub_type_str *= "\nFlag Triangulatable:         \u001b[32m$(flag_triangulatable)\u001b[0m"
                 if config.regular
-                    sub_type_str *= "\nQuadratic Triangulatable:     \u001b[32m$(quadratic_triangulatable)\u001b[0m"
+                    sub_type_str *= "\nQuadratic Triangulatable:    \u001b[32m$(quadratic_triangulatable)\u001b[0m"
                 end
             end
 
@@ -404,7 +404,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
         Total Polytopes Processed:     $number_of_polytopes$reg_str$flag_str$quad_str
         Triangulatable:                \u001b[32m$triangulatable\u001b[0m
         Non-Triangulatable:            \u001b[31m$(number_of_polytopes - triangulatable)\u001b[0m
-        $(avg_solutions_str)Total Run Time:                 $(format_duration(total_time_run))
+        $(avg_solutions_str)Total Run Time:                $(format_duration(total_time_run))
         ----------------------------------------
         \n"""
         
