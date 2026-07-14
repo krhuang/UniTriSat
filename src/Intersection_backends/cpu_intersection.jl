@@ -271,8 +271,8 @@ macro generate_cross_axes_case_scalar(d)
     stmts = Expr[]
     scalar_func = Symbol("gcross", d_val, "_scalar!")
 
-    for l in 1:div(d_val - 1, 2)
-        k = d_val - 1 - l
+    for k in 1:(d_val - 2)
+        l = d_val - 1 - k
 
         edge_count = binomial(d_val + 1, k + 1)
 
@@ -349,7 +349,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
         @generate_cross_axes_case_scalar 6
     else
         edgeset = zeros(MVector{D - 1, SVector{D, Int64}})
-        for k in 1:div((D - 1), 2)
+        for k in 1:(D - 2)
             l = D - 1 - k
             edge_count = binomial(D + 1, k + 1)
             s1_face_edges_k = s1_face_edges[k]

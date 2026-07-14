@@ -123,7 +123,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
         minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> No simplices found", run_idx, total_in_run, num_lattice_points, num_simplices)
-        return TriangulationResult([], 0, 0, 0, 0, minimal_log, total_time, step_stats)
+        return TriangulationResult([], 0, 0, 0, 0, minimal_log, time()-t_start_total, step_stats)
     end
 
     # --- Step 3: Internal Faces ---
@@ -168,20 +168,19 @@ function process_polytope(  initial_vertices::Matrix{Int},
     log_verbose("      Using solver: $active_solver")
 
     timed_solve_result = @timed begin
-        #if active_solver == "d4" # We got rid of d4 as a solver
-        #    find_all_d4(cnf, P, S_indices, config, show_running_updates)
-        if config.enable_parallel
+        if config.incremental_solving
+            # setup_run guarantees solver == "cadical" here and has disabled
+            # parallel solving (the two modes are mutually exclusive).
+            log_verbose("      Incremental solving enabled with $(nthreads()) threads.")
+            solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
+        elseif config.enable_parallel
             log_verbose("      Parallel solving enabled with $(nthreads()) threads.")
             log_verbose("      Solver is $(active_solver)")
             solve_parallel(cnf, P, S_indices, config, show_running_updates)
+        elseif active_solver == "picosat"
+            solve_picosat(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
         else
-            if active_solver == "picosat" #PicoSAT should be working again
-                solve_picosat(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
-            elseif config.incremental_solving
-                solve_cadical_incremental(cnf, P, S_indices, dim, config, show_running_updates, log_verbose)
-            else
-                solve_cadical_standard(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
-            end
+            solve_cadical_standard(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
         end
     end
 
@@ -221,8 +220,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     end
 
     # --- Step 6: Plotting ---
-    # Invoked by setting 
-    #       plot = true
+    # Invoked by setting plot = true
     if config.plot
         log_verbose("\nStep 6: Plotting result..")
 
@@ -314,10 +312,28 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     global_step_stats = Dict{String, StatAggregator}()
     step_order = String[]
     all_results = Vector{TriangulationResult}()
+    # With return_triangulations="none", per-polytope results are not retained:
+    # over runs with lots of polytopes, one TriangulationResult per polytope
+    # (log string, step stats and possibly a stored triangulation) adds up to
+    # gigabytes. Aggregate counters and the log file are unaffected.
+    keep_individual_results = config.return_triangulations != "none"
 
     for (i, P) in enumerate(polytopes)
         r = process_polytope(P, i, number_of_polytopes, config, show_running, log_stream)
-        push!(all_results, r)
+        if keep_individual_results
+            push!(all_results, r)
+        end
+
+        # Native objects (CDDLib polyhedra, Normaliz cones, PicoSAT instances)
+        # are freed by finalizers, and their memory is invisible to Julia's GC
+        # heuristics, so on long runs the GC may not trigger often enough to
+        # keep the process footprint flat. Collect periodically.
+        if i % 1_000 == 0
+            GC.gc(false)
+        end
+        if i % 50_000 == 0
+            GC.gc()
+        end
 
         if !isnothing(log_stream); flush(log_stream); end
 
@@ -466,31 +482,34 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         return RunResult(Vector{TriangulationResult}(), 0, 0, 0, 0, 0, 0, 0, 0, 0.0)
     end
 
-    if solver in ["cadical"] && (!Sys.islinux() && !Sys.isapple())
+    cadical_available = Sys.islinux() || Sys.isapple()
+
+    if solver in ["cadical"] && !cadical_available
         @warn("CaDiCaL is only available on Linux and Mac atm. Falling back to PicoSat")
         solver="picosat"
     end
 
-    #= We got rid of d4 because we don't need it
-    if solver == "d4" && !Sys.islinux()
-        @warn("d4 is only available on Linux. Falling back to PicoSat")
-        solver="picosat"
+    if incremental_solving
+        if solver != "cadical"
+            if cadical_available
+                @warn("Incremental solving requires CaDiCaL; switching solver from \"$solver\" to \"cadical\".")
+                solver = "cadical"
+            else
+                @warn("Incremental solving requires CaDiCaL, which is unavailable on this platform. Disabling incremental solving.")
+                incremental_solving = false
+            end
+        end
+        if incremental_solving && enable_parallel
+            @info("Incremental solving and parallel solving are mutually exclusive; parallel solving is disabled for this run.")
+            enable_parallel = false
+        end
     end
 
-    if solver in ["picosat", "d4"] && incremental_solving
-        @warn("Incremental solving is only supported by CaDiCaL, not PicoSat or d4. We keep incremental solving true. The solver will be passed the simplified formula, but no further clauses will be added.")
+    if !(return_triangulations in ("first", "all", "none"))
+        @warn("Unknown return_triangulations=\"$return_triangulations\"; expected \"first\", \"all\" or \"none\". Falling back to \"first\".")
+        return_triangulations = "first"
     end
 
-    if solver == "d4" && !find_all
-        @warn("The d4 solver only supports finding all triangulations, but the find_all flag is not set. Falling back to PicoSat.")
-        solver = "picosat"
-    end
-    
-    if solver == "picosat" && incremental_solving
-    	@warn("Incremental solving is only supported by CaDiCaL, not PicoSat or d4. We keep incremental solving true. The solver will be passed the simplified formula, but no further clauses will be added.")
-	end
-    =#
-    
     if use_normaliz && !Normaliz_available[]
         @warn(
             """
@@ -617,7 +636,7 @@ function triangulate(   polytopes::Vector{Polyhedron};
         if !isempty(vmatrix)
             push!(vmatrices, vmatrix)
         else
-            @warn("Skipping a polytopes, because it could not be read properly.")
+            @warn("Scipping a polytopes, because it could not be read properly-.")
         end
     end
 

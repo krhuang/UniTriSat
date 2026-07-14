@@ -67,7 +67,7 @@ triangulate(
     use_normaliz=false,
     intersection_backend=backend,
     solver=solver,
-    return_triangulations = "",
+    return_triangulations = "none",
     incremental_solving=incremental,
     enable_parallel=enable_parallel,
     find_all=all,

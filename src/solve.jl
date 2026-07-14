@@ -1,10 +1,10 @@
-
 module Solving
 
-# Constants for the new producer-consumer logic
-# const INTERSECTION_GENERATION_CHUNK_SIZE = 10000    # Number of simplices each generator thread processes at once
-# const SOLVER_UPDATE_THRESHOLD = 500000              # Number of new clauses to buffer before updating the solver
-                                                    # Only relevant when using incremental solving
+# Number of buffered redundant intersection clauses that justifies pausing the
+# SAT solver to inject them (incremental solving only). Tunable: larger values
+# interrupt the solver less often, smaller values get information to the
+# solver sooner.
+const SOLVER_UPDATE_THRESHOLD = 500_000
 
 using PicoSAT
 
@@ -22,14 +22,102 @@ using Base.Threads
 
 export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_parallel
 
-function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool, stop_signal::Threads.Atomic{Bool})
-    solution_simplices = Vector{Vector{Matrix{Int}}}()
-    first_solution_simplices = Vector{Matrix{Int}}()
-    
-    number_of_triangulations_found = 0
-    number_of_regular_triangulations_found = 0
-    number_of_flag_triangulations_found = 0
-    number_of_quadratic_triangulations_found = 0
+# ============================================================================
+# Shared solution bookkeeping
+# ============================================================================
+#
+# Every solver enumerates raw SAT solutions (unimodular triangulations) and
+# must classify them according to the configuration (regular / flag /
+# quadratic), update counters, remember solutions, and decide when to stop.
+# This logic used to be copy-pasted into each solver and had drifted apart;
+# it now lives in exactly one place.
+
+mutable struct SolveState
+    solution_simplices::Vector{Vector{Matrix{Int}}}
+    first_solution_simplices::Vector{Matrix{Int}}
+    n_found::Int      # all triangulations seen
+    n_regular::Int    # regular ones (only tested when config.regular)
+    n_flag::Int       # flag ones (only tested when config.flag_triangulation;
+                      #   when config.regular is also set, flagness is only
+                      #   tested for regular triangulations, as before)
+    n_quadratic::Int  # regular and flag (only when both filters are active)
+end
+
+SolveState() = SolveState(Vector{Vector{Matrix{Int}}}(), Vector{Matrix{Int}}(), 0, 0, 0, 0)
+
+as_result_tuple(st::SolveState) = (
+    st.solution_simplices,
+    st.first_solution_simplices,
+    st.n_found,
+    st.n_regular,
+    st.n_flag,
+    st.n_quadratic,
+)
+
+# Converts a list of true variable indices into the corresponding triangulation
+extract_simplices(P::Matrix{Int}, S_indices, sol_indices) =
+    [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
+
+"""
+    record_solution!(st, simplices, config, show_running_updates) -> Bool
+
+Classify one triangulation, update the counters and stored solutions in `st`,
+and return `true` iff the search should terminate, i.e. a triangulation of the
+requested type was found and `config.find_all == false`.
+"""
+function record_solution!(st::SolveState, simplices::Vector{Matrix{Int}},
+                          config::Config, show_running_updates::Bool)
+    st.n_found += 1
+    if isempty(st.first_solution_simplices)
+        st.first_solution_simplices = simplices
+    end
+
+    # Does this triangulation satisfy all requested filters?
+    is_target = true
+
+    if config.regular
+        if is_regular(simplices)
+            st.n_regular += 1
+        else
+            is_target = false
+        end
+    end
+
+    # When both filters are active we are hunting quadratic triangulations;
+    # flagness is then only tested for regular triangulations (as before).
+    if is_target && config.flag_triangulation
+        if is_flag_triangulation(simplices)
+            st.n_flag += 1
+            if config.regular
+                st.n_quadratic += 1
+            end
+        else
+            is_target = false
+        end
+    end
+
+    if is_target
+        if config.return_triangulations == "all" ||
+           (config.return_triangulations == "first" && isempty(st.solution_simplices))
+            push!(st.solution_simplices, simplices)
+        end
+        if !config.find_all
+            return true
+        end
+    elseif show_running_updates
+        ghost_print(" ($(st.n_found) triangulations checked, still searching for the requested type)")
+    end
+
+    return false
+end
+
+# ============================================================================
+# PicoSAT
+# ============================================================================
+
+function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config,
+                       show_running_updates::Bool, stop_signal::Threads.Atomic{Bool})
+    st = SolveState()
 
     for solution in PicoSAT.itersolve(cnf)
         # Check if another thread has already signaled to stop
@@ -37,403 +125,249 @@ function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, conf
             break
         end
 
-        if number_of_triangulations_found % 1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
-            ghost_print(" ($number_of_triangulations_found triangulations found)")
+        if show_running_updates && st.n_found > 0 && st.n_found % 1000 == 0
+            ghost_print(" ($(st.n_found) triangulations found)")
         end
-        
+
         sol_indices = findall(l -> l > 0, solution)
-        simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
-        
-        number_of_triangulations_found += 1
-        
-        if isempty(first_solution_simplices)
-            first_solution_simplices = simplices
-        end
+        simplices = extract_simplices(P, S_indices, sol_indices)
 
-        should_terminate = false
-
-        # --- Logic gates for config settings w.r.t regularity, flags, and termination ---
-        if !config.regular
-            if config.flag_triangulation
-                if is_flag_triangulation(simplices)
-                    number_of_flag_triangulations_found += 1
-                    if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                        push!(solution_simplices, simplices)
-                    end
-                    if !config.find_all; should_terminate = true; end
-                elseif show_running_updates
-                    ghost_print(" ($number_of_triangulations_found non-flag triangulations found)")
-                end
-            else # !config.flag_triangulation
-                if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                    push!(solution_simplices, simplices)
-                end
-                if !config.find_all; should_terminate = true; end
-            end
-        else # config.regular == true
-            if is_regular(simplices)
-                number_of_regular_triangulations_found += 1
-                
-                if config.flag_triangulation # Looking for quadratic (regular + flag) triangulations
-                    if is_flag_triangulation(simplices)
-                        number_of_flag_triangulations_found += 1
-                        number_of_quadratic_triangulations_found += 1
-                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                            push!(solution_simplices, simplices)
-                        end
-                        if !config.find_all; should_terminate = true; end
-                    elseif show_running_updates
-                        ghost_print(" ($number_of_triangulations_found regular non-flag triangulations found)")
-                    end
-                else # Regular, but not filtering for flags
-                    if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                        push!(solution_simplices, simplices)
-                    end
-                    if !config.find_all; should_terminate = true; end
-                end
-            elseif show_running_updates
-                ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
-            end
-        end
-
-        if should_terminate
+        if record_solution!(st, simplices, config, show_running_updates)
             Threads.atomic_cas!(stop_signal, false, true)
             break
         end
     end
 
-    return (
-        solution_simplices, 
-        first_solution_simplices, 
-        number_of_triangulations_found, 
-        number_of_regular_triangulations_found,
-        number_of_flag_triangulations_found,
-        number_of_quadratic_triangulations_found
-    )
+    return as_result_tuple(st)
 end
 
-function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, dim::Int, config::Config, show_running_updates::Bool, log_verbose::Function)
-    solution_simplices = Vector{Vector{Matrix{Int}}}()
-    first_solution_simplices = Vector{Matrix{Int}}()
-    first_regular_solution_simplices = Vector{Matrix{Int}}()
-    number_of_triangulations_found = 0
-    number_of_regular_triangulations_found = 0
+# ============================================================================
+# CaDiCaL, standard (non-incremental) enumeration
+# ============================================================================
+
+function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config,
+                                show_running_updates::Bool, stop_signal::Threads.Atomic{Bool})
+    st = SolveState()
     num_simplices = length(S_indices)
 
-    # --- Producer-Consumer Incremental Logic ---
     solver = CadicalWrapper.Solver()
+    try
+        for clause in cnf
+            CadicalWrapper.add_clause(solver, clause)
+        end
 
-    # Add initial clauses
+        while !stop_signal[]
+            if show_running_updates && st.n_found > 0 && st.n_found % 1000 == 0
+                ghost_print(" ($(st.n_found) triangulations found)")
+            end
+
+            res = CadicalWrapper.solve_blocking(solver)
+            if res != CadicalWrapper.STATUS_SAT
+                break # UNSAT (or unknown): enumeration finished
+            end
+
+            sol_indices = [i for i in 1:num_simplices if CadicalWrapper.val(solver, i) > 0]
+            simplices = extract_simplices(P, S_indices, sol_indices)
+
+            if record_solution!(st, simplices, config, show_running_updates)
+                Threads.atomic_cas!(stop_signal, false, true)
+                break
+            end
+
+            # Block this assignment and search for the next triangulation
+            CadicalWrapper.add_clause(solver, -sol_indices)
+        end
+    finally
+        CadicalWrapper.release(solver)
+    end
+
+    return as_result_tuple(st)
+end
+
+# ============================================================================
+# CaDiCaL, incremental solving
+# ============================================================================
+
+function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, dim::Int,
+                                   config::Config, show_running_updates::Bool, log_verbose::Function)
+    st = SolveState()
+    num_simplices = length(S_indices)
+
+    if nthreads() < 3
+        @warn("Incremental solving works best with at least 3 Julia threads " *
+              "(solver, clause generation, coordination); running with $(nthreads()). " *
+              "Consider starting Julia with `julia -t auto`.")
+    end
+
+    solver = CadicalWrapper.Solver()
     for clause in cnf
         CadicalWrapper.add_clause(solver, clause)
     end
 
-    log_verbose("      (Async) Calculating intersection pairs incrementally and feeding to solver...")
+    log_verbose("      Incremental mode: solving the reduced formula while streaming redundant intersection clauses...")
 
-    # 1. Prepare Optimized Simplex Data
+    # ---- background clause generation --------------------------------------
     cpu_simplices = CPUIntersection.prepare_simplices_cpu(P, S_indices, Val(dim))
 
-    # 2. Shared State for Intersection Generators
-    clause_channel = Channel{Vector{Int}}(100000)
-    next_simplex_idx = Threads.Atomic{Int}(1)
-    generation_complete = Threads.Atomic{Bool}(false)
-    
-    # Error flag to detect generator failures
-    generator_failed = Threads.Atomic{Bool}(false)
+    # Workers push one batch per "row" i: the conflict clauses of simplex i
+    # against all simplices j > i. Batching keeps channel contention
+    # negligible even when millions of clauses are produced.
+    clause_channel = Channel{Vector{Vector{Int}}}(max(64, 4 * nthreads()))
+    next_row = Threads.Atomic{Int}(1)
+    search_finished = Threads.Atomic{Bool}(false)
+    generator_error = Threads.Atomic{Bool}(false)
 
-    # 3. Launch Generator Threads with Error Handling
-    num_workers = max(1, nthreads() - 1)
-    generator_tasks = []
-
-    for t_id in 1:num_workers
-        t = Threads.@spawn begin
+    num_workers = max(1, nthreads() - 2) # leave room for the solver and the coordinator
+    generator_tasks = map(1:num_workers) do worker_id
+        Threads.@spawn begin
             try
-                while true
-                    # Grab a chunk of work
-                    i = Threads.atomic_add!(next_simplex_idx, 1)
+                while !search_finished[]
+                    i = Threads.atomic_add!(next_row, 1)
                     if i >= num_simplices
                         break
                     end
-                    
-                    # Generate conflicts for this simplex against all subsequent ones
-                    conflicts = CPUIntersection.check_intersections_range_cpu(cpu_simplices, i, i+1, num_simplices)
-                    
-                    for c in conflicts
-                        put!(clause_channel, c)
+                    batch = CPUIntersection.check_intersections_range_cpu(cpu_simplices, i, i + 1, num_simplices)
+                    if !isempty(batch)
+                        put!(clause_channel, batch)
                     end
                 end
             catch e
-                # LOG ERROR and set failure flag
-                @error "Generator thread $t_id failed: $e"
-                Base.show_backtrace(stderr, catch_backtrace())
-                generator_failed[] = true
-                # Close channel to unblock consumer if needed (optional but risky if others are running)
+                if e isa InvalidStateException
+                    # The channel was closed because the search finished early: benign.
+                else
+                    @error "Intersection generator $worker_id failed" exception = (e, catch_backtrace())
+                    generator_error[] = true
+                end
             end
         end
-        push!(generator_tasks, t)
     end
 
-    # Monitor task to close channel when all generators are done
-    Threads.@spawn begin
+    # Close the channel once every worker is done, so the coordinator can
+    # distinguish "no clauses right now" from "no clauses ever again".
+    closer_task = Threads.@spawn begin
         try
-            for t in generator_tasks
-                wait(t)
-            end
-        catch e
-            @error "Monitor thread error waiting for generators: $e"
-            generator_failed[] = true
+            foreach(t -> (try; wait(t); catch; end), generator_tasks)
         finally
-            # Always signal completion, even if failed, so the main loop doesn't hang
-            generation_complete[] = true
+            close(clause_channel)
         end
     end
 
-    # 4. Start Solver Async
-    task = CadicalWrapper.solve_async(solver)
-    number_of_clauses_added = 0
-    new_clauses_buffer = Vector{Vector{Int}}()
+    # ---- coordinator --------------------------------------------------------
+    buffer = Vector{Vector{Int}}()
+    total_injected = 0
+    solve_task = CadicalWrapper.solve_async(solver)
 
-    # 5. Coordinator Loop
-    while true
-        # Check for generator failure
-        if generator_failed[]
-            @error "Aborting solving due to generator failure."
-            break
+    # PRECONDITION for calling this: the solver is idle (solve_task finished).
+    flush_buffer! = function ()
+        for clause in buffer
+            CadicalWrapper.add_clause(solver, clause)
         end
+        total_injected += length(buffer)
+        empty!(buffer)
+    end
 
-        # --- A. Check Solver Status ---
-        if istaskdone(task)
-            res = fetch(task)
-            
-            if res == 10 # SAT
-                # Retrieve candidate solution
-                solution_vector = Int[]
-                for i in 1:num_simplices
-                    if CadicalWrapper.val(solver, i) > 0
-                        push!(solution_vector, i)
-                    end
-                end
-                
-                simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector]
-                number_of_triangulations_found += 1
-                
-                if isempty(first_solution_simplices)
-                    first_solution_simplices = simplices
-                end
+    try
+        while true
+            if generator_error[]
+                @error "Aborting incremental solving: an intersection generator failed."
+                break
+            end
 
-                should_terminate = false
+            # 1) Harvest whatever the generators have produced so far.
+            while isready(clause_channel)
+                append!(buffer, take!(clause_channel))
+            end
+            generation_done = !isopen(clause_channel) && !isready(clause_channel)
 
-                if !config.regular
-                    if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                        push!(solution_simplices, simplices)
-                    end
-                    if !config.find_all
-                        should_terminate = true
-                    end
-                else
-                    if is_regular(simplices)
-                        if isempty(first_regular_solution_simplices)
-                            first_regular_solution_simplices = simplices
-                        end
-                        number_of_regular_triangulations_found += 1
-                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                            push!(solution_simplices, simplices)
-                        end
-                        if !config.find_all
-                            should_terminate = true
-                        end
-                    else
-                        if show_running_updates
-                            ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
-                        end
-                        # Valid but not regular -> continue search
-                    end
-                end
+            # 2) A finished solver run is always handled *before* anything is
+            #    added, so a SAT/UNSAT result that raced with an interrupt can
+            #    never be lost.
+            if istaskdone(solve_task)
+                res = fetch(solve_task)
 
-                if should_terminate
+                if res == CadicalWrapper.STATUS_SAT
+                    sol_indices = [i for i in 1:num_simplices if CadicalWrapper.val(solver, i) > 0]
+                    simplices = extract_simplices(P, S_indices, sol_indices)
+
+                    if record_solution!(st, simplices, config, show_running_updates)
+                        break
+                    end
+                    if show_running_updates && st.n_found % 1000 == 0
+                        ghost_print(" ($(st.n_found) triangulations found)")
+                    end
+
+                    # Keep enumerating: block this assignment. The solver is
+                    # conveniently idle, so flush pending clauses too.
+                    CadicalWrapper.add_clause(solver, -sol_indices)
+                    flush_buffer!()
+                    solve_task = CadicalWrapper.solve_async(solver)
+
+                elseif res == CadicalWrapper.STATUS_UNSAT
+                    # All clauses ever added are sound, so this is definitive
+                    # even if clause generation is still running.
                     break
-                else
-                    # Block this solution and resume
-                    CadicalWrapper.add_clause(solver, [-solution_vector...])
-                    task = CadicalWrapper.solve_async(solver)
+
+                else # STATUS_UNKNOWN: interrupted (or spurious termination)
+                    had_work = !isempty(buffer)
+                    flush_buffer!()
+                    if show_running_updates && had_work
+                        ghost_print("   (incremental) intersection clauses injected: $total_injected")
+                    end
+                    if !had_work
+                        # Nothing was waiting; avoid a hot interrupt/resume loop.
+                        sleep(0.001)
+                    end
+                    solve_task = CadicalWrapper.solve_async(solver)
                 end
-                
-            elseif res == 20 # UNSAT
-                # If generators are done, it's definitively UNSAT.
-                break
+                continue
+            end
+
+            # 3) Solver still running: pause it when enough clauses have piled
+            #    up, or when generation has finished and the leftovers should
+            #    go in. The result of the interrupted run is handled at the
+            #    top of the loop.
+            if length(buffer) >= SOLVER_UPDATE_THRESHOLD || (generation_done && !isempty(buffer))
+                CadicalWrapper.interrupt(solver)
+                wait(solve_task)
+                continue
+            end
+
+            # 4) Nothing to coordinate: either wait for the solver (generation
+            #    is over and everything has been injected) or nap briefly
+            #    while the generators work.
+            if generation_done
+                wait(solve_task)
             else
-                # Unknown/Interrupted - Just resume
-                task = CadicalWrapper.solve_async(solver)
+                sleep(0.001)
             end
         end
-
-        # --- B. Process Incoming Clauses ---
-        # Drain channel into local buffer, BUT LIMIT IT to prevent starvation
-        # We fetch up to Update Threshold + a bit, then force a check/update cycle
-        clauses_fetched_this_cycle = 0
-        limit = SOLVER_UPDATE_THRESHOLD * 2 
-        
-        while isready(clause_channel) && clauses_fetched_this_cycle < limit
-            try
-                push!(new_clauses_buffer, take!(clause_channel))
-                clauses_fetched_this_cycle += 1
-            catch
-                break
-            end
-        end
-
-        # --- C. Update Solver if Threshold Reached ---
-        should_update = length(new_clauses_buffer) >= SOLVER_UPDATE_THRESHOLD ||
-                        (generation_complete[] && !isempty(new_clauses_buffer))
-        
-        # Only interrupt if the task is NOT done. If it is done, we loop around to 'A' to handle result first.
-        if should_update && !istaskdone(task)
-            number_of_clauses_added += length(new_clauses_buffer)
-            ghost_print("   Number of clauses added: $number_of_clauses_added")
-            
+    finally
+        # Tear everything down on every exit path.
+        search_finished[] = true
+        close(clause_channel) # unblocks workers stuck in put!
+        if !istaskdone(solve_task)
             CadicalWrapper.interrupt(solver)
-            
-            # Wait for task to effectively stop
             try
-                wait(task)
+                wait(solve_task)
             catch
             end
-            
-            # CRITICAL CHECK: Did the solver finish with a result (SAT/UNSAT) while we tried to interrupt?
-            # If so, we MUST process that result before adding clauses, otherwise we might corrupt the state
-            # or miss a solution.
-            if istaskdone(task)
-                # If done, we loop back to A immediately to process the result.
-                # We do NOT add clauses yet. The buffer remains for the next pass.
-                continue 
-            end
-
-            # Add buffered clauses
-            for c in new_clauses_buffer
-                CadicalWrapper.add_clause(solver, c)
-            end
-            empty!(new_clauses_buffer)
-            
-            # Resume solver
-            task = CadicalWrapper.solve_async(solver)
         end
+        foreach(t -> (try; wait(t); catch; end), generator_tasks)
+        try
+            wait(closer_task)
+        catch
+        end
+        CadicalWrapper.release(solver)
     end
-    
-    CadicalWrapper.release(solver)
-    
-    return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
+
+    log_verbose("      Injected $total_injected redundant intersection clauses during solving.")
+
+    return as_result_tuple(st)
 end
 
-function solve_cadical_standard(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool,
-                                stop_signal::Threads.Atomic{Bool})
-    solution_simplices = Vector{Vector{Matrix{Int}}}()
-    first_solution_simplices = Vector{Matrix{Int}}()
-    
-    number_of_triangulations_found = 0
-    number_of_regular_triangulations_found = 0
-    number_of_flag_triangulations_found = 0
-    number_of_quadratic_triangulations_found = 0
-    num_simplices = length(S_indices)
-
-    solver = CadicalWrapper.Solver()
-    for clause in cnf
-        CadicalWrapper.add_clause(solver, clause)
-    end
-
-    while true
-        if stop_signal[]
-            break
-        end
-        if number_of_triangulations_found % 1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
-            ghost_print(" ($number_of_triangulations_found triangulations found)")
-        end
-        
-        res = CadicalWrapper.solve_blocking(solver)
-        if res == 10 # SAT
-            # Retrieve solution
-            solution_vector = Int[]
-            for i in 1:num_simplices
-                if CadicalWrapper.val(solver, i) > 0
-                    push!(solution_vector, i)
-                end
-            end
-            simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in solution_vector]
-            
-            number_of_triangulations_found += 1
-            if isempty(first_solution_simplices)
-                first_solution_simplices = simplices
-            end
-
-            should_terminate = false
-
-            # --- Logic gates for config settings w.r.t regularity, flags, and termination ---
-            if !config.regular
-                if config.flag_triangulation
-                    if is_flag_triangulation(simplices)
-                        number_of_flag_triangulations_found += 1
-                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                            push!(solution_simplices, simplices)
-                        end
-                        if !config.find_all; should_terminate = true; end
-                    elseif show_running_updates
-                        ghost_print(" ($number_of_triangulations_found non-flag triangulations found)")
-                    end
-                else # !config.flag_triangulation
-                    if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                        push!(solution_simplices, simplices)
-                    end
-                    if !config.find_all; should_terminate = true; end
-                end
-            else # config.regular == true
-                if is_regular(simplices)
-                    if isempty(first_solution_simplices)
-                        first_solution_simplices = simplices
-                    end
-                    number_of_regular_triangulations_found += 1
-                    
-                    if config.flag_triangulation # Looking for quadratic (regular + flag) triangulations
-                        if is_flag_triangulation(simplices)
-                            number_of_quadratic_triangulations_found += 1
-                            number_of_flag_triangulations_found += 1
-                            if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                                push!(solution_simplices, simplices)
-                            end
-                            if !config.find_all; should_terminate = true; end
-                        elseif show_running_updates
-                            ghost_print(" ($number_of_triangulations_found regular non-flag triangulations found)")
-                        end
-                    else # Regular, but not filtering for flags
-                        if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                            push!(solution_simplices, simplices)
-                        end
-                        if !config.find_all; should_terminate = true; end
-                    end
-                elseif show_running_updates
-                    ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
-                end
-            end
-
-            if should_terminate
-                Threads.atomic_cas!(stop_signal, false, true)
-                break
-            else
-                CadicalWrapper.add_clause(solver, [-solution_vector...])
-            end
-        else # UNSAT or Unknown
-            break
-        end
-    end
-    CadicalWrapper.release(solver)
-
-    return (
-        solution_simplices, 
-        first_solution_simplices, 
-        number_of_triangulations_found, 
-        number_of_regular_triangulations_found, 
-        number_of_flag_triangulations_found, 
-        number_of_quadratic_triangulations_found
-    )
-end
+# ============================================================================
+# Parallel solving
+# ============================================================================
 
 function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool)
     num_threads = Threads.nthreads()
@@ -441,7 +375,7 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
     # 1. find generic point and central simplices
     generic_point = find_generic_point(P, internal_faces(P, size(P, 2)), Val(size(P, 2)))
     central_indices_map = compute_central_indices(P, S_indices, generic_point)
-    
+
     solve_function = nothing
     if config.solver == "cadical"
         solve_function = solve_cadical_standard
@@ -460,18 +394,20 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
     # 3. prepare thread-local storage for results
     solution_simplices_threads = [Vector{Vector{Matrix{Int}}}() for _ in 1:num_threads]
     first_solution_threads     = [Vector{Matrix{Int}}() for _ in 1:num_threads]
-    
+
     # Thread-isolated quantitative tracking
     num_triangulations_threads = zeros(Int, num_threads)
     num_regular_threads        = zeros(Int, num_threads)
     num_flag_threads           = zeros(Int, num_threads)
     num_quadratic_threads      = zeros(Int, num_threads)
-    
+
     # Shared stop signal for early termination across all threads
     found_solution = Threads.Atomic{Bool}(false)
 
-    # 4. thread i solves cnf + [central_group[i]...] using the standard solver
-    # This limits thread i to solutions where a simplex from its central group is used.
+    # 4. thread i solves cnf + [central_group[i]...] using the standard solver.
+    # This limits thread i to solutions where a simplex from its central group
+    # is used; since every triangulation contains exactly one central simplex,
+    # the groups partition the solution space.
     Threads.@threads for tid in 1:num_threads
         group = central_groups[tid]
         if isempty(group)
@@ -490,7 +426,7 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
         # Store the returned values into the isolated thread arrays
         solution_simplices_threads[tid] = sol_simp
         first_solution_threads[tid]     = first_sol
-        
+
         num_triangulations_threads[tid] = num_found
         num_regular_threads[tid]        = num_reg
         num_flag_threads[tid]           = num_flag
@@ -500,7 +436,7 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
     # 5. aggregate the results from all threads
     solution_simplices       = Vector{Vector{Matrix{Int}}}()
     first_solution_simplices = Vector{Matrix{Int}}()
-    
+
     # Compute totals
     number_of_triangulations_found           = sum(num_triangulations_threads)
     number_of_regular_triangulations_found   = sum(num_regular_threads)
@@ -509,7 +445,7 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
 
     for tid in 1:num_threads
         append!(solution_simplices, solution_simplices_threads[tid])
-        
+
         # Capture the very first valid solution found across threads
         if isempty(first_solution_simplices) && !isempty(first_solution_threads[tid])
             first_solution_simplices = first_solution_threads[tid]
@@ -530,12 +466,13 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
     end
 
     return (
-        solution_simplices, 
-        first_solution_simplices, 
-        number_of_triangulations_found, 
+        solution_simplices,
+        first_solution_simplices,
+        number_of_triangulations_found,
         number_of_regular_triangulations_found,
         number_of_flag_triangulations_found,
         number_of_quadratic_triangulations_found
     )
 end
+
 end

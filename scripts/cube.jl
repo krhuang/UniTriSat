@@ -39,6 +39,10 @@ s = ArgParseSettings()
         help = "sat solver, picosat or cadical"
         arg_type = String
         default = "picosat"
+    "--incremental_solving"
+        help = "enable incremental solving"
+        arg_type = Bool
+        default = true
 end
 
 parsed = parse_args(s)
@@ -48,6 +52,7 @@ regular = parsed["regular"]
 backend = parsed["backend"]
 solver = parsed["solver"]
 all = parsed["all"]
+inc_sol = parsed["incremental_solving"]
 
 # Display Setup
 terminal_output = "initial, running, table, final"
@@ -66,5 +71,6 @@ triangulate(
     regular=regular,
     solver=solver,
     find_all=all,
-    enable_parallel=true
+    enable_parallel=true,
+    incremental_solving=inc_sol
 )

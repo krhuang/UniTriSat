@@ -41,6 +41,7 @@ for d in 3:6
 end
 
 export all_simplices,
+    CPUIntersection,
     internal_faces, 
     lattice_points_via_CDDLib,
     lattice_points_via_Normaliz,
@@ -54,8 +55,7 @@ export all_simplices,
     compute_face_clauses,
     find_generic_point,
     compute_central_indices,
-    full_dimensional_lattice_projection,
-    Normaliz_available
+    full_dimensional_lattice_projection
 
 
 const CDD_LIB_EXACT = CDDLib.Library(:exact)
@@ -109,7 +109,7 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
     if num_hyperplanes == 0
         @warn "Polytope has no H-representation"
-        return zeros(Int, 0, size(vertices, 2))
+        return lattice_points_via_CDDLib(vertices)
     end
 
     A_rational = reduce(vcat, [h.a' for h in all_halfspaces])
@@ -293,14 +293,28 @@ function internal_faces(vertices::Matrix{Int}, dim::Int)
     return faces
 end
 
-# Finds a generic point strictly inside the polytope using Rational{BigInt} arithmetic
+# Finds a point strictly inside the polytope that lies on no hyperplane spanned by lattice points inside the polytope
 function find_generic_point(P::Matrix{Int}, internal_faces_set, ::Val{D}) where D
     n_points_total = size(P, 1)
     max_attempts = 1000
 
     P_rational = Matrix{Rational{BigInt}}(P)
-    face_vectors_f = zeros(MMatrix{D, D - 1, Float64})
-    aug_matrix_f = zeros(MMatrix{D, D, Float64})
+
+    # Precompute (integer normal, anchor vertex index) for every internal face
+    # that spans a hyperplane; degenerate faces (zero normal) span no
+    # hyperplane and impose no genericity constraint.
+    hyperplanes = Vector{Tuple{Vector{Int64}, Int}}()
+    for face_indices in internal_faces_set
+        if length(face_indices) != D
+            continue
+        end
+        face_verts = [Vector{Int}(P[idx, :]) for idx in face_indices]
+        normal = CPUIntersection.compute_face_normal(face_verts, Val(D))
+        if all(iszero, normal)
+            continue
+        end
+        push!(hyperplanes, (collect(Int64, normal), face_indices[1]))
+    end
 
     for attempt in 1:max_attempts
         weights = rand(1:10000, n_points_total)
@@ -308,34 +322,12 @@ function find_generic_point(P::Matrix{Int}, internal_faces_set, ::Val{D}) where 
         p_vec = vec((P_rational' * weights) .// weight_sum)
 
         is_generic = true
-
-        for face_indices in internal_faces_set
-            first_face_index = face_indices[1]
-            if length(face_indices) < D
-                continue
-            end
-            @assert length(face_indices) == D
-            for j in 1:D-1
-                vertex_index = face_indices[j+1]
-                for k in 1:D
-                    face_vectors_f[k,j] = float(P[vertex_index, k] - P[first_face_index, k])
-                end
-            end
-
-            r_face = rank(face_vectors_f)
-            if r_face < D - 1
-                continue
-            end
-
-            for j in 1:(D-1)
-                aug_matrix_f[:, j] .= face_vectors_f[:, j]
-            end
+        for (normal, anchor_idx) in hyperplanes
+            s = zero(Rational{BigInt})
             for k in 1:D
-                aug_matrix_f[k, end] = float(p_vec[k] - P[first_face_index, k])
+                s += normal[k] * (p_vec[k] - P[anchor_idx, k])
             end
-            r_aug = rank(aug_matrix_f)
-
-            if r_face == r_aug
+            if iszero(s)
                 is_generic = false
                 break
             end
@@ -359,6 +351,8 @@ function is_point_in_simplex(P::Matrix{Int}, s_indices, p::Vector{Rational{BigIn
     for k in 1:dim
         first_vert[k] = P[s_indices[1], k]
     end
+    # Rational{BigInt}: intermediate values in the elimination can overflow
+    # machine integers even for moderate coordinates.
     A = Matrix{Rational{BigInt}}(undef, dim, dim)
     # Fill A manually: each column = vertex_i - first_vert
     for j in 1:dim
@@ -401,76 +395,118 @@ function compute_internal_faces(P::Matrix{Int}, dim::Int)
     return internal_faces(P, dim)
 end
 
-# Helper for incremental intersection logic
+# Builds the reduced ("small") intersection clause set used by incremental
+# solving. It consists of
+#   (i)  an exactly-one structure over the central simplices, i.e. the
+#        simplices whose interior contains a fixed generic point: an OR clause
+#        (every triangulation covers the generic point, so it uses at least
+#        one central simplex) plus pairwise conflict clauses (any two central
+#        simplices overlap in the generic point), and
+#   (ii) hyperplane-separation clauses: two simplices sharing the same
+#        potential facet F, with their apexes strictly on the same side of
+#        aff(F), overlap in a neighbourhood of relint(F) and therefore
+#        exclude each other.
+# Together with the face-covering clauses, this formula has exactly the
+# unimodular triangulations of P as its solutions while being much smaller
+# than the full pairwise intersection clause set. The remaining (redundant)
+# intersection clauses are streamed to the solver later; see
+# solve_cadical_incremental.
 function compute_intersections_incremental(P::Matrix{Int}, S_indices, internal_faces_set, dim::Int, num_lattice_points::Int)
     local_clauses = Vector{Vector{Int}}()
 
-    # 4a. Find & Assign a generic point
-    # TODO: Could there be a "smart" choice of this generic point??
+    # (i) Generic point and the exactly-one structure over central simplices
     generic_point = find_generic_point(P, internal_faces_set, Val(dim))
-    
-    # 4b. Identify Central Simplices & Compute Full Intersections for them
     central_indices_map = compute_central_indices(P, S_indices, generic_point)
 
-    if !isempty(central_indices_map)
-        central_S_indices = S_indices[central_indices_map]
-        # All simplices containing the generic point intersect with each other
-        central_clauses = [[-i, -j] for i in 1:length(central_S_indices) for j in (i+1):length(central_S_indices)]
-        for c in central_clauses
-            mapped_clause = [x < 0 ? -central_indices_map[abs(x)] : central_indices_map[abs(x)] for x in c]
-            push!(local_clauses, mapped_clause)
+    if isempty(central_indices_map)
+        # Every triangulation must cover the generic point, so this can only
+        # happen if something upstream went wrong (e.g. a non-generic point).
+        error("No simplex contains the generic point; this should never happen. Please open an issue on GitHub.")
+    end
+
+    # OR: some central simplex is used. This subsumes (and strengthens) the
+    # global non-emptiness clause.
+    push!(local_clauses, copy(central_indices_map))
+    # Pairwise conflicts: at most one central simplex is used.
+    for a in 1:length(central_indices_map)
+        for b in (a+1):length(central_indices_map)
+            s1, s2 = minmax(central_indices_map[a], central_indices_map[b])
+            push!(local_clauses, [-s1, -s2])
         end
     end
 
-    # 4c. Hyperplane Separation Logic
+    # (ii) Hyperplane separation, parallelized over the smallest point index
+    # of the face. Workers pull the next first-index from an atomic counter
+    # and write into thread-local clause lists.
     S_idx_map = Dict(Tuple(sort(collect(s))) => i for (i,s) in enumerate(S_indices))
-    for face_indices_iter in combinations(1:num_lattice_points, dim)
-        face_indices = collect(face_indices_iter)
-        face_verts = [P[i, :] for i in face_indices]
-        normal = CPUIntersection.compute_face_normal(face_verts, Val(dim))
-        if all(iszero, normal); continue; end
+    next_first_index = Threads.Atomic{Int}(1)
 
-        left_simplices = Int[]
-        right_simplices = Int[]
-        v_ref = P[face_indices[1], :]
+    separation_tasks = map(1:nthreads()) do _
+        Threads.@spawn begin
+            clauses = Vector{Vector{Int}}()
+            left_simplices = Int[]
+            right_simplices = Int[]
 
-        for p_idx in 1:num_lattice_points
-            if p_idx in face_indices; continue; end
-            candidate_s = copy(face_indices)
-            push!(candidate_s, p_idx)
-            sort!(candidate_s)
-            candidate_tuple = Tuple(candidate_s)
-
-            if haskey(S_idx_map, candidate_tuple)
-                s_global_idx = S_idx_map[candidate_tuple]
-                val = 0
-                p_coords = P[p_idx, :]
-                for k in 1:dim
-                    val += normal[k] * (p_coords[k] - v_ref[k])
+            while true
+                f1 = Threads.atomic_add!(next_first_index, 1)
+                if f1 > num_lattice_points - dim + 1
+                    break
                 end
-                if val > 0
-                    push!(left_simplices, s_global_idx)
-                elseif val < 0
-                    push!(right_simplices, s_global_idx)
+
+                for rest in combinations((f1+1):num_lattice_points, dim - 1)
+                    face_indices = vcat(f1, rest)
+                    face_verts = [P[i, :] for i in face_indices]
+                    normal = CPUIntersection.compute_face_normal(face_verts, Val(dim))
+                    if all(iszero, normal); continue; end
+
+                    empty!(left_simplices)
+                    empty!(right_simplices)
+                    v_ref = P[f1, :]
+
+                    for p_idx in 1:num_lattice_points
+                        if p_idx in face_indices; continue; end
+                        candidate_s = copy(face_indices)
+                        push!(candidate_s, p_idx)
+                        sort!(candidate_s)
+                        candidate_tuple = Tuple(candidate_s)
+
+                        if haskey(S_idx_map, candidate_tuple)
+                            s_global_idx = S_idx_map[candidate_tuple]
+                            val = 0
+                            p_coords = P[p_idx, :]
+                            for k in 1:dim
+                                val += normal[k] * (p_coords[k] - v_ref[k])
+                            end
+                            if val > 0
+                                push!(left_simplices, s_global_idx)
+                            elseif val < 0
+                                push!(right_simplices, s_global_idx)
+                            end
+                        end
+                    end
+
+                    for side in (left_simplices, right_simplices)
+                        for i in 1:length(side)
+                            for j in (i+1):length(side)
+                                s1, s2 = minmax(side[i], side[j])
+                                push!(clauses, [-s1, -s2])
+                            end
+                        end
+                    end
                 end
             end
-        end
 
-        for i in 1:length(left_simplices)
-            s1 = left_simplices[i]
-            for j in (i+1):length(left_simplices)
-                s2 = left_simplices[j]
-                push!(local_clauses, [-s1, -s2])
-            end
-        end
-        for i in 1:length(right_simplices)
-            s1 = right_simplices[i]
-            for j in (i+1):length(right_simplices)
-                s2 = right_simplices[j]
-                push!(local_clauses, [-s1, -s2])
-            end
+            clauses
         end
     end
+
+    for task in separation_tasks
+        append!(local_clauses, fetch(task))
+    end
+
+    # The same pair of simplices can conflict via several shared faces (and
+    # via the central clauses); clauses are normalized above so unique
+    # deduplicates them.
     return unique(local_clauses)
 end
 
