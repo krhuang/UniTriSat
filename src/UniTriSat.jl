@@ -9,7 +9,6 @@ using Polyhedra
 using Dates
 using Printf
 using Base.Threads
-using TOML
 using Random
 using CDDLib
 using StaticArrays
@@ -263,8 +262,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
         result_str = @sprintf("\u001b[31mno solution exists\u001b[0m, searched for %.2f s", total_time)
     end
     minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices, result_str)
-
-    empty!(cnf)
 
     return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, number_of_flag_triangulations_found, number_of_quadratic_triangulations_found, minimal_log, total_time, step_stats)
 end

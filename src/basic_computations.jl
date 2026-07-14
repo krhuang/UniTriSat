@@ -44,7 +44,7 @@ export all_simplices,
     internal_faces, 
     lattice_points_via_CDDLib,
     lattice_points_via_Normaliz,
-    lattice_points_via_Oscar,
+    # lattice_points_via_Oscar,
     compute_lattice_points,
     compute_simplices,
     compute_internal_faces,
@@ -94,46 +94,6 @@ function full_dimensional_lattice_projection(initial_vertices::Matrix{Int64})
     
     return projected_vertices
 end
-
-
-# Computes the lattice points of a lattice polytope, via CDDLib backend of Polyhedra
-# By default CDDLib uses Floats, but you can configure this
-
-# See the documentation at https://juliapolyhedra.github.io/Polyhedra.jl/stable/polyhedron/
-
-#     "CDDLib.Library creates CDDLib.Polyhedron of type either Float64 or Rational{BigInt}. 
-# One can choose the first one using CDDLib.Library(:float) and the second one using 
-# CDDLib.Library(:exact), by default it is :float."
-
-# function lattice_points_via_CDDLib(vertices::Matrix{Int})
-#     # Convert vertices to exact rationals
-#     verts = Rational{BigInt}.(vertices)
-#
-#     # Build exact polyhedron from vertices
-#     poly = polyhedron(vrep(verts), CDDLib.Library(:exact))
-#
-#     # Compute bounding box
-#     min_array = [minimum(vertices[:, i]) for i in 1:size(vertices, 2)]
-#     max_array = [maximum(vertices[:, i]) for i in 1:size(vertices, 2)]
-#     ranges = [min_array[i]:max_array[i] for i in 1:length(min_array)]
-#
-#     # Enumerate and collect integer points
-#     points_list = Vector{Vector{Int}}()
-#
-#     for pt_tuple in Iterators.product(ranges...)
-#         pt = Rational{BigInt}.(collect(pt_tuple))
-#         if in(pt, poly)
-#             push!(points_list, collect(Int.(pt_tuple)))
-#         end
-#     end
-#
-#     # Convert to a matrix with one point per row
-#     if isempty(points_list)
-#         return zeros(Int, 0, size(vertices, 2))
-#     else
-#         return reduce(vcat, [permutedims(p) for p in points_list])
-#     end
-# end
 
 function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
@@ -199,47 +159,15 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
     end
 end
 
-#=
-# Access the lattice points of a lattice polytope via Normaliz
-function lattice_points_via_Normaliz(vertices::Matrix{Int})
-    nverts, d = size(vertices)
-
-    # Lift vertices to d+1 dimension by adding 1
-    lifted = hcat(vertices, ones(Int, nverts))
-
-    nmz_vertices = Normaliz.NmzMatrix{Normaliz.NmzRational}(lifted)
-
-    # Construct the cone
-    cone = Normaliz.LongLongCone(Dict(:cone => nmz_vertices))
-
-    # Get Hilbert basis (generates all integer points in the cone)
-    HB = Normaliz.get_matrix_cone_property(cone, "HilbertBasis")
-
-    # Dehomogenize
-    ncols = size(HB,2) - 1
-    points = []
-    for i in 1:size(HB,1)
-        len = size(HB,2)
-        if HB[i, len] == 1
-            push!(points, [HB[i, j] for j in 1:ncols])
-        end
-    end
-
-    return [vec[j] for vec in points, j in 1:ncols]
-end
-=#
-
-# Oscar function for computing lattice points of a convex hull
-# Only temporary code...
-function lattice_points_via_Oscar(vertices::Matrix{Int})
-    polytope = convex_hull(vertices)
-    LP = lattice_points(polytope)
-    dims = size(LP)
-    nrows = dims[1]
-    ncols = size(LP[1])[1]
-    julia_matrix_LP = [Int64(LP[i][j]) for i in 1:nrows, j in 1:ncols]
-    return julia_matrix_LP
-end
+# function lattice_points_via_Oscar(vertices::Matrix{Int})
+#     polytope = convex_hull(vertices)
+#     LP = lattice_points(polytope)
+#     dims = size(LP)
+#     nrows = dims[1]
+#     ncols = size(LP[1])[1]
+#     julia_matrix_LP = [Int64(LP[i][j]) for i in 1:nrows, j in 1:ncols]
+#     return julia_matrix_LP
+# end
 
 function next_combination!(inds::Vector{Int}, n::Int)
     k = length(inds)

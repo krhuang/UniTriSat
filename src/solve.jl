@@ -2,8 +2,8 @@
 module Solving
 
 # Constants for the new producer-consumer logic
-const INTERSECTION_GENERATION_CHUNK_SIZE = 10000    # Number of simplices each generator thread processes at once
-const SOLVER_UPDATE_THRESHOLD = 500000              # Number of new clauses to buffer before updating the solver
+# const INTERSECTION_GENERATION_CHUNK_SIZE = 10000    # Number of simplices each generator thread processes at once
+# const SOLVER_UPDATE_THRESHOLD = 500000              # Number of new clauses to buffer before updating the solver
                                                     # Only relevant when using incremental solving
 
 using PicoSAT
@@ -12,10 +12,6 @@ using PicoSAT
 include("CadicalWrapper.jl")
 using .CadicalWrapper
 
-#= No longer using d4
-include("d4Wrapper.jl")
-using .D4AllSat
-=# 
 include("subdivision_regularity.jl")
 using .SubdivisionRegularity
 
@@ -24,7 +20,7 @@ using ..Helpers
 using ..BasicComputations
 using Base.Threads
 
-export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_parallel#, find_all_d4 # No longer using d4
+export solve_picosat, solve_cadical_incremental, solve_cadical_standard, solve_parallel
 
 function solve_picosat(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config::Config, show_running_updates::Bool, stop_signal::Threads.Atomic{Bool})
     solution_simplices = Vector{Vector{Matrix{Int}}}()
@@ -542,62 +538,4 @@ function solve_parallel(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, con
         number_of_quadratic_triangulations_found
     )
 end
-
-#= No longer using d4
-function find_all_d4(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_indices, config, show_running_updates::Bool)
-    num_threads = Threads.nthreads()
-
-    # 1. Find generic point and central simplices
-    generic_point = find_generic_point(P, internal_faces(P, size(P, 2)), Val(size(P, 2)))
-    central_indices_map = compute_central_indices(P, S_indices, generic_point)
-
-    # 2. Split central simplices into groups for each thread (round-robin)
-    central_groups = [Int[] for _ in 1:num_threads]
-    for (i, idx) in enumerate(central_indices_map)
-        push!(central_groups[mod1(i, num_threads)], idx)
-    end
-
-    # 3. Standard thread-agnostic state variables
-    solution_simplices = Vector{Vector{Matrix{Int}}}()
-    first_solution_simplices = Vector{Matrix{Int}}()
-    first_regular_solution_simplices = Vector{Matrix{Int}}()
-    number_of_triangulations_found = 0
-    number_of_regular_triangulations_found = 0
-
-    # 4. Consume the safely merged stream of solutions
-    for solution in d4_itersolve(cnf, central_groups)
-        if number_of_triangulations_found % 1000 == 0 && number_of_triangulations_found > 0 && show_running_updates
-            ghost_print(" ($number_of_triangulations_found triangulations found)")
-        end
-        
-        sol_indices = findall(l -> l > 0, solution)
-        simplices = [convert(Matrix{Int}, P[collect(S_indices[i]), :]) for i in sol_indices]
-        number_of_triangulations_found += 1
-        
-        if isempty(first_solution_simplices)
-            first_solution_simplices = simplices
-        end
-        
-        if !config.regular
-            if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                push!(solution_simplices, simplices)
-            end
-        else
-            if is_regular(simplices)
-                if isempty(first_regular_solution_simplices)
-                    first_regular_solution_simplices = simplices
-                end
-                number_of_regular_triangulations_found += 1
-                if config.return_triangulations == "all" || (config.return_triangulations == "first" && isempty(solution_simplices))
-                    push!(solution_simplices, simplices)
-                end
-            elseif show_running_updates
-                ghost_print(" ($number_of_triangulations_found non-regular triangulations found)")
-            end
-        end
-    end
-    
-    return solution_simplices, first_solution_simplices, first_regular_solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found
-end
-=#
 end
