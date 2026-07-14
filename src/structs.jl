@@ -20,7 +20,6 @@ end
 
 # Initializer for the aggregator
 StatAggregator() = StatAggregator(0.0, 0.0, 0, 0, 0)
-
 mutable struct Config
     terminal_output::String
     unimodular::Bool

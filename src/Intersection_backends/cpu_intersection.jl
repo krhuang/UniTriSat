@@ -353,7 +353,7 @@ function simplices_intersect_sat_cpu(s1::Simplex{V, D}, s2::Simplex{V, D}) where
             l = D - 1 - k
             edge_count = binomial(D + 1, k + 1)
             s1_face_edges_k = s1_face_edges[k]
-            s2_face_edges_l = s1_face_edges[l]
+            s2_face_edges_l = s2_face_edges[l]
             for i in 1:edge_count
                 f1_edges = s1_face_edges_k[i]
                 # combine edges spanning the two faces

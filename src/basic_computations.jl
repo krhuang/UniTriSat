@@ -54,7 +54,8 @@ export all_simplices,
     compute_face_clauses,
     find_generic_point,
     compute_central_indices,
-    full_dimensional_lattice_projection
+    full_dimensional_lattice_projection,
+    Normaliz_available
 
 
 const CDD_LIB_EXACT = CDDLib.Library(:exact)
@@ -108,7 +109,7 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
     if num_hyperplanes == 0
         @warn "Polytope has no H-representation"
-        return lattice_points_via_CDDLib(vertices)
+        return zeros(Int, 0, size(vertices, 2))
     end
 
     A_rational = reduce(vcat, [h.a' for h in all_halfspaces])
@@ -358,7 +359,7 @@ function is_point_in_simplex(P::Matrix{Int}, s_indices, p::Vector{Rational{BigIn
     for k in 1:dim
         first_vert[k] = P[s_indices[1], k]
     end
-    A = Matrix{Rational{Int}}(undef, dim, dim)
+    A = Matrix{Rational{BigInt}}(undef, dim, dim)
     # Fill A manually: each column = vertex_i - first_vert
     for j in 1:dim
         vert_index = s_indices[j + 1]

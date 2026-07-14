@@ -123,7 +123,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
         minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> No simplices found", run_idx, total_in_run, num_lattice_points, num_simplices)
-        return TriangulationResult([], 0, 0, 0, 0, minimal_log, time()-t_start_total, step_stats)
+        return TriangulationResult([], 0, 0, 0, 0, minimal_log, total_time, step_stats)
     end
 
     # --- Step 3: Internal Faces ---
@@ -255,7 +255,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     elseif number_of_flag_triangulations_found > 0
         result_str = @sprintf("\u001b[32mfound %d flag triangulation(s)\u001b[0m in %.2f s", number_of_flag_triangulations_found, total_time)
     elseif number_of_regular_triangulations_found > 0
-        result_str = @sprintf("\u001b[32mfound %d regular triangulation(s)\u001b[0m in %.2f s", number_of_flag_triangulations_found, total_time)
+        result_str = @sprintf("\u001b[32mfound %d regular triangulation(s)\u001b[0m in %.2f s", number_of_regular_triangulations_found, total_time)
     elseif number_of_triangulations_found > 0
         result_str = @sprintf("\u001b[32mfound %d solution(s)\u001b[0m in %.2f s", number_of_triangulations_found, total_time)
     else
@@ -463,7 +463,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
 
     if isempty(polytopes)
         @warn("No polytopes provided to setup_run.")
-        return RunResult(Vector{TriangulationResult}(), 0, 0, 0, 0, 0.0)
+        return RunResult(Vector{TriangulationResult}(), 0, 0, 0, 0, 0, 0, 0, 0, 0.0)
     end
 
     if solver in ["cadical"] && (!Sys.islinux() && !Sys.isapple())
@@ -617,7 +617,7 @@ function triangulate(   polytopes::Vector{Polyhedron};
         if !isempty(vmatrix)
             push!(vmatrices, vmatrix)
         else
-            @warn("Scipping a polytopes, because it could not be read properly-.")
+            @warn("Skipping a polytopes, because it could not be read properly.")
         end
     end
 
