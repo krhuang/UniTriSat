@@ -41,8 +41,7 @@ s = ArgParseSettings()
         default = "picosat"
     "--incremental_solving"
         help = "enable incremental solving"
-        arg_type = Bool
-        default = true
+        action = :store_true
 end
 
 parsed = parse_args(s)

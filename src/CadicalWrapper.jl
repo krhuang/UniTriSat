@@ -55,6 +55,26 @@ function add_clause(s::Solver, clause::Vector{Int})
 end
 
 """
+Helper: Adds many clauses while taking the solver lock only once. Injecting
+large clause batches through `add_clause` pays one lock acquisition per
+clause, which becomes a serial bottleneck when millions of clauses are
+streamed in (incremental solving).
+"""
+function add_clauses(s::Solver, clauses)
+    lock(s.lock) do
+        if s.is_solving
+            error("Unable to add clauses, pause the solver first by calling 'interrupt(solver)'")
+        end
+        for clause in clauses
+            for lit in clause
+                add_literal(s, lit)
+            end
+            add_literal(s, 0) # Terminate clause
+        end
+    end
+end
+
+"""
 Pauses the solver
 """
 function interrupt(s::Solver)

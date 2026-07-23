@@ -20,6 +20,7 @@ end
 
 # Initializer for the aggregator
 StatAggregator() = StatAggregator(0.0, 0.0, 0, 0, 0)
+
 mutable struct Config
     terminal_output::String
     unimodular::Bool
@@ -43,7 +44,6 @@ mutable struct TriangulationResult
     number_of_regular_triangulations_found::Int
     number_of_flag_triangulations_found::Int
     number_of_quadratic_triangulations_found::Int
-    minimal_log::String
     total_time::Float64
     step_stats::Vector{StepStat}
 end

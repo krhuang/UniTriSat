@@ -64,31 +64,38 @@ function process_polytope(  initial_vertices::Matrix{Int},
     #           When it's not, we compute its Hermite Normal Form and find a lattice-equivalent polytope 
     #           in a lower ambient dimension.
 
-    v = vrep(initial_vertices)
-    poly = polyhedron(v, CDDLib.Library(:exact))
     dim = size(initial_vertices, 2)
 
-    if config.check_full_dimensionality && Polyhedra.dim(poly) < dim
-        log_verbose("Polytope is not full-dimensional. Original ambient dim: $dim, Polytope intrinsic dim: $(Polyhedra.dim(poly))")
-        log_verbose("Finding an appropriate projection to remove excess ambient dimensions via HNF...")
-        
-        # Execute the lattice-preserving projection transformation
-        initial_vertices = full_dimensional_lattice_projection(initial_vertices)
-        dim = size(initial_vertices, 2)
-        
-        # Rebuild the Polyhedron structure in the new lower-dimensional space
-        v = vrep(initial_vertices)
-        poly = polyhedron(v, CDDLib.Library(:exact))
-        dim_poly = Polyhedra.dim(poly)
-        
-        # Sanity Check
-        if dim_poly != dim
-            error("Projection failed to produce a full-dimensional polytope. Target ambient dim: $dim, but got: $dim_poly. \nThis error should never occur; please write us.")
+    # NOTE: the CDD-exact polyhedron is only constructed when the check is
+    # actually enabled. It used to be built unconditionally, leaving one
+    # finalizer-managed native object per polytope even in the default
+    # configuration (check_full_dimensionality=false).
+    if config.check_full_dimensionality
+        poly = polyhedron(vrep(initial_vertices), CDDLib.Library(:exact))
+        intrinsic_dim = Polyhedra.dim(poly)
+        if intrinsic_dim < dim
+            log_verbose("Polytope is not full-dimensional. Original ambient dim: $dim, Polytope intrinsic dim: $intrinsic_dim")
+            log_verbose("Finding an appropriate projection to remove excess ambient dimensions via HNF...")
+
+            # Execute the lattice-preserving projection transformation
+            initial_vertices = full_dimensional_lattice_projection(initial_vertices)
+            dim = size(initial_vertices, 2)
+
+            # Rebuild the Polyhedron structure in the new lower-dimensional space
+            poly = polyhedron(vrep(initial_vertices), CDDLib.Library(:exact))
+            dim_poly = Polyhedra.dim(poly)
+
+            # Sanity Check
+            if dim_poly != dim
+                error("Projection failed to produce a full-dimensional polytope. Target ambient dim: $dim, but got: $dim_poly. \nThis error should never occur; please write us.")
+            end
+
+            log_verbose("Successfully projected vertices to full-dimensional lattice space.")
+            log_verbose(initial_vertices, is_display=true)
+        else
+            log_verbose("Polytope is already full-dimensional. Continuing with original vertices.")
         end
-        
-        log_verbose("Successfully projected vertices to full-dimensional lattice space.")
-        log_verbose(initial_vertices, is_display=true)
-    else 
+    else
         log_verbose("Polytope is already full-dimensional. Continuing with original vertices.")
     end
 
@@ -110,7 +117,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     timed_result_simplices = @timed compute_simplices(P, config)
     S_indices = timed_result_simplices.value
-    push!(step_stats, StepStat("Compute $simplex_search_type simplices", timed_result_simplices.time, timed_result_simplices.bytes))
+    simplex_step_name = config.unimodular ? "Compute unimodular simplices" : "Compute non-degenerate simplices"
+    push!(step_stats, StepStat(simplex_step_name, timed_result_simplices.time, timed_result_simplices.bytes))
 
     num_simplices = length(S_indices)
     cnf = Vector{Vector{Int}}()
@@ -122,8 +130,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     if isempty(S_indices)
         total_time = (time_ns() - t_start_total) / 1e9
-        minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> No simplices found", run_idx, total_in_run, num_lattice_points, num_simplices)
-        return TriangulationResult([], 0, 0, 0, 0, minimal_log, time()-t_start_total, step_stats)
+        return TriangulationResult([], 0, 0, 0, 0, total_time, step_stats)
     end
 
     # --- Step 3: Internal Faces ---
@@ -176,7 +183,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         elseif config.enable_parallel
             log_verbose("      Parallel solving enabled with $(nthreads()) threads.")
             log_verbose("      Solver is $(active_solver)")
-            solve_parallel(cnf, P, S_indices, config, show_running_updates)
+            solve_parallel(cnf, P, S_indices, internal_faces_set, config, show_running_updates)
         elseif active_solver == "picosat"
             solve_picosat(cnf, P, S_indices, config, show_running_updates, Atomic{Bool}(false))
         else
@@ -220,7 +227,8 @@ function process_polytope(  initial_vertices::Matrix{Int},
     end
 
     # --- Step 6: Plotting ---
-    # Invoked by setting plot = true
+    # Invoked by setting 
+    #       plot = true
     if config.plot
         log_verbose("\nStep 6: Plotting result..")
 
@@ -247,21 +255,12 @@ function process_polytope(  initial_vertices::Matrix{Int},
     peak_ram_bytes = Sys.maxrss()
     println(summary_buf, @sprintf("%-45s: %.2f MiB", "Peak memory usage (Max RSS)", peak_ram_bytes / 1024^2))
     log_verbose(String(take!(summary_buf)))
-    result_str = ""
-    if number_of_quadratic_triangulations_found > 0
-        result_str = @sprintf("\u001b[32mfound %d quadratic triangulation(s)\u001b[0m in %.2f s", number_of_quadratic_triangulations_found, total_time)
-    elseif number_of_flag_triangulations_found > 0
-        result_str = @sprintf("\u001b[32mfound %d flag triangulation(s)\u001b[0m in %.2f s", number_of_flag_triangulations_found, total_time)
-    elseif number_of_regular_triangulations_found > 0
-        result_str = @sprintf("\u001b[32mfound %d regular triangulation(s)\u001b[0m in %.2f s", number_of_regular_triangulations_found, total_time)
-    elseif number_of_triangulations_found > 0
-        result_str = @sprintf("\u001b[32mfound %d solution(s)\u001b[0m in %.2f s", number_of_triangulations_found, total_time)
-    else
-        result_str = @sprintf("\u001b[31mno solution exists\u001b[0m, searched for %.2f s", total_time)
-    end
-    minimal_log = @sprintf("(%d / %d): |P|=%d |S|=%d -> %s", run_idx, total_in_run, num_lattice_points, num_simplices, result_str)
+    # NOTE: the per-polytope one-line summary string ("minimal log") used to be
+    # built here and stored in every TriangulationResult. It was never printed
+    # anywhere, but retaining one string per polytope adds up over runs with
+    # millions of polytopes, so it was removed from the result type.
 
-    return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, number_of_flag_triangulations_found, number_of_quadratic_triangulations_found, minimal_log, total_time, step_stats)
+    return TriangulationResult(solution_simplices, number_of_triangulations_found, number_of_regular_triangulations_found, number_of_flag_triangulations_found, number_of_quadratic_triangulations_found, total_time, step_stats)
 end
 
 function print_initial_summary(config::Config, n_polytopes::Int, stream::IO)
@@ -313,7 +312,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
     step_order = String[]
     all_results = Vector{TriangulationResult}()
     # With return_triangulations="none", per-polytope results are not retained:
-    # over runs with lots of polytopes, one TriangulationResult per polytope
+    # over runs with millions of polytopes, one TriangulationResult per polytope
     # (log string, step stats and possibly a stored triangulation) adds up to
     # gigabytes. Aggregate counters and the log file are unaffected.
     keep_individual_results = config.return_triangulations != "none"
@@ -324,15 +323,23 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             push!(all_results, r)
         end
 
-        # Native objects (CDDLib polyhedra, Normaliz cones, PicoSAT instances)
-        # are freed by finalizers, and their memory is invisible to Julia's GC
-        # heuristics, so on long runs the GC may not trigger often enough to
-        # keep the process footprint flat. Collect periodically.
-        if i % 1_000 == 0
-            GC.gc(false)
-        end
-        if i % 50_000 == 0
+        # Native objects (CDD-exact polyhedra and H-representations, the
+        # regularity-LP polyhedra, Normaliz cones, PicoSAT instances) are
+        # freed by finalizers, and their memory is invisible to Julia's GC
+        # heuristics. Crucially, these objects live long enough to be
+        # promoted to the old generation, where *incremental* collections
+        # (GC.gc(false)) never finalize them -- only full collections do.
+        # A full collection on the small live set is cheap (tens of ms)
+        # relative to the work done per interval.
+        if i % 250 == 0
             GC.gc()
+            # Opt-in memory telemetry (set UNITRISAT_MEM_LOG=1): compare the
+            # slope of gc_live (Julia-side retention) against maxrss (native
+            # + fragmentation) to attribute any remaining growth.
+            if haskey(ENV, "UNITRISAT_MEM_LOG") && !isnothing(log_stream)
+                println(log_stream, "[memlog] polytope $i: gc_live=$(round(Base.gc_live_bytes()/1024^2; digits=1)) MiB, maxrss=$(round(Sys.maxrss()/1024^2; digits=1)) MiB")
+                flush(log_stream)
+            end
         end
 
         if !isnothing(log_stream); flush(log_stream); end
@@ -505,6 +512,26 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         end
     end
 
+    #= We got rid of d4 because we don't need it
+    if solver == "d4" && !Sys.islinux()
+        @warn("d4 is only available on Linux. Falling back to PicoSat")
+        solver="picosat"
+    end
+
+    if solver in ["picosat", "d4"] && incremental_solving
+        @warn("Incremental solving is only supported by CaDiCaL, not PicoSat or d4. We keep incremental solving true. The solver will be passed the simplified formula, but no further clauses will be added.")
+    end
+
+    if solver == "d4" && !find_all
+        @warn("The d4 solver only supports finding all triangulations, but the find_all flag is not set. Falling back to PicoSat.")
+        solver = "picosat"
+    end
+    
+    if solver == "picosat" && incremental_solving
+    	@warn("Incremental solving is only supported by CaDiCaL, not PicoSat or d4. We keep incremental solving true. The solver will be passed the simplified formula, but no further clauses will be added.")
+	end
+    =#
+    
     if !(return_triangulations in ("first", "all", "none"))
         @warn("Unknown return_triangulations=\"$return_triangulations\"; expected \"first\", \"all\" or \"none\". Falling back to \"first\".")
         return_triangulations = "first"
