@@ -16,9 +16,7 @@ using AbstractAlgebra
 
 include("structs.jl")
 using .Structs
-
-# include the rest of the modules
-
+include("precision.jl")
 include("helpers.jl")
 using .Helpers
 include("basic_computations.jl")
@@ -479,9 +477,10 @@ function setup_run( polytopes::Vector{Matrix{Int}},
                     check_full_dimensionality::Bool=false,
                     enable_parallel::Bool=true)
 
-    # Centralized validation logic
     if intersection_backend == "gpu"
-        @warn("You have selected the gpu backend. Please note that this backend is subject to overflow errors even for reasonably sized polytopes. Please validate any triangulation found for intersecting simplices and do not trust negative results.")
+        # Scan the whole run; warn only if some polytope can actually overflow.
+        # Vertex coordinates bound the lattice points, so no enumeration needed.
+        Precision.check_gpu_precision(polytopes)
     end
 
     if isempty(polytopes)

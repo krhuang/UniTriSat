@@ -10,6 +10,7 @@
 #     julia scripts/array_run.jl --count              # N for --array=1-N
 #     julia scripts/array_run.jl --list               # the index -> (d, vol) table
 #     julia scripts/array_run.jl 17 --solver cadical  # run task 17
+#     julia scripts/array_run.jl 5-15                 # run tasks 5 through 15 inclusively
 #     julia scripts/array_run.jl --list-kwargs        # what triangulate accepts
 #
 # With no positional index the script falls back to $SLURM_ARRAY_TASK_ID.
@@ -152,11 +153,11 @@ function triangulate_kwargs()
     return names
 end
 
-s = ArgParseSettings(description = "Run one polytope per SLURM array index.")
+s = ArgParseSettings(description = "Run one polytope per SLURM array index or range.")
 @add_arg_table s begin
     "n"
-        help = "1-based task index; defaults to \$SLURM_ARRAY_TASK_ID"
-        arg_type = Int
+        help = "1-based task index or range (e.g. 5, or 5-15); defaults to \$SLURM_ARRAY_TASK_ID"
+        arg_type = String
         required = false
     "--dims"
         help = "comma-separated dimensions forming the task list"
@@ -272,20 +273,31 @@ if parsed["list"]
     exit(0)
 end
 
-# ---- resolve the index ----
+# ---- resolve the index/indices ----
 
-idx = parsed["n"]
-if idx === nothing
+n_arg = parsed["n"]
+if n_arg === nothing
     env = get(ENV, "SLURM_ARRAY_TASK_ID", "")
     isempty(env) && error("no task index given and SLURM_ARRAY_TASK_ID is unset\n" *
                           "usage: julia scripts/array_run.jl <n> [options]")
-    idx = parse(Int, env)
+    n_arg = env
 end
-1 <= idx <= length(tasks) ||
-    error("task index $idx out of range, the list holds $(length(tasks)) tasks")
 
-task = tasks[idx]
-isfile(task.path) || error("polytope file not found: $(task.path)")
+indices = Int[]
+if occursin('-', n_arg)
+    parts = split(n_arg, '-')
+    length(parts) == 2 || error("Invalid range format, expected 'start-end': $n_arg")
+    start_idx = parse(Int, parts[1])
+    end_idx = parse(Int, parts[2])
+    indices = collect(start_idx:end_idx)
+else
+    push!(indices, parse(Int, n_arg))
+end
+
+for idx in indices
+    1 <= idx <= length(tasks) ||
+        error("task index $idx out of range, the list holds $(length(tasks)) tasks")
+end
 
 # ---- assemble the keyword arguments ----
 
@@ -305,14 +317,6 @@ kwargs = Dict{Symbol,Any}(
 # solely as a commented-out keyword and may not exist in every version.
 parsed["check-full-dimensionality"] && (kwargs[:check_full_dimensionality] = true)
 
-log = parsed["log"]
-if log == "auto"
-    kwargs[:log_file] = logfile("$(task.d)d", "v$(task.vol)")
-elseif log != "none"
-    mkpath(dirname(abspath(log)))
-    kwargs[:log_file] = log
-end
-
 for kv in something(parsed["set"], String[])
     occursin('=', kv) || error("--set expects key=value, got: $kv")
     k, v = split(kv, '=', limit = 2)
@@ -329,18 +333,33 @@ end
 
 # ---- run ----
 
-println("-")
-println(styled"{bold, blue:Task $idx/$(length(tasks)): Dimension $(task.d), Volume $(task.vol)}")
-println(task.path)
-println("task list digest $(digest(tasks)), $(length(tasks)) tasks, dims $(join(dims, \",\"))")
-for k in sort(collect(keys(kwargs)), by = String)
-    println("  ", k, " = ", repr(kwargs[k]))
-end
-println("-")
+for idx in indices
+    task = tasks[idx]
+    isfile(task.path) || error("polytope file not found: $(task.path)")
 
-if parsed["dry-run"]
-    println("dry run, nothing executed")
-    exit(0)
-end
+    # Construct the log keyword for each individual task
+    log = parsed["log"]
+    if log == "auto"
+        kwargs[:log_file] = logfile("$(task.d)d", "v$(task.vol)")
+    elseif log != "none"
+        mkpath(dirname(abspath(log)))
+        # Append index if processing multiple tasks to prevent log overwriting
+        kwargs[:log_file] = length(indices) > 1 ? "$(log)_$idx" : log
+    end
 
-triangulate(task.path; kwargs...)
+    println("-")
+    println(styled"{bold, blue:Task $idx/$(length(tasks)): Dimension $(task.d), Volume $(task.vol)}")
+    println(task.path)
+    println("task list digest $(digest(tasks)), $(length(tasks)) tasks, dims $(join(dims, \",\"))")
+    for k in sort(collect(keys(kwargs)), by = String)
+        println("  ", k, " = ", repr(kwargs[k]))
+    end
+    println("-")
+
+    if parsed["dry-run"]
+        println("dry run for index $idx, nothing executed")
+        continue
+    end
+
+    triangulate(task.path; kwargs...)
+end

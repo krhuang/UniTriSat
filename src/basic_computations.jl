@@ -9,6 +9,10 @@ using CDDLib
 using AbstractAlgebra
 
 using ..Structs
+# `import`, not `using`: all that is needed is for the name `Precision` to be
+# bound here, so that gpu_intersection.jl's `using ..Precision` resolves.
+# `using` would additionally pull eleven exported names into this module.
+import ..Precision
 
 include("Intersection_backends/cpu_intersection.jl")
 
@@ -26,22 +30,37 @@ catch e
 end
 
 
-# mutable flag in module scope
+# mutable flags in module scope
 const CUDA_PACKAGES_LOADED = Ref(false)
-# try to include Cuda, if its not available and the user wants to use the GPU, then a warning will be printed and we fall back to CPU backend
+const CUDA_LOAD_ERROR = Ref{Any}(nothing)
+
+# Fewer simplices than this and the CPU backend wins outright, because GPU
+# launch + transfer overhead exceeds the entire pair computation.
+const GPU_MIN_SIMPLICES = 512
+# Try to load CUDA. If it is unavailable, the flag stays false and
+# compute_intersections_standard falls back to the CPU backend with a warning.
+#
+# Two notes on why this used to fail silently:
+#  * CUDA must be listed in Project.toml [deps]. A module may only `using`
+#    packages declared in its own project, even when the package is installed in
+#    the active environment, so without the [deps] entry this always threw.
+#  * `CUDA.Adapt` no longer resolves in CUDA.jl 6.x, which is a thin reexport
+#    shim over CUDACore/CUDATools and forwards only public names (Adapt is
+#    neither exported nor public there). Nothing here needs Adapt, and
+#    StaticArrays is already imported above, so plain `using CUDA` is enough.
 try
-    using CUDA, StaticArrays, CUDA.Adapt
+    @eval using CUDA  # top-level import
     CUDA_PACKAGES_LOADED[] = true
-catch
+catch e
+    CUDA_LOAD_ERROR[] = e
 end
-for d in 3:6
-    if CUDA_PACKAGES_LOADED[] && isfile("Intersection_backends/gpu_intersection_$(d)d.jl")
-        include("Intersection_backends/gpu_intersection_$(d)d.jl")
-    end
+if CUDA_PACKAGES_LOADED[]
+    include("Intersection_backends/gpu_intersection.jl")
 end
 
 export all_simplices,
     CPUIntersection,
+    gpu_backend_status,
     internal_faces, 
     lattice_points_via_CDDLib,
     lattice_points_via_Normaliz,
@@ -510,41 +529,52 @@ function compute_intersections_incremental(P::Matrix{Int}, S_indices, internal_f
     return unique(local_clauses)
 end
 
-# Helper for standard (potentially GPU) intersection logic
-function compute_intersections_standard(P::Matrix{Int}, S_indices, dim::Int, config::Config, log_verbose::Function)
-    intersect_func = nothing
-    use_gpu = false
+"""
+    gpu_backend_status(dim, nsimplices) -> Union{Nothing, String}
 
-    # load the right GPU backend if required, or fall back to CPU
+`nothing` if the GPU backend can be used, otherwise the reason it cannot.
+Exposed so a run can be diagnosed without reading the source:
+
+    julia> UniTriSat.BasicComputations.gpu_backend_status(3, 50_000)
+"""
+function gpu_backend_status(dim::Int, nsimplices::Int)
+    CUDA_PACKAGES_LOADED[] || return "CUDA.jl could not be loaded " *
+        "($(CUDA_LOAD_ERROR[] === nothing ? "no error recorded" : sprint(showerror, CUDA_LOAD_ERROR[])))"
+    isdefined(@__MODULE__, :GPUIntersection) ||
+        return "gpu_intersection.jl was not included"
+    2 <= dim <= Precision.GPU_MAX_DIM ||
+        return "no GPU kernel for dimension $dim (enabled: 2-$(Precision.GPU_MAX_DIM))"
+    nsimplices < GPU_MIN_SIMPLICES &&
+        return "only $nsimplices simplices, below the GPU_MIN_SIMPLICES = " *
+               "$GPU_MIN_SIMPLICES threshold where launch overhead dominates"
+    # `using CUDA` succeeds without a driver or a device; only functional() says
+    # whether a launch can work.  Checked here, not at load time, so
+    # precompilation never initialises a device.
+    CUDA.functional() || return "CUDA.jl is loaded but reports no usable device " *
+        "(CUDA.functional() == false; on a hybrid-graphics laptop the discrete " *
+        "GPU may need to be activated for this process)"
+    return nothing
+end
+
+# Helper for standard (potentially GPU) intersection logic.
+#
+# One dimension-generic GPU entry point, so there is no per-dimension dispatch
+# any more; the kernel is generated for `dim` on first use.
+function compute_intersections_standard(P::Matrix{Int}, S_indices, dim::Int, config::Config, log_verbose::Function)
     if config.intersection_backend == "gpu"
-        if dim == 3 && isdefined(@__MODULE__, :GPUIntersection3D)
-            log_verbose("     Using 3D GPU backend...")
-            intersect_func = () -> GPUIntersection3D.get_intersecting_pairs_gpu(P, S_indices)
-            use_gpu = true
-        elseif dim == 4 && isdefined(@__MODULE__, :GPUIntersection4D)
-            log_verbose("     Using 4D GPU backend...")
-            intersect_func = () -> GPUIntersection4D.get_intersecting_pairs_gpu_4d(P, S_indices)
-            use_gpu = true
-        elseif dim == 5 && isdefined(@__MODULE__, :GPUIntersection5D)
-            log_verbose("     Using 5D GPU backend...")
-            intersect_func = () -> GPUIntersection5D.get_intersecting_pairs_gpu_5d(P, S_indices)
-            use_gpu = true
-        elseif dim == 6 && isdefined(@__MODULE__, :GPUIntersection6D)
-            log_verbose("     Using 6D GPU backend...")
-            intersect_func = () -> GPUIntersection6D.get_intersecting_pairs_gpu_6d(P, S_indices)
-            use_gpu = true
+        reason = gpu_backend_status(dim, length(S_indices))
+        if reason === nothing
+            log_verbose("     Using GPU backend...")
+            return GPUIntersection.get_intersecting_pairs_gpu(P, S_indices)
         end
+        # Unconditional and loud.  Silently honouring "cpu" when "gpu" was asked
+        # for is exactly the failure that is impossible to attribute later, and
+        # log_verbose is suppressed at most terminal_output settings.
+        @warn "GPU backend requested but unavailable; using CPU instead." reason maxlog=1
     end
-    
-    if use_gpu && !isnothing(intersect_func)
-        return intersect_func() # Execute the selected GPU function
-    else
-        if config.intersection_backend == "gpu"
-            log_verbose("     WARNING: GPU backend for $(dim)D not available. Falling back to CPU.")
-        end
-        log_verbose("     Using CPU backend.")
-        return CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices, Val(dim))
-    end
+
+    log_verbose("     Using CPU backend.")
+    return CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices, Val(dim))
 end
 
 # Generates face-covering clauses
