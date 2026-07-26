@@ -1,15 +1,20 @@
-import Pkg
-Pkg.activate(".")
+#!/usr/bin/env julia
+#
+# Triangulations of the d-dimensional standard simplex scaled by k.
+#
+#     julia scripts/kDelta.jl 3 4 --regular
+
+include(joinpath(@__DIR__, "_setup.jl"))
 
 using StyledStrings
 using UniTriSat
 using Polyhedra
 using ArgParse
 
-if isfile("../src/helpers.jl")
-    include("../src/helpers.jl")
-    using .Helpers
-end
+include(HELPERS)
+using .Helpers
+
+check_source(UniTriSat)
 
 s = ArgParseSettings()
 @add_arg_table s begin
@@ -21,7 +26,7 @@ s = ArgParseSettings()
         help = "scaling factor for the simplex"
         arg_type = Int
         required = true
-   "--backend"
+    "--backend"
         help = "intersection backend, cpu or gpu"
         arg_type = String
         default = "cpu"
@@ -42,28 +47,31 @@ s = ArgParseSettings()
         help = "find all triangulations"
         action = :store_true
 end
-parsed = parse_args(s)
-backend = parsed["backend"]
-solver = parsed["solver"]
-regular = parsed["regular"]
-incremental = parsed["incremental"]
-enable_parallel = parsed["parallel-solving"]
-all = parsed["all"]
-d = parsed["d"]
-k = parsed["k"]
 
-# Display Setup
+parsed          = parse_args(s)
+d               = parsed["d"]
+k               = parsed["k"]
+backend         = parsed["backend"]
+solver          = parsed["solver"]
+regular         = parsed["regular"]
+incremental     = parsed["incremental"]
+enable_parallel = parsed["parallel-solving"]
+find_all        = parsed["all"]     # was `all`, which shadowed Base.all
+
 terminal_output = "initial, running, table, final"
 reg_str = regular ? ", regular" : ""
 
+println("-")
+println(styled"{bold, blue:Standard simplex, dimension $d, scaled by $k$reg_str}")
+println("-")
 
 triangulate(
     polyhedron(vrep([[i == j ? k : 0 for j in 1:d] for i in 1:d+1])),
-    terminal_output=terminal_output,
-    intersection_backend=backend,
-    regular=regular,
-    solver=solver,
-    find_all=all,
-    incremental_solving=incremental,
-    enable_parallel=enable_parallel,
+    terminal_output = terminal_output,
+    intersection_backend = backend,
+    regular = regular,
+    solver = solver,
+    find_all = find_all,
+    incremental_solving = incremental,
+    enable_parallel = enable_parallel,
 )

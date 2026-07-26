@@ -1,19 +1,21 @@
-import Pkg
-Pkg.activate(".")
+#!/usr/bin/env julia
+#
+# All triangulations of the 2-dimensional standard simplex, scaled by n.
+#
+#     julia scripts/2d_all.jl 3
+
+include(joinpath(@__DIR__, "_setup.jl"))
 
 using StyledStrings
 using UniTriSat
 using Polyhedra
 using ArgParse
 
-# Import von Helpers, um den Stil von test.jl beizubehalten
-# (Geht davon aus, dass die Ordnerstruktur identisch ist)
-if isfile("../src/helpers.jl")
-    include("../src/helpers.jl")
-    using .Helpers
-end
+include(HELPERS)
+using .Helpers
 
-# Argument Parsing Setup (Stil von test.jl)
+check_source(UniTriSat)
+
 s = ArgParseSettings()
 @add_arg_table s begin
     "n"
@@ -31,11 +33,10 @@ end
 
 parsed = parse_args(s)
 
-n = parsed["n"]
+n       = parsed["n"]
 regular = parsed["regular"]
-solver = parsed["solver"]
+solver  = parsed["solver"]
 
-# Display Setup
 terminal_output = "initial, running, table, final"
 reg_str = regular ? ", regular" : ""
 
@@ -43,11 +44,10 @@ println("-")
 println(styled"{bold, blue:2d standard simplex, scaled by $n$reg_str, find all}")
 println("-")
 
-# Ausführung der Triangulierung auf lokal generierten Vertices
 triangulate(
     [n 0; 0 n; 0 0],
-    terminal_output=terminal_output,
-    regular=regular,
-    solver=solver,
-    find_all=true
+    terminal_output = terminal_output,
+    regular = regular,
+    solver = solver,
+    find_all = true,
 )

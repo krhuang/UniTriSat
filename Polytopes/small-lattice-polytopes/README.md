@@ -1,8 +1,8 @@
-# Balletti's dataset of "small" lattice polytopes
+# Dataset of "small" lattice polytopes
 
-Part of the resulting dataset from the paper [Enumeration of Lattice Polytopes by Their Volume](https://arxiv.org/abs/1811.03357), see also the [GitHub repository](https://github.com/gabrieleballetti/small-lattice-polytopes).
+Resulting dataset from the paper [Enumeration of Lattice Polytopes by Their Volume](https://arxiv.org/abs/1811.03357).
 
-It is recommended to download the dataset from [Zenodo](https://zenodo.org/record/7388010#.Y4kbP3bMJOQ) as it is compressed and requires no extra postprocessing due to github size limit
+edit: it is recommended to download the dataset from [Zenodo](https://zenodo.org/record/7388010#.Y4kbP3bMJOQ) as it is compressed and requires no extra postprocessing due to github size limit
 
 ## Cite as
 

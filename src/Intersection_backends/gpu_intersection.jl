@@ -336,6 +336,9 @@ function quick_candidates(D::Int)
     for ti in (16, 32)
         ti == b.tile || push!(out, TuneConfig(b.threads, ti, b.unroll, b.aabb, b.shared_tables))
     end
+    # Each entry beyond this is another ~10 s of kernel compilation, so keep the
+    # in-process set small; tune_gpu.py explores the full grid offline.
+    length(out) >= 4 && return out[1:4]
     # `unroll` is the only knob `pair_intersects` depends on, and `_kernel`
     # inlines it, so every extra unroll value recompiles the whole generated
     # body.  In 6D that body is thousands of statements, so leave it alone there
@@ -706,12 +709,12 @@ function build_records(P::AbstractMatrix{<:Integer},
 end
 
 """
-    _run_kernels(R, D, c, n, capacity, collect) -> (pairs, count)
+    _run_kernels(R, D, c, n, capacity, collect) -> (clauses, count)
 
 Batched launch loop, shared by the public entry point and the in-process tuner.
 With `collect = false` only the counter is read back, which is what makes it
-usable as a benchmark. Returns pairs as `(i, j)` tuples, sorted per batch, so
-the result is deterministic for a given tiling despite the atomic append.
+usable as a benchmark. Clauses are sorted within each batch, so the result is
+deterministic for a given tiling despite the atomic append.
 """
 function _run_kernels(R::Matrix{T}, D::Int, c::TuneConfig, n::Int,
                       capacity::Int, collect::Bool) where {T}
@@ -725,7 +728,7 @@ function _run_kernels(R::Matrix{T}, D::Int, c::TuneConfig, n::Int,
     ftab = CuArray(T.(face_table_cached(D)[1]))
     out = CuArray{Int32}(undef, bufrows, 2)   # only rows 1:got are ever read
     counter = CUDA.zeros(Int64, 1)
-    pairs = Tuple{Int, Int}[]
+    clauses = Vector{Vector{Int}}()
     total = 0
 
     try
@@ -741,10 +744,24 @@ function _run_kernels(R::Matrix{T}, D::Int, c::TuneConfig, n::Int,
                 error("internal error: output overflow ($got > $bufrows)")
             total += got
             if collect && got > 0
+                # Sort as isbits tuples (flat array, no GC pressure), then emit
+                # the clause vectors directly.  Accumulating tuples for the whole
+                # run first and converting at the end held both representations
+                # at once -- at |S| = 20000 that is hundreds of megabytes of
+                # duplicate state, and an extra pass over every clause.
                 host = Array(view(out, 1:got, :))
-                batch = [(Int(host[r, 1]), Int(host[r, 2])) for r in 1:got]
+                batch = Vector{Tuple{Int32, Int32}}(undef, got)
+                @inbounds for r in 1:got
+                    batch[r] = (host[r, 1], host[r, 2])
+                end
                 sort!(batch)
-                append!(pairs, batch)
+                # Without this the outer vector regrows by doubling; at tens of
+                # millions of clauses that is hundreds of MB of pointer copying
+                # on top of one heap allocation per clause.
+                sizehint!(clauses, length(clauses) + got)
+                @inbounds for (i, j) in batch
+                    push!(clauses, [-Int(i), -Int(j)])
+                end
             end
             done += nb
         end
@@ -758,7 +775,7 @@ function _run_kernels(R::Matrix{T}, D::Int, c::TuneConfig, n::Int,
         CUDA.unsafe_free!(sim); CUDA.unsafe_free!(ftab)
         CUDA.unsafe_free!(out);  CUDA.unsafe_free!(counter)
     end
-    return pairs, total
+    return clauses, total
 end
 
 """
@@ -825,16 +842,30 @@ this device, run `quicktune!` and cache the result under
 `\$XDG_CACHE_HOME/UniTriSat/`. Later calls, and later Julia sessions, read the
 cache and do nothing.
 
-Each `(D, T)` is attempted **at most once per session even on failure**, so a run
-over thousands of polytopes cannot repeat the work. Polytopes with fewer than 200
-simplices leave the attempt unspent, so tuning is not calibrated on unmeasurable
-data. `UNITRISAT_AUTOTUNE=0` disables it; failure falls back to `DEFAULTS`.
+Disabled by default — set `UNITRISAT_AUTOTUNE=1` to enable. Compiling one kernel
+configuration costs roughly ten seconds, and in low dimensions the kernel it is
+optimising runs in a fraction of a second, so the search cannot pay for itself.
+Prefer `tune_gpu.py` once per machine; this path exists for convenience when the
+kernel really is the bottleneck.
+
+When enabled, each `(D, T)` is attempted **at most once per session even on
+failure**, so a run over thousands of polytopes cannot repeat the work, and
+polytopes below 2000 simplices leave the attempt unspent rather than calibrating
+on launch-overhead-dominated timings.
 """
 function ensure_tuned!(D::Int, ::Type{T}, R::Matrix{T}, n::Int,
                        capacity::Int) where {T}
     _lazy_load!()
     haskey(TUNING, (D, T)) && return false
-    get(ENV, "UNITRISAT_AUTOTUNE", "1") == "1" || return false
+    # Opt-in, not opt-out.  Measured on an RTX 5060, 3D, |S| = 19312:
+    # the kernel runs in 0.127 s (1.47 Gpair/s over 186M pairs) while each
+    # distinct configuration costs ~10 s to compile through the NVPTX backend.
+    # Six candidates is therefore ~60 s spent to optimise 0.127 s of work --
+    # it can never pay back within a run.  Tuning is worth it only where the
+    # kernel itself is slow (high dimension, or many large polytopes), so it
+    # is now explicit: UNITRISAT_AUTOTUNE=1, or better, run tune_gpu.py once
+    # offline and let the cache be picked up.
+    get(ENV, "UNITRISAT_AUTOTUNE", "0") == "1" || return false
     # Only calibrate on a workload big enough to be worth measuring *and* to
     # resemble the runs where throughput matters. Below this the timings are
     # dominated by launch overhead and would tune for the wrong regime; leaving
@@ -883,8 +914,8 @@ function get_intersecting_pairs_gpu(P::AbstractMatrix{<:Integer},
     T = eltype === nothing ? Precision.assert_gpu_precision(P, D) : eltype
     R = build_records(P, S, T)
     ensure_tuned!(D, T, R, n, capacity)
-    pairs, _ = _run_kernels(R, D, config_for(D, T), n, capacity, true)
-    return [[-i, -j] for (i, j) in pairs]
+    clauses, _ = _run_kernels(R, D, config_for(D, T), n, capacity, true)
+    return clauses
 end
 
 end # module
