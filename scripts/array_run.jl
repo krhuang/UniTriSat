@@ -350,7 +350,7 @@ for idx in indices
     println("-")
     println(styled"{bold, blue:Task $idx/$(length(tasks)): Dimension $(task.d), Volume $(task.vol)}")
     println(task.path)
-    println("task list digest $(digest(tasks)), $(length(tasks)) tasks, dims $(join(dims, \",\"))")
+    println("task list digest $(digest(tasks)), $(length(tasks)) tasks, dims $(join(dims, ","))")
     for k in sort(collect(keys(kwargs)), by = String)
         println("  ", k, " = ", repr(kwargs[k]))
     end
