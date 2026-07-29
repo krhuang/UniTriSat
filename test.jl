@@ -59,7 +59,7 @@ function run_test(test::Test)
                             regular=regular,
                             solver=solver,
                             incremental_solving=incremental,
-                            enable_parallel=enable_parallel)
+                            parallel_split_solving=parallel_split_solving)
     num_triangulatable = result.number_triangulatable
     num_reg_triangulatable = result.number_regularly_triangulatable
     time = format_duration(result.total_time)
@@ -115,7 +115,7 @@ solver = parsed["solver"]
 regular = parsed["regular"]
 plot = parsed["plot"]
 incremental = parsed["incremental"]
-enable_parallel = parsed["parallel-solving"]
+parallel_split_solving = parsed["parallel-solving"]
 big = parsed["big"]
 reg_str = regular ? ", regular" : ""
 
@@ -143,7 +143,7 @@ if plot || big
                 terminal_output=terminal_output,
                 solver=solver,
                 incremental_solving=incremental,
-                enable_parallel=enable_parallel)
+                parallel_split_solving=parallel_split_solving)
 end
 
 for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)

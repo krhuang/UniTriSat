@@ -65,7 +65,7 @@ backend         = parsed["backend"]
 solver          = parsed["solver"]
 regular         = parsed["regular"]
 incremental     = parsed["incremental"]
-enable_parallel = parsed["parallel-solving"]
+parallel_split_solving = parsed["parallel-solving"]
 find_all        = parsed["all"]     # was `all`, which shadowed Base.all
 
 terminal_output = "initial, running, table, final"
@@ -90,6 +90,6 @@ triangulate(
     solver = solver,
     return_triangulations = "none",
     incremental_solving = incremental,
-    enable_parallel = enable_parallel,
+    parallel_split_solving = parallel_split_solving,
     find_all = find_all,
 )

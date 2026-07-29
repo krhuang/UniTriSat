@@ -68,6 +68,7 @@ export all_simplices,
     compute_lattice_points,
     compute_simplices,
     compute_internal_faces,
+    compute_flag_clauses,
     internal_faces,
     compute_intersections_incremental,
     compute_intersections_standard,
@@ -601,6 +602,47 @@ function compute_face_clauses(S_indices, internal_faces_set, dim::Int)
         for _ in 1:nthreads()
     ]
     return vcat(fetch.(tasks)...)
+end
+
+# Convert each simplex (NTuple of vertex indices) into a UInt64 bitmask
+function simplex_to_mask(simplex)
+    mask = zero(UInt64)
+    for v in simplex
+        mask |= (one(UInt64) << (v - 1))  # assumes 1-indexed vertex labels
+    end
+    return mask
+end
+
+# Generates flag SAT clauses via Betre-Zhang-Edmond's[why this order on arXiv??] criterion
+# https://arxiv.org/abs/2411.12945 Theorem 3.1
+function compute_flag_clauses(S_indices)
+    n = length(S_indices)
+
+    # Precompute bitmasks for every simplex once
+    masks = [simplex_to_mask(s) for s in S_indices]
+
+    clauses = Vector{Vector{Int}}()
+
+    for idx_triple in combinations(1:n, 3)
+        i, j, k = idx_triple
+        m1, m2, m3 = masks[i], masks[j], masks[k]
+
+        # Union of pairwise intersections, all via bitwise ops
+        critical_clique_mask = (m1 & m2) | (m1 & m3) | (m2 & m3)
+
+        containing_simplices = Int[]
+        for l in 1:n
+            # issubset(critical_clique, simplex) <=> every bit set in
+            # critical_clique_mask is also set in masks[l]
+            if (critical_clique_mask & ~masks[l]) == 0
+                push!(containing_simplices, l)
+            end
+        end
+
+        push!(clauses, vcat([-i, -j, -k], containing_simplices))
+    end
+
+    return clauses
 end
 
 end

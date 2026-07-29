@@ -57,7 +57,7 @@ const DATA_DIR = joinpath(pkgdir(UniTriSat), "Polytopes", "small-lattice-polytop
                         return_triangulations="",
                         regular=true,
                         solver="picosat",
-                        enable_parallel=false)
+                        parallel_split_solving=false)
 
             # The @test macro tracks and reports the success
             @test result.number_triangulatable == exp

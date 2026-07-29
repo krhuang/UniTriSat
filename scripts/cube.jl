@@ -70,6 +70,6 @@ triangulate(
     regular = regular,
     solver = solver,
     find_all = find_all,
-    enable_parallel = true,
+    parallel_split_solving = true,
     incremental_solving = inc_sol,
 )

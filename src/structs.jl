@@ -27,6 +27,7 @@ mutable struct Config
     intersection_backend::String
     regular::Bool
     flag_triangulation::Bool
+    flag_SAT::Bool
     find_all::Bool
     validate::Bool
     plot::Bool
@@ -35,7 +36,7 @@ mutable struct Config
     solver::String
     incremental_solving::Bool
     check_full_dimensionality::Bool
-    enable_parallel::Bool
+    parallel_split_solving::Bool
 end
 
 mutable struct TriangulationResult

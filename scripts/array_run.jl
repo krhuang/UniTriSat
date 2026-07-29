@@ -309,7 +309,7 @@ kwargs = Dict{Symbol,Any}(
     :solver                => parsed["solver"],
     :return_triangulations => parsed["return-triangulations"],
     :incremental_solving   => parsed["incremental-solving"],
-    :enable_parallel       => parsed["parallel-solving"],
+    :parallel_split_solving       => parsed["parallel-solving"],
     :find_all              => parsed["all"],
 )
 
