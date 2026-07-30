@@ -613,6 +613,8 @@ function simplex_to_mask(simplex)
     return mask
 end
 
+@noinline dummy(triple) = triple
+
 # Generates flag SAT clauses via Betre-Zhang-Edmond's[why this order on arXiv??] criterion
 # https://arxiv.org/abs/2411.12945 Theorem 3.1
 function compute_flag_clauses(S_indices)
@@ -624,6 +626,8 @@ function compute_flag_clauses(S_indices)
     clauses = Vector{Vector{Int}}()
 
     for idx_triple in combinations(1:n, 3)
+        dummy(idx_triple)
+        #=
         i, j, k = idx_triple
         m1, m2, m3 = masks[i], masks[j], masks[k]
 
@@ -640,6 +644,7 @@ function compute_flag_clauses(S_indices)
         end
 
         push!(clauses, vcat([-i, -j, -k], containing_simplices))
+        =#
     end
 
     return clauses
