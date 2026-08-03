@@ -63,11 +63,6 @@ function process_polytope(  initial_vertices::Matrix{Int},
     #           in a lower ambient dimension.
 
     dim = size(initial_vertices, 2)
-
-    # NOTE: the CDD-exact polyhedron is only constructed when the check is
-    # actually enabled. It used to be built unconditionally, leaving one
-    # finalizer-managed native object per polytope even in the default
-    # configuration (check_full_dimensionality=false).
     if config.check_full_dimensionality
         poly = polyhedron(vrep(initial_vertices), CDDLib.Library(:exact))
         intrinsic_dim = Polyhedra.dim(poly)
@@ -137,12 +132,22 @@ function process_polytope(  initial_vertices::Matrix{Int},
     internal_faces_set = timed_result_faces.value
     push!(step_stats, StepStat("Compute internal faces", timed_result_faces.time, timed_result_faces.bytes))
     log_verbose("-> Found $(length(internal_faces_set)) unique internal faces. Step 3 complete.\n")
-
+    
+    # initialize an intersection_matrix
+    n = length(S_indices) 
+    intersection_matrix = [falses(n) for _ in 1:n]
     # --- Step 4: Intersections ---
     if config.incremental_solving
         log_verbose("Step 4a: Computing intersection clauses...")
         timed_result_intersections = @timed compute_intersections_incremental(P, S_indices, internal_faces_set, dim, num_lattice_points)
         intersection_clauses = timed_result_intersections.value
+        if config.flag_SAT # Build a data structure for flag_SAT computations here
+            for clause in intersection_clauses 
+                a, b = abs(clause[1]), abs(clause[2])
+                intersection_matrix[a][b] = true
+                intersection_matrix[b][a] = true 
+            end
+        end
         push!(step_stats, StepStat("Compute intersection clauses", timed_result_intersections.time, timed_result_intersections.bytes))
         append!(cnf, intersection_clauses)
         log_verbose("-> Generated $(length(intersection_clauses)) intersection clauses. Step 4 complete.\n")
@@ -151,6 +156,13 @@ function process_polytope(  initial_vertices::Matrix{Int},
         log_verbose("Step 4a: Computing intersecting pairs via hyperplanes...")
         timed_result_intersections = @timed compute_intersections_standard(P, S_indices, dim, config, log_verbose)
         intersection_clauses = timed_result_intersections.value
+        if config.flag_SAT # Build a data structure for flag_SAT computations here
+            for clause in intersection_clauses 
+                a, b = abs(clause[1]), abs(clause[2])
+                intersection_matrix[a][b] = true
+                intersection_matrix[b][a] = true 
+            end
+        end
         push!(step_stats, StepStat("Compute intersecting pairs", timed_result_intersections.time, timed_result_intersections.bytes))
         append!(cnf, intersection_clauses)
         log_verbose("-> Generated $(length(intersection_clauses)) intersection clauses. Step 4 complete.\n")
@@ -165,11 +177,11 @@ function process_polytope(  initial_vertices::Matrix{Int},
 
     # --- Step 4c: Flag SAT formulation over triples ---
     if config.flag_SAT
-        log_verbose("Step 4c: Generating flag SAT clauses (optional, controlled by flat_SAT)")
+        log_verbose("Step 4c: Generating flag SAT clauses (optional, controlled by flag_SAT)")
         if !config.flag_triangulation  
             error("flag_SAT set to true but flag_triangulation set to false")
         end
-        timed_result_flag_clauses = @timed compute_flag_clauses(S_indices) #via Theorem 3.1 of https://arxiv.org/abs/2411.12945
+        timed_result_flag_clauses = @timed compute_flag_clauses(S_indices, intersection_matrix) #via Theorem 3.1 of https://arxiv.org/abs/2411.12945
         flag_clauses = timed_result_flag_clauses.value
         append!(cnf, flag_clauses)
         push!(step_stats, StepStat("Generate flag clauses", timed_result_face_clauses.time, timed_result_face_clauses.bytes))
@@ -584,7 +596,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
 end
 
 # Various triangulate entry points. We allow differing inputs for user convenience.
-# TODO: allow OSCAR polytopes also
+# via the extension /ext/UniTriSatOscarExt.jl this should work for Oscar polyhedra as well.
 
 function triangulate(   vmatrix::Matrix{Int};
                         intersection_backend::String="cpu",

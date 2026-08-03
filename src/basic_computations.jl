@@ -579,6 +579,7 @@ function compute_intersections_standard(P::Matrix{Int}, S_indices, dim::Int, con
 end
 
 # Generates face-covering clauses
+# TODO: this should use a face-separator to shorten the clause? 
 function compute_face_clauses(S_indices, internal_faces_set, dim::Int)
     n_simplices = length(S_indices)
     next_simplex_idx = Threads.Atomic{Int}(1)
@@ -613,38 +614,81 @@ function simplex_to_mask(simplex)
     return mask
 end
 
-@noinline dummy(triple) = triple
+"""
+    compute_flag_clauses(S_indices, intersection_matrix)
 
-# Generates flag SAT clauses via Betre-Zhang-Edmond's[why this order on arXiv??] criterion
-# https://arxiv.org/abs/2411.12945 Theorem 3.1
-function compute_flag_clauses(S_indices)
+Generate SAT clauses encoding the flag-complex criterion from Theorem 3.1
+of "Pure Simplicial and Clique Complexes with a Fixed Number of Facets".
+
+For every triple of simplices `(i, j, k)` whose pairwise intersections are
+all non-empty and whose pairwise "bad intersection" flags (from
+`intersection_matrix`) are all false, this computes the critical clique
+(the union of the three pairwise intersections) and finds every simplex
+that contains it. Each such triple contributes one clause of the form
+`(-i, -j, -k, l1, l2, ...)`, meaning "if i, j, and k are all chosen, then
+at least one of the containing simplices l1, l2, ... must also be chosen."
+
+# Arguments
+- `S_indices`: Vector of `NTuple{N,Int}` — each entry lists the vertex
+  indices of one simplex. Vertex labels must be in `1:64` since simplices
+  are internally encoded as `UInt64` bitmasks.
+- `intersection_matrix`: `Vector{BitVector}` (n x n, symmetric) where
+  `intersection_matrix[a][b] == true` means simplices `a` and `b` are
+  known to intersect in the interior and should never be combined into
+  a triple.
+
+# Returns
+- `Vector{Vector{Int}}`: one clause per valid triple. Each clause is a
+  vector of signed integers (SAT literals): negative entries are the
+  three triple indices (negated), positive entries are the indices of
+  simplices containing the critical clique.
+
+# Notes
+- Triples containing a "bad" pair (per `intersection_matrix`) are never
+  generated, not merely filtered — this avoids wasted work entirely.
+- Triples whose critical clique would be generated from an empty
+  pairwise intersection are skipped, since no clause is needed in that
+  case.
+"""
+function compute_flag_clauses(S_indices, intersection_matrix)
     n = length(S_indices)
-
-    # Precompute bitmasks for every simplex once
     masks = [simplex_to_mask(s) for s in S_indices]
+
+    # Also mark empty-intersection pairs as "bad", since no triple built
+    # from such a pair could ever yield a clause — folding this into
+    # intersection_matrix means good_neighbors_i (below) automatically
+    # excludes them too, with no separate check needed later.
+    for a in 1:n, b in (a+1):n
+        if masks[a] & masks[b] == 0
+            intersection_matrix[a][b] = true
+            intersection_matrix[b][a] = true
+        end
+    end
 
     clauses = Vector{Vector{Int}}()
 
-    for idx_triple in combinations(1:n, 3)
-        dummy(idx_triple)
-        #=
-        i, j, k = idx_triple
-        m1, m2, m3 = masks[i], masks[j], masks[k]
+    for i in 1:n
+        good_neighbors_i = [j for j in (i+1):n if !intersection_matrix[i][j]]
 
-        # Union of pairwise intersections, all via bitwise ops
-        critical_clique_mask = (m1 & m2) | (m1 & m3) | (m2 & m3)
+        for (idx_j, j) in enumerate(good_neighbors_i)
+            for k in good_neighbors_i[(idx_j+1):end]
+                if intersection_matrix[j][k]
+                    continue
+                end
 
-        containing_simplices = Int[]
-        for l in 1:n
-            # issubset(critical_clique, simplex) <=> every bit set in
-            # critical_clique_mask is also set in masks[l]
-            if (critical_clique_mask & ~masks[l]) == 0
-                push!(containing_simplices, l)
+                m1, m2, m3 = masks[i], masks[j], masks[k]
+                critical_clique_mask = (m1 & m2) | (m1 & m3) | (m2 & m3)
+
+                containing_simplices = Int[]
+                for l in 1:n
+                    if (critical_clique_mask & ~masks[l]) == 0
+                        push!(containing_simplices, l)
+                    end
+                end
+
+                push!(clauses, vcat([-i, -j, -k], containing_simplices))
             end
         end
-
-        push!(clauses, vcat([-i, -j, -k], containing_simplices))
-        =#
     end
 
     return clauses
