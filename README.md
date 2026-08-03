@@ -26,7 +26,7 @@ P = [ 1 0  0 0 0; -1 0 0 0 0; 0 1 0  0 0; 0 -1 0 0 0; 0 0 1 0  0;
 triangulate(P, terminal_output="running,table,final")`
 ```
 
-The code can also run on plain text files of lattice polytopes, e.g. Balletti's database, like so:
+The code can also run on plain text files of lattice polytopes, e.g. [Balletti's database](https://zenodo.org/records/7388010#.Y4kbP3bMJOQ), like so:
 
 ```
 using UniTriSat
