@@ -26,11 +26,7 @@ P = [ 1 0  0 0 0; -1 0 0 0 0; 0 1 0  0 0; 0 -1 0 0 0; 0 0 1 0  0;
 triangulate(P, terminal_output="running,table,final")`
 ```
 
-You can also add Balletti's database of lattice polytopes to the directory `Polytopes`, e.g.
-
-`git clone https://github.com/gabrieleballetti/small-lattice-polytopes /Polytopes`
-
-Once this is done, you can run the code via the `triangulate` entry point function like so:
+The code can also run on plain text files of lattice polytopes, e.g. Balletti's database, like so:
 
 ```
 using UniTriSat
@@ -38,7 +34,18 @@ using UniTriSat
 triangulate("Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt")
 ```
 
-You can also use Julia's package manager to run the test suite:
+You can also input Oscar polyhedra
+
+```
+using Oscar
+using UniTriSat
+
+P = cube(3)
+
+triangulate(P)
+```
+
+Use Julia's package manager to run the test suite:
 
 ```
 Pkg.test("UniTriSat")
@@ -53,11 +60,12 @@ The triangulate function takes the following arguments:
 
 | Argument | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| **`polytopes`** | | - | The target polytopes to be processed by the function. This can be a matrix encoding the vertices of the polytope, a Polyhedron object, a Vector containing multiple of the previous, or a path to a file. |
+| **`polytopes`** | | - | The target polytopes to be processed by the function. This can be a matrix encoding the vertices of the polytope, a Polyhedron object, a Vector containing multiple of the previous, an Oscar Polyhedron (or Vector thereof), or a path to a file. |
 | **`intersection_backend`** | String | `"cpu"` | The computing backend to use (`"cpu"` or `"gpu"`). |
 | **`unimodular`** | Boolean | `true` | Restricts the output to unimodular simplices. |
 | **`regular`** | Boolean | `false` | Restricts the output to regular triangulations. |
 | **`flag_triangulation`** | Boolean | `false` | Restricts the output to flag triangulations. |
+| **`flag_SAT`** | Boolean | `false` | Experimental: Encodes flag-ness as additional clauses for the SAT-solver. |
 | **`find_all`** | Boolean | `false` | Toggles whether to find all valid triangulations. |
 | **`log_file`** | String | `""` | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
 | **`terminal_output`** | String | `"final"` | Controls printing to the terminal. See below for details. |
