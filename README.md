@@ -34,7 +34,7 @@ using UniTriSat
 triangulate("Polytopes/small-lattice-polytopes/data/3-polytopes/v6.txt")
 ```
 
-You can also input Oscar polyhedra
+`triangulate` also accepts Oscar polyhedra as input:
 
 ```
 using Oscar
@@ -74,7 +74,7 @@ The triangulate function takes the following arguments:
 | **`return_triangulations`** | String | `"first"` | Controls whether to return all, the first, or none of the found triangulations. See below for details. |
 | **`solver`** | String | `"picosat"` | Decides the solver. `"picosat"` or `"cadical"` in general. `"d4"` for finding all solutions. |
 | **`incremental_solving`** | Bool | `false` | Experimental: Use incremental solving. Only available with CaDiCaL. |
-| **`parallel_split_solving`** | Bool | `true` | Enable parallel solving. |
+| **`parallel_split_solving`** | Bool | `true` | Enable parallel solving. This can be memory-intensive. |
 
 ### Output & Return Configurations
 
