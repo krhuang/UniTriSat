@@ -242,6 +242,15 @@ function process_polytope(  initial_vertices::Matrix{Int},
         for s in first_solution_simplices
             log_verbose(s, is_display=true)
         end
+        # Validate that #simplices is right
+        log_verbose("\nValidating first solution volume-wise:")
+        poly = polyhedron(vrep(initial_vertices), CDDLib.Library(:exact))
+        if factorial(dim)*volume(poly) != size(first_solution_simplices, 1)
+            println(volume(poly))
+            println(size(first_solution_simplices,1))
+            error("Found triangulation has wrong number of simplices... please contact us...")
+        end
+        #TODO: garbage collection of the polyhedron here?
     end
 
     if isempty(first_solution_simplices)
