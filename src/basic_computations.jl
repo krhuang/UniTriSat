@@ -583,9 +583,39 @@ end
 # We could do this via TOPCOM
 # I wonder if our simplices being unimodular reduces the set significantly?? Ask Santiago/Jesus...
 function compute_signed_circuits_via_TOPCOM(P::Matrix{Int})
-    # Call TOPCOM here?
+    # Assumes P has one point per ROW, in homogeneous coordinates
+    # (TOPCOM's own square example: [[0,0,1],[0,1,1],[1,0,1],[1,1,1]])
+    n, d = size(P)
 
-end 
+    # Build TOPCOM's point-configuration input:
+    # [[p1_1,p1_2,...],[p2_1,p2_2,...],...]
+    point_strs = ["[" * join(P[i, :], ",") * "]" for i in 1:n]
+    topcom_input = "[" * join(point_strs, ",") * "]\n"
+
+    # Pipe it into points2circuits and capture stdout/stderr
+    out, err = IOBuffer(), IOBuffer()
+    cmd = pipeline(`points2circuits`; stdin=IOBuffer(topcom_input), stdout=out, stderr=err)
+    run(cmd)
+
+    err_str = String(take!(err))
+    isempty(err_str) || @warn "points2circuits wrote to stderr" err_str
+
+    return parse_topcom_circuits(String(take!(out)))
+end
+
+function parse_topcom_circuits(output_str::String)
+    circuits = Vector{Tuple{Vector{Int},Vector{Int}}}()
+    # Expects circuits printed as {{i,j,...}:{k,l,...}}, one per line,
+    # matching TOPCOM's general "curly-bracket set" convention.
+    for m in eachmatch(r"\{\{([^{}]*)\}:\{([^{}]*)\}\}", output_str)
+        pos_str, neg_str = m.captures
+        C_pos = isempty(pos_str) ? Int[] : parse.(Int, split(pos_str, ","))
+        C_neg = isempty(neg_str) ? Int[] : parse.(Int, split(neg_str, ","))
+        # TOPCOM indices are 0-based -> shift to 1-based for Julia
+        push!(circuits, (C_pos .+ 1, C_neg .+ 1))
+    end
+    return circuits
+end
 
 
 # Function for computing intersecting pairs via circuits
