@@ -151,6 +151,20 @@ function process_polytope(  initial_vertices::Matrix{Int},
         push!(step_stats, StepStat("Compute intersection clauses", timed_result_intersections.time, timed_result_intersections.bytes))
         append!(cnf, intersection_clauses)
         log_verbose("-> Generated $(length(intersection_clauses)) intersection clauses. Step 4 complete.\n")
+    elseif config.circuit_intersection_clauses  
+        log_verbose("Step 4a: Computing intersecting simplices via circuits")
+        timed_result_intersections = @timed compute_intersections_circuits(P, S_indices, dim, config, log_verbose)
+        intersection_clauses = timed_result_intersections.value 
+        if config.flag_SAT 
+            for clause in intersection_clauses 
+                a, b = abs(clause[1]), abs(clause[2])
+                intersection_matrix[a][b] = true
+                intersection_matrix[b][a] = true 
+            end
+        end
+        push!(step_stats, StepStat("Compute intersection clauses", timed_result_intersections.time, timed_result_intersections.bytes))
+        append!(cnf, intersection_clauses)
+        log_verbose("-> Generated $(length(intersection_clauses)) intersection clauses. Step 4 complete.\n")
     else
         # Non-incremental: Use provided backend logic to find all intersections
         log_verbose("Step 4a: Computing intersecting pairs via hyperplanes...")
@@ -643,6 +657,7 @@ function triangulate(   vmatrices::Vector{Matrix{Int}};
                         return_triangulations::String="first",
                         solver::String="picosat",
                         incremental_solving::Bool=false,
+                        circuit_intersection_clauses::Bool=false,
                         check_full_dimensionality::Bool=false,
                         parallel_split_solving::Bool=true)
 
@@ -664,6 +679,7 @@ function triangulate(   polytope::Polyhedron;
                         return_triangulations::String="first",
                         solver::String="picosat",
                         incremental_solving::Bool=false,
+                        circuit_intersection_clauses::Bool=false,
                         check_full_dimensionality::Bool=false,
                         parallel_split_solving::Bool=true)
 
@@ -690,6 +706,7 @@ function triangulate(   polytopes::Vector{Polyhedron};
                         return_triangulations::String="first",
                         solver::String="picosat",
                         incremental_solving::Bool=false,
+                        circuit_intersection_clauses::Bool=false,
                         check_full_dimensionality::Bool=false,
                         parallel_split_solving::Bool=true)
 
@@ -725,6 +742,7 @@ function triangulate(   path_to_polytopes::String;
                         return_triangulations::String="first",
                         solver::String="picosat",
                         incremental_solving::Bool=false,
+                        circuit_intersection_clauses::Bool=false,
                         check_full_dimensionality::Bool=false,
                         parallel_split_solving::Bool=true)
 

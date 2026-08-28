@@ -72,6 +72,7 @@ export all_simplices,
     internal_faces,
     compute_intersections_incremental,
     compute_intersections_standard,
+    compute_intersections_circuits,
     compute_face_clauses,
     find_generic_point,
     compute_central_indices,
@@ -577,6 +578,38 @@ function compute_intersections_standard(P::Matrix{Int}, S_indices, dim::Int, con
     log_verbose("     Using CPU backend.")
     return CPUIntersection.get_intersecting_pairs_cpu_generic(P, S_indices, Val(dim))
 end
+
+# Computing the signed circuits of the point configuration
+# We could do this via TOPCOM
+# I wonder if our simplices being unimodular reduces the set significantly?? Ask Santiago/Jesus...
+function compute_signed_circuits_via_TOPCOM(P::Matrix{Int})
+    # Call TOPCOM here
+
+end 
+
+
+# Function for computing intersecting pairs via circuits
+# This computes more incompatible pairs than just nontrivial interior intersection
+function compute_intersections_circuits(P::Matrix{Int}, S_indices, dim::Int, config::Config, log_verbose::Function)
+    intersection_clauses = Vector{Vector{Int}}()
+    signed_circuits = compute_signed_circuits(P)
+    for (C_pos, C_neg) in signed_circuits
+        pos_superset_simplices_idx = Int[]
+        neg_superset_simplices_idx = Int[]
+        for (simplex, idx) in S_indices
+            if issubset(C_pos, simplex)
+                push!(pos_superset_simplices_idx, idx)
+            elseif issubset(C_neg, simplex)
+                push!(neg_superset_simplices_idx, idx)
+            end
+        end
+        for i in pos_superset_simplices_idx, j in neg_superset_simplices_idx
+            push!(intersection_clauses, [-i, -j])
+        end
+    end
+    return intersection_clauses
+end
+
 
 # Generates face-covering clauses
 # TODO: this should use a face-separator to shorten the clause? 

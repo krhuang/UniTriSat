@@ -35,6 +35,7 @@ mutable struct Config
     return_triangulations::String
     solver::String
     incremental_solving::Bool
+    circuit_intersection_clauses::Bool
     check_full_dimensionality::Bool
     parallel_split_solving::Bool
 end
