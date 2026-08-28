@@ -583,7 +583,7 @@ end
 # We could do this via TOPCOM
 # I wonder if our simplices being unimodular reduces the set significantly?? Ask Santiago/Jesus...
 function compute_signed_circuits_via_TOPCOM(P::Matrix{Int})
-    # Call TOPCOM here
+    # Call TOPCOM here?
 
 end 
 
