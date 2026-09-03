@@ -135,6 +135,17 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
     A_rational = reduce(vcat, [h.a' for h in all_halfspaces])
     b_rational = [h.β for h in all_halfspaces]
 
+    # The exact membership test below works off these rational rows rather than
+    # off `poly` itself. `in(point, poly)` re-derives the H-representation from
+    # the CDD polyhedron on every call, and each of those calls retains about
+    # 4 KB that no full GC.gc() reclaims -- at the ~3000 boundary points of a
+    # 6-dimensional polytope that is ~1.1 MB leaked per polytope. Testing the
+    # rows directly is leak-free and avoids the per-point CDD round-trip.
+    all_hyperplanes = hyperplanes(hrep_poly)
+    Ae_rational = isempty(all_hyperplanes) ? nothing :
+        reduce(vcat, [h.a' for h in all_hyperplanes])
+    be_rational = [h.β for h in all_hyperplanes]
+
     A_float = Float64.(A_rational)
     b_float = Float64.(b_rational)
 
@@ -165,7 +176,22 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
         if use_exact_check
             pt_rational = Rational{BigInt}.(pt_int_vec)
-            if in(pt_rational, poly)
+            inside = true
+            for i in 1:num_hyperplanes
+                if dot(@view(A_rational[i, :]), pt_rational) > b_rational[i]
+                    inside = false
+                    break
+                end
+            end
+            if inside && !isnothing(Ae_rational)
+                for i in 1:length(be_rational)
+                    if dot(@view(Ae_rational[i, :]), pt_rational) != be_rational[i]
+                        inside = false
+                        break
+                    end
+                end
+            end
+            if inside
                 push!(points_list, pt_int_vec)
             end
         elseif !is_outside_float
