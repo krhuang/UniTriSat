@@ -23,11 +23,11 @@ const TIMING_RESULTS = Vector{Tuple{String, Float64}}()
 macro timed_testset(name, expr)
     quote
         local t0 = time()
-        @testset $(esc(name)) begin
+        @testset $name begin
             $(esc(expr))
         end
         local elapsed = time() - t0
-        push!(TIMING_RESULTS, ($(esc(name)), elapsed))
+        push!(TIMING_RESULTS, ($name, elapsed))
     end
 end
 
