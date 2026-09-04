@@ -45,7 +45,6 @@ end
 total_start = time()
 
 @testset "UniTriSat Full Suite" begin
-    #=
     @timed_testset "Standard CPU Backend Polytopes Tests" begin
         test_data = [
             (3, 8, 125, 125),
@@ -71,15 +70,14 @@ total_start = time()
             # The @test macro tracks and reports the success
             @test result.number_triangulatable == exp
         end
-    end=#
+    end
     @timed_testset "Circuit Backend Polytopes Tests" begin
         test_data = [
-            (3,3,5,5)
-            #=(3, 8, 125, 125),
+            (3, 8, 125, 125),
             (3, 16, 3288, 3288),
             (4, 10, 618, 618),
             (5, 9, 344, 344),
-            (6, 7, 97, 97)=#
+            (6, 7, 97, 97)
         ]
         println("Test suite for Circuits backend:")
         for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)
