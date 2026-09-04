@@ -49,9 +49,12 @@ total_start = time()
         test_data = [
             (3, 8, 125, 125),
             (3, 16, 3288, 3288),
+            (3, 19, 7771, 7769),
             (4, 10, 618, 618),
             (5, 9, 344, 344),
-            (6, 7, 97, 97)
+            (5, 11, 869, 869),
+            (6, 7, 97, 97),
+            (6, 11, 964, 964)
         ]
         println("Test suite for CPU backend:")
         for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)
@@ -75,9 +78,12 @@ total_start = time()
         test_data = [
             (3, 8, 125, 125),
             (3, 16, 3288, 3288),
+            (3, 19, 7771, 7769),
             (4, 10, 618, 618),
             (5, 9, 344, 344),
-            (6, 7, 97, 97)
+            (5, 11, 869, 869),
+            (6, 7, 97, 97),
+            (6, 11, 964, 964)
         ]
         println("Test suite for Circuits backend:")
         for (i, (dim, vol, exp, exp_reg)) in enumerate(test_data)
