@@ -583,50 +583,66 @@ end
 # We could do this via TOPCOM
 # I wonder if our simplices being unimodular reduces the set significantly?? Ask Santiago/Jesus...
 function compute_signed_circuits_via_TOPCOM(P::Matrix{Int})
-    # Assumes P has one point per ROW, in homogeneous coordinates
-    # (TOPCOM's own square example: [[0,0,1],[0,1,1],[1,0,1],[1,1,1]])
     n, d = size(P)
 
-    # Build TOPCOM's point-configuration input:
-    # [[p1_1,p1_2,...],[p2_1,p2_2,...],...]
-    point_strs = ["[" * join(P[i, :], ",") * "]" for i in 1:n]
+    # Homogenize the point configuration.
+    H = hcat(P, ones(Int, n))
+
+    point_strs = ["[" * join(H[i, :], ",") * "]" for i in 1:n]
     topcom_input = "[" * join(point_strs, ",") * "]\n"
 
-    # Pipe it into points2circuits and capture stdout/stderr
-    out, err = IOBuffer(), IOBuffer()
-    cmd = pipeline(`points2circuits`; stdin=IOBuffer(topcom_input), stdout=out, stderr=err)
+    out = IOBuffer()
+    err = IOBuffer()
+
+    cmd = pipeline(
+        `points2circuits`;
+        stdin = IOBuffer(topcom_input),
+        stdout = out,
+        stderr = err,
+    )
+
     run(cmd)
 
-    err_str = String(take!(err))
-    isempty(err_str) || @warn "points2circuits wrote to stderr" err_str
-
+    # TOPCOM writes diagnostic information to stderr, so we don't
+    # treat nonempty stderr as an error.
     return parse_topcom_circuits(String(take!(out)))
 end
 
 function parse_topcom_circuits(output_str::String)
-    circuits = Vector{Tuple{Vector{Int},Vector{Int}}}()
-    # Expects circuits printed as {{i,j,...}:{k,l,...}}, one per line,
-    # matching TOPCOM's general "curly-bracket set" convention.
-    for m in eachmatch(r"\{\{([^{}]*)\}:\{([^{}]*)\}\}", output_str)
+    circuits = Vector{Tuple{Vector{Int}, Vector{Int}}}()
+
+    # TOPCOM outputs circuits as:
+    # [{0,3},{1,2}]
+    #
+    # The indices are 0-based; convert them to Julia's 1-based indexing.
+    for m in eachmatch(r"\[\{([^{}]*)\},\{([^{}]*)\}\]", output_str)
         pos_str, neg_str = m.captures
-        C_pos = isempty(pos_str) ? Int[] : parse.(Int, split(pos_str, ","))
-        C_neg = isempty(neg_str) ? Int[] : parse.(Int, split(neg_str, ","))
-        # TOPCOM indices are 0-based -> shift to 1-based for Julia
+
+        C_pos = isempty(strip(pos_str)) ?
+            Int[] :
+            parse.(Int, strip.(split(pos_str, ",")))
+
+        C_neg = isempty(strip(neg_str)) ?
+            Int[] :
+            parse.(Int, strip.(split(neg_str, ",")))
+
         push!(circuits, (C_pos .+ 1, C_neg .+ 1))
     end
+
     return circuits
 end
+
 
 
 # Function for computing intersecting pairs via circuits
 # This computes more incompatible pairs than just nontrivial interior intersection
 function compute_intersections_circuits(P::Matrix{Int}, S_indices, dim::Int, config::Config, log_verbose::Function)
     intersection_clauses = Vector{Vector{Int}}()
-    signed_circuits = compute_signed_circuits(P)
+    signed_circuits = compute_signed_circuits_via_TOPCOM(P)
     for (C_pos, C_neg) in signed_circuits
         pos_superset_simplices_idx = Int[]
         neg_superset_simplices_idx = Int[]
-        for (simplex, idx) in S_indices
+        for (idx, simplex) in enumerate(S_indices)
             if issubset(C_pos, simplex)
                 push!(pos_superset_simplices_idx, idx)
             elseif issubset(C_neg, simplex)
@@ -637,6 +653,10 @@ function compute_intersections_circuits(P::Matrix{Int}, S_indices, dim::Int, con
             push!(intersection_clauses, [-i, -j])
         end
     end
+    #println(P)
+    #println(S_indices)
+    #println(signed_circuits)
+    #println(intersection_clauses)
     return intersection_clauses
 end
 

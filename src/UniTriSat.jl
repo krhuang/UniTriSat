@@ -137,6 +137,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
     n = length(S_indices) 
     intersection_matrix = [falses(n) for _ in 1:n]
     # --- Step 4: Intersections ---
+    
     if config.incremental_solving
         log_verbose("Step 4a: Computing intersection clauses...")
         timed_result_intersections = @timed compute_intersections_incremental(P, S_indices, internal_faces_set, dim, num_lattice_points)
@@ -151,6 +152,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         push!(step_stats, StepStat("Compute intersection clauses", timed_result_intersections.time, timed_result_intersections.bytes))
         append!(cnf, intersection_clauses)
         log_verbose("-> Generated $(length(intersection_clauses)) intersection clauses. Step 4 complete.\n")
+    
     elseif config.circuit_intersection_clauses  
         log_verbose("Step 4a: Computing intersecting simplices via circuits")
         timed_result_intersections = @timed compute_intersections_circuits(P, S_indices, dim, config, log_verbose)
@@ -167,7 +169,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         log_verbose("-> Generated $(length(intersection_clauses)) intersection clauses. Step 4 complete.\n")
     else
         # Non-incremental: Use provided backend logic to find all intersections
-        log_verbose("Step 4a: Computing intersecting pairs via hyperplanes...")
+        log_verbose("Step 4a: Computing intersecting pairs via candidate separating hyperplanes...")
         timed_result_intersections = @timed compute_intersections_standard(P, S_indices, dim, config, log_verbose)
         intersection_clauses = timed_result_intersections.value
         if config.flag_SAT # Build a data structure for flag_SAT computations here
@@ -262,6 +264,7 @@ function process_polytope(  initial_vertices::Matrix{Int},
         if factorial(dim)*volume(poly) != size(first_solution_simplices, 1)
             println(volume(poly))
             println(size(first_solution_simplices,1))
+            println()
             error("Found triangulation has wrong number of simplices... please contact us...")
         end
         #TODO: garbage collection of the polyhedron here?
@@ -521,8 +524,8 @@ function setup_run( polytopes::Vector{Matrix{Int}},
                     return_triangulations::String="first",
                     solver::String="picosat",
                     incremental_solving::Bool=false,
-                    check_full_dimensionality::Bool=false,
                     circuit_intersection_clauses::Bool=false,
+                    check_full_dimensionality::Bool=false,
                     parallel_split_solving::Bool=true)
 
     if intersection_backend == "gpu"
@@ -597,7 +600,7 @@ function setup_run( polytopes::Vector{Matrix{Int}},
             """)
     end
 
-    config = Config(terminal_output, unimodular, intersection_backend, regular, flag_triangulation, flag_SAT, find_all, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, circuit_intersection_clauses,  check_full_dimensionality, parallel_split_solving)
+    config = Config(terminal_output, unimodular, intersection_backend, regular, flag_triangulation, flag_SAT, find_all, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, circuit_intersection_clauses, check_full_dimensionality, parallel_split_solving)
     log_stream = nothing
     
     try
