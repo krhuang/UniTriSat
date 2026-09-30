@@ -106,11 +106,14 @@ export plot
     end
 
     function plot(initial_vertices::Matrix{Int}, dim::Int, first_solution_simplices::Vector{Matrix{Int}})
+        @assert dim == 3  # plotting is not really useful outside of 3-dimensional examples..
         if dim == 3
             temp_path, temp_io = mktemp()
-            try write(temp_io, format_simplices_for_plotter(first_solution_simplices))
+            try
+                write(temp_io, format_simplices_for_plotter(first_solution_simplices))
                 close(temp_io)
-                run(`python src/plot_triangulation.py $(temp_path)`)
+                script = joinpath(@__DIR__, "plot_triangulation.py")
+                run(`python $script $temp_path`)
             finally
                 rm(temp_path, force=true)
             end
