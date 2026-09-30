@@ -118,7 +118,12 @@ end
 
 function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
-    # TODO: write a comment here about floats??
+    # TODO: write a comment here about floats?
+    # Kyle writes:
+    # As far as I understand, looking back at it, we use a fast-float check 
+    # but if the value is within tolerance we revert to an exact rational check
+    # Moreover, being within tolerance *does* actually occur, sometimes
+    # Why is this tolerance enough?
     float_threshold = 1e-10
 
     verts = Rational{BigInt}.(vertices)
@@ -134,6 +139,13 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
     A_rational = reduce(vcat, [h.a' for h in all_halfspaces])
     b_rational = [h.β for h in all_halfspaces]
+    # Exact membership test avoiding in(point, poly) because of memory leaks
+    # ---
+    all_hyperplanes = hyperplanes(hrep_poly)
+    Ae_rational = isempty(all_hyperplanes) ? nothing : 
+        reduce(vcat, [h.a' for h in all_hyperplanes])
+    be_reational = [h.β for h in all_hyperplanes]
+    # ---
 
     A_float = Float64.(A_rational)
     b_float = Float64.(b_rational)
@@ -165,7 +177,23 @@ function lattice_points_via_CDDLib(vertices::Matrix{Int})
 
         if use_exact_check
             pt_rational = Rational{BigInt}.(pt_int_vec)
-            if in(pt_rational, poly)
+            inside = true 
+            for i in 1:num_hyperplanes
+                if dot(@view(A_rational[i, :]), pt_rational) > b_rational[i]
+                    inside = false
+                    break 
+                end
+            end 
+            if inside && !isnothing(Ae_rational)
+                for i in 1:length(be_rational)
+                    if dot(@view(Ae_rational[i, :]), pt_rational) != be_rational[i]
+                        inside = false 
+                        break 
+                    end 
+                end 
+            end 
+            #if in(pt_rational, poly) We avoid this due to memory leak issues
+            if inside
                 push!(points_list, pt_int_vec)
             end
         elseif !is_outside_float

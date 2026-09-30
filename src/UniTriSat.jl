@@ -442,7 +442,7 @@ function run_processing(polytopes::Vector{Matrix{Int}}, config::Config, log_stre
             avg_solutions_str = @sprintf("Average Target Solutions/Poly: %.2f\n", num_sol / number_of_polytopes)
         end
         
-        reg_str  = config.regular ? "\nRegularly Triangulatable:       \u001b[32m$regularly_triangulatable\u001b[0m" : ""
+        reg_str  = config.regular ? "\nRegularly Triangulatable:      \u001b[32m$regularly_triangulatable\u001b[0m" : ""
         flag_str = config.flag_triangulation ? "\nFlag Triangulatable:            \u001b[32m$flag_triangulatable\u001b[0m" : ""
         quad_str = (config.regular && config.flag_triangulation) ? "\nQuadratic Triangulatable:       \u001b[32m$quadratic_triangulatable\u001b[0m" : ""
 
