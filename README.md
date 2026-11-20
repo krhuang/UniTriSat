@@ -69,7 +69,7 @@ The triangulate function takes the following arguments:
 | **`find_all`** | Boolean | `false` | Toggles whether to find all valid triangulations. |
 | **`log_file`** | String | `""` | Path for logging (e.g., `"logs/my_run.log"`). Leave empty to disable. |
 | **`terminal_output`** | String | `"final"` | Controls printing to the terminal. See below for details. |
-| **`plot`** | Boolean | `false` | Toggles plotting. Projects to 3-faces in higher dimensions. Plots only the first result if `find_all` is `true`. |
+| **`plot`** | Boolean | `false` | Toggles plotting (2D and 3D only; requires Python with `plotly` and `numpy`). Plots only the first result if `find_all` is `true`. |
 | **`use_normaliz`** | Boolean | `false` | Uses Normaliz for interior lattice points (faster, but potentially unstable). |
 | **`return_triangulations`** | String | `"first"` | Controls whether to return all, the first, or none of the found triangulations. See below for details. |
 | **`solver`** | String | `"picosat"` | Decides the solver. `"picosat"` or `"cadical"` in general. `"d4"` for finding all solutions. |

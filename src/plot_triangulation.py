@@ -5,10 +5,10 @@ import sys
 
 def parse_data_file(filepath):
     """
-    Parses a JSON file containing a list of tetrahedra.
-    The expected format is a list of tetrahedra, where each tetrahedron
-    is a list of 4 vertices, and each vertex is a list of 3 coordinates.
-    e.g., [[[x,y,z], [x,y,z], [x,y,z], [x,y,z]], ...]
+    Parses a JSON file containing a list of simplices: triangles in 2D
+    (3 vertices with 2 coordinates each) or tetrahedra in 3D (4 vertices
+    with 3 coordinates each).
+    e.g., [[[x,y], [x,y], [x,y]], ...] or [[[x,y,z], [x,y,z], [x,y,z], [x,y,z]], ...]
     """
     try:
         with open(filepath, 'r') as f:
@@ -26,9 +26,9 @@ def parse_data_file(filepath):
         return None
 
 
-def scale_tetrahedron(vertices, scale_factor=0.8):
+def scale_simplex(vertices, scale_factor=0.8):
     """
-    Scales a tetrahedron's vertices towards its centroid to improve visibility.
+    Scales a simplex's vertices towards its centroid to improve visibility.
     """
     centroid = np.mean(vertices, axis=0)
     scaled_vertices = centroid + scale_factor * (vertices - centroid)
@@ -40,9 +40,13 @@ def plot_triangulation(tetrahedra_vertices):
     The plot boundaries are calculated automatically.
     """
     if not tetrahedra_vertices:
-        print("No tetrahedra to plot.")
+        print("No simplices to plot.")
         return
-        
+
+    if tetrahedra_vertices[0].shape[1] == 2:
+        plot_triangulation_2d(tetrahedra_vertices)
+        return
+
     i_faces = [0, 0, 0, 1]
     j_faces = [1, 1, 2, 2]
     k_faces = [2, 3, 3, 3]
@@ -50,7 +54,7 @@ def plot_triangulation(tetrahedra_vertices):
     fig = go.Figure()
 
     for i, vertices in enumerate(tetrahedra_vertices):
-        scaled_verts = scale_tetrahedron(vertices)
+        scaled_verts = scale_simplex(vertices)
         fig.add_trace(go.Mesh3d(
             x=scaled_verts[:, 0],
             y=scaled_verts[:, 1],
@@ -78,6 +82,32 @@ def plot_triangulation(tetrahedra_vertices):
             zaxis=dict(title='Z', range=[min_coords[2] - margin, max_coords[2] + margin]),
             aspectmode='data'
         ),
+        margin=dict(l=0, r=0, b=0, t=40)
+    )
+
+    fig.show()
+
+def plot_triangulation_2d(triangles):
+    """
+    Creates an interactive 2D plot for a list of triangles.
+    """
+    fig = go.Figure()
+
+    for i, vertices in enumerate(triangles):
+        scaled_verts = scale_simplex(vertices)
+        closed = np.vstack([scaled_verts, scaled_verts[:1]])
+        fig.add_trace(go.Scatter(
+            x=closed[:, 0],
+            y=closed[:, 1],
+            fill='toself',
+            mode='lines',
+            name=f'Triangle {i+1}'
+        ))
+
+    fig.update_layout(
+        title_text='Interactive Triangulation from File',
+        xaxis=dict(title='X'),
+        yaxis=dict(title='Y', scaleanchor='x', scaleratio=1),
         margin=dict(l=0, r=0, b=0, t=40)
     )
 
