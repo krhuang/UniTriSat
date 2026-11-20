@@ -513,7 +513,7 @@ function print_stats_table!(buf::IOBuffer, global_step_stats::Dict{String, StatA
     end
 end
 
-function setup_run( polytopes::Vector{Matrix{Int}},
+function setup_run( polytopes::Vector{Matrix{Int}};
                     intersection_backend::String="cpu",
                     unimodular::Bool=true, regular::Bool=false, flag_triangulation::Bool=false, flag_SAT=false,
                     find_all::Bool=false, log_file::String="",
@@ -532,6 +532,10 @@ function setup_run( polytopes::Vector{Matrix{Int}},
         # Scan the whole run; warn only if some polytope can actually overflow.
         # Vertex coordinates bound the lattice points, so no enumeration needed.
         Precision.check_gpu_precision(polytopes)
+    end
+
+    if circuit_intersection_clauses
+        @warn("The circuits backend calls TOPCOM's `points2circuits` and requires TOPCOM 1.2.0 or newer; earlier versions use different circuit conventions.")
     end
 
     if isempty(polytopes)
@@ -625,95 +629,27 @@ end
 # Various triangulate entry points. We allow differing inputs for user convenience.
 # via the extension /ext/UniTriSatOscarExt.jl this should work for Oscar polyhedra as well.
 
-function triangulate(   vmatrix::Matrix{Int};
-                        intersection_backend::String="cpu",
-                        unimodular::Bool=true,
-                        regular::Bool=false,
-                        flag_triangulation::Bool=false,
-                        flag_SAT::Bool=false,
-                        find_all::Bool=false,
-                        log_file::String="",
-                        terminal_output::String="final",
-                        validate::Bool=false,
-                        plot::Bool=false,
-                        use_normaliz::Bool=false,
-                        return_triangulations::String="first",
-                        solver::String="picosat",
-                        incremental_solving::Bool=false,
-                        circuit_intersection_clauses::Bool=false,
-                        check_full_dimensionality::Bool=false,
-                        parallel_split_solving::Bool=true)
+function triangulate(   vmatrix::Matrix{Int}; kwargs...)
 
-     return setup_run([vmatrix], intersection_backend, unimodular, regular, flag_triangulation, flag_SAT, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, circuit_intersection_clauses,  check_full_dimensionality, parallel_split_solving)
+     return setup_run([vmatrix]; kwargs...)
 end
 
-function triangulate(   vmatrices::Vector{Matrix{Int}};
-                        intersection_backend::String="cpu",
-                        unimodular::Bool=true,
-                        regular::Bool=false,
-                        flag_triangulation::Bool=false,
-                        flag_SAT::Bool=false,
-                        find_all::Bool=false,
-                        log_file::String="",
-                        terminal_output::String="final",
-                        validate::Bool=false,
-                        plot::Bool=false,
-                        use_normaliz::Bool=false,
-                        return_triangulations::String="first",
-                        solver::String="picosat",
-                        incremental_solving::Bool=false,
-                        circuit_intersection_clauses::Bool=false,
-                        check_full_dimensionality::Bool=false,
-                        parallel_split_solving::Bool=true)
+function triangulate(   vmatrices::Vector{Matrix{Int}}; kwargs...)
 
-    return setup_run(vmatrices, intersection_backend, unimodular, regular, flag_triangulation, flag_SAT, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, circuit_intersection_clauses, check_full_dimensionality, parallel_split_solving)
+    return setup_run(vmatrices; kwargs...)
 end
 
-function triangulate(   polytope::Polyhedron;
-                        intersection_backend::String="cpu",
-                        unimodular::Bool=true,
-                        regular::Bool=false,
-                        flag_triangulation::Bool=false,
-                        flag_SAT::Bool=false,
-                        find_all::Bool=false,
-                        log_file::String="",
-                        terminal_output::String="final",
-                        validate::Bool=false,
-                        plot::Bool=false,
-                        use_normaliz::Bool=false,
-                        return_triangulations::String="first",
-                        solver::String="picosat",
-                        incremental_solving::Bool=false,
-                        circuit_intersection_clauses::Bool=false,
-                        check_full_dimensionality::Bool=false,
-                        parallel_split_solving::Bool=true)
+function triangulate(   polytope::Polyhedron; kwargs...)
 
     vmatrix = _convert_polyhedron_to_vmatrix(polytope)
     if isempty(vmatrix)
         @error("Could not process a single polytope")
         return nothing
     end
-    return setup_run([vmatrix], intersection_backend, unimodular, regular, flag_triangulation, flag_SAT, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, circuit_intersection_clauses,  check_full_dimensionality, parallel_split_solving)
+    return setup_run([vmatrix]; kwargs...)
 end
 
-function triangulate(   polytopes::Vector{Polyhedron};
-                        intersection_backend::String="cpu",
-                        unimodular::Bool=true,
-                        regular::Bool=false,
-                        flag_triangulation::Bool=false,
-                        flag_SAT::Bool=false,
-                        find_all::Bool=false,
-                        log_file::String="",
-                        terminal_output::String="final",
-                        validate::Bool=false,
-                        plot::Bool=false,
-                        use_normaliz::Bool=false,
-                        return_triangulations::String="first",
-                        solver::String="picosat",
-                        incremental_solving::Bool=false,
-                        circuit_intersection_clauses::Bool=false,
-                        check_full_dimensionality::Bool=false,
-                        parallel_split_solving::Bool=true)
+function triangulate(   polytopes::Vector{Polyhedron}; kwargs...)
 
     vmatrices = Matrix{Int}[]
     for p in polytopes
@@ -729,27 +665,10 @@ function triangulate(   polytopes::Vector{Polyhedron};
         @error("Could not porcess a single polytope.")
           return Vector{Vector{Matrix{Int}}}[]
     end
-    return setup_run(vmatrices, intersection_backend, unimodular, regular, flag_triangulation, flag_SAT, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, circuit_intersection_clauses,  check_full_dimensionality, parallel_split_solving)
+    return setup_run(vmatrices; kwargs...)
 end
 
-function triangulate(   path_to_polytopes::String;
-                        intersection_backend::String="cpu",
-                        unimodular::Bool=true,
-                        regular::Bool=false,
-                        flag_triangulation::Bool=false,
-                        flag_SAT::Bool=false,
-                        find_all::Bool=false,
-                        log_file::String="",
-                        terminal_output::String="final",
-                        validate::Bool=false,
-                        plot::Bool=false,
-                        use_normaliz::Bool=false,
-                        return_triangulations::String="first",
-                        solver::String="picosat",
-                        incremental_solving::Bool=false,
-                        circuit_intersection_clauses::Bool=false,
-                        check_full_dimensionality::Bool=false,
-                        parallel_split_solving::Bool=true)
+function triangulate(   path_to_polytopes::String; kwargs...)
 
     local polytopes
     full_path = abspath(path_to_polytopes)
@@ -767,7 +686,7 @@ function triangulate(   path_to_polytopes::String;
         @error("Error loading polytopes from '$full_path': '$e'") 
         return Vector{Vector{Matrix{Int}}}[]
     end
-    return setup_run(polytopes, intersection_backend, unimodular, regular, flag_triangulation, flag_SAT, find_all, log_file, terminal_output, validate, plot, use_normaliz, return_triangulations, solver, incremental_solving, circuit_intersection_clauses,  check_full_dimensionality, parallel_split_solving)
+    return setup_run(polytopes; kwargs...)
 end
 
 end
