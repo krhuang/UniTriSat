@@ -368,9 +368,10 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
                 clause_budget_exhausted = true
                 search_finished[] = true
                 close(clause_channel)
-                while isready(clause_channel)
-                    take!(clause_channel) # discard: injection is over
-                end
+                # Discard: injection is over. Iterating stops once the closed
+                # channel is empty; `while isready(...) take!(...)` can throw,
+                # because isready also counts generators still blocked in put!.
+                for _ in clause_channel end
                 empty!(buffer)
                 log_verbose("      Clause budget of $(MAX_INJECTED_CLAUSES) injected clauses reached; continuing with the solver only.")
                 print_status!(true)
@@ -464,9 +465,7 @@ function solve_cadical_incremental(cnf::Vector{Vector{Int}}, P::Matrix{Int}, S_i
         # Tear everything down on every exit path.
         search_finished[] = true
         close(clause_channel) # unblocks workers stuck in put!
-        while isready(clause_channel)
-            take!(clause_channel) # free channel memory promptly
-        end
+        for _ in clause_channel end # free channel memory promptly (by iterating, see above)
         if !istaskdone(solve_task)
             CadicalWrapper.interrupt(solver)
             try
